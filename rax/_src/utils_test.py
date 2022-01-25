@@ -197,6 +197,40 @@ class ApproxRanksTest(jtu.JaxTestCase):
         ranks, jnp.asarray([ranks_with_where[0], ranks_with_where[2]]))
 
 
+class SafeReduceTest(jtu.JaxTestCase):
+
+  def test_reduces_values_according_to_fn(self):
+    a = jnp.array([[3., 2.], [4.5, 1.2]])
+
+    res_mean = utils.safe_reduce(a, reduce_fn=jnp.mean)
+    res_sum = utils.safe_reduce(a, reduce_fn=jnp.sum)
+    res_none = utils.safe_reduce(a, reduce_fn=None)
+
+    self.assertAllClose(res_mean, jnp.mean(a))
+    self.assertAllClose(res_sum, jnp.sum(a))
+    self.assertAllClose(res_none, a)
+
+  def test_reduces_values_with_mask(self):
+    a = jnp.array([[3., 2., 0.01], [4.5, 1.2, 0.9]])
+    where = jnp.array([[True, False, True], [True, True, False]])
+
+    res_mean = utils.safe_reduce(a, where=where, reduce_fn=jnp.mean)
+    res_sum = utils.safe_reduce(a, where=where, reduce_fn=jnp.sum)
+    res_none = utils.safe_reduce(a, where=where, reduce_fn=None)
+
+    self.assertAllClose(res_mean, jnp.mean(a, where=where))
+    self.assertAllClose(res_sum, jnp.sum(a, where=where))
+    self.assertAllClose(res_none, jnp.where(where, a, 0.))
+
+  def test_reduces_mean_with_all_masked(self):
+    a = jnp.array([[3., 2., 0.01], [4.5, 1.2, 0.9]])
+    where = jnp.array([[False, False, False], [False, False, False]])
+
+    res_mean = utils.safe_reduce(a, where=where, reduce_fn=jnp.mean)
+
+    self.assertAllClose(res_mean, jnp.array(0.))
+
+
 def load_tests(loader, tests, ignore):
   del loader, ignore  # Unused.
   tests.addTests(

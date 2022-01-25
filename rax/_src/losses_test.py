@@ -159,32 +159,32 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
 
   @parameterized.parameters([{
       "loss_fn": losses.pairwise_hinge_loss,
-      "expected_value": 8.
+      "expected_value": 7.
   }, {
       "loss_fn": losses.pairwise_logistic_loss,
-      "expected_value": 6.32057
+      "expected_value": 5.320569
   }, {
       "loss_fn":
           losses.pointwise_sigmoid_loss,
       "expected_value":
           -log(1. - sigmoid(0.)) - log(1. - sigmoid(3.)) -
-          2. * log(sigmoid(1.)) - log(sigmoid(2.))
+          2. * log(sigmoid(2.)) - log(sigmoid(1.))
   }, {
       "loss_fn":
           losses.pointwise_mse_loss,
       "expected_value":
-          (0. - 0.)**2 + (3. - 0.)**2 + 2. * (1. - 1.)**2 + (2. - 1.)**2
+          (0. - 0.)**2 + (3. - 0.)**2 + 2. * (2. - 1.)**2 + (1. - 1.)**2
   }, {
       "loss_fn":
           losses.pairwise_mse_loss,
       "expected_value":
-          (1. * ((-3. - 0.)**2 + (-1. - -1.)**2 + (-2. - -1.)**2)) +
-          (1. * ((3. - 0.)**2 + (2. - -1.)**2 + (1. - -1.)**2)) +
-          (2. * ((1. - 1.)**2 + (-2. - 1.)**2 + (-1. - 0.)**2)) +
-          (1. * ((2. - 1.)**2 + (-1. - 1.)**2 + (1. - 0.)**2))
+          (1. * ((-3. - 0.)**2 + (-2. - -1.)**2 + (-1. - -1.)**2)) +
+          (1. * ((3. - 0.)**2 + (1. - -1.)**2 + (2. - -1.)**2)) +
+          (2. * ((2. - 1.)**2 + (-1. - 1.)**2 + (1. - 0.)**2)) +
+          (1. * ((1. - 1.)**2 + (-2. - 1.)**2 + (-1. - 0.)**2))
   }])
   def test_computes_weighted_loss_value(self, loss_fn, expected_value):
-    scores = jnp.asarray([0., 3., 1., 2.])
+    scores = jnp.asarray([0., 3., 2., 1.])
     labels = jnp.asarray([0., 0., 1., 1.])
     weights = jnp.asarray([1., 1., 2., 1.])
 
@@ -306,10 +306,10 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
       "expected_shape": (2,)
   }, {
       "loss_fn": losses.pairwise_hinge_loss,
-      "expected_shape": (2, 3, 3)
+      "expected_shape": (2, 9)
   }, {
       "loss_fn": losses.pairwise_logistic_loss,
-      "expected_shape": (2, 3, 3)
+      "expected_shape": (2, 9)
   }, {
       "loss_fn": losses.pairwise_mse_loss,
       "expected_shape": (2, 9)
@@ -325,8 +325,10 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
     labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
 
     none_loss = loss_fn(scores, labels, reduce_fn=None)
+    sum_loss = loss_fn(scores, labels, reduce_fn=jnp.sum)
 
     self.assertEqual(none_loss.shape, expected_shape)
+    self.assertEqual(jnp.sum(none_loss), sum_loss)
 
   @parameterized.parameters([
       losses.softmax_loss, losses.pairwise_hinge_loss,

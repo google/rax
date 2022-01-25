@@ -40,7 +40,7 @@ DeviceArray([[ 0.02100503,  0.0570976 , -0.07810265],
 
 """
 
-import functools
+import operator
 from typing import Callable, Optional
 
 import jax
@@ -50,13 +50,12 @@ from rax._src import utils
 from rax._src.protocols import ReduceFn
 
 
-def softmax_loss(
-    scores: jnp.ndarray,
-    labels: jnp.ndarray,
-    *,
-    where: Optional[jnp.ndarray] = None,
-    weights: Optional[jnp.ndarray] = None,
-    reduce_fn: Optional[ReduceFn] = jnp.sum) -> jnp.float_:
+def softmax_loss(scores: jnp.ndarray,
+                 labels: jnp.ndarray,
+                 *,
+                 where: Optional[jnp.ndarray] = None,
+                 weights: Optional[jnp.ndarray] = None,
+                 reduce_fn: Optional[ReduceFn] = jnp.sum) -> jnp.float_:
   r"""Ranking softmax loss.
 
   Standalone usage:
@@ -125,64 +124,33 @@ def softmax_loss(
   return utils.safe_reduce(loss, reduce_fn=reduce_fn)
 
 
-def compute_pairwise_loss(
-    scores: jnp.ndarray,
-    labels: jnp.ndarray,
-    *,
-    where: Optional[jnp.ndarray] = None,
-    weights: Optional[jnp.ndarray] = None,
-    reduce_fn: ReduceFn = jnp.sum,
-    pair_loss_fn: Callable[[jnp.float_, jnp.ndarray], jnp.float_],
-) -> jnp.ndarray:
-  """Computes a pairwise loss.
+def compute_pairs(
+    a: jnp.ndarray, op: Callable[[jnp.ndarray, jnp.ndarray],
+                                 jnp.ndarray]) -> jnp.ndarray:
+  """Computes pairs based on values of `a` and the given pairwise `op`.
 
   Args:
-    scores: A [..., list_size]-jnp.ndarray, indicating the score of each item.
-    labels: A [..., list_size]-jnp.ndarray, indicating the relevance label for
-      each item.
-    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
-      valid for computing the loss. Items for which this is False will be
-      ignored when computing the loss.
-    weights: An optional [..., list_size]-jnp.ndarray, indicating the weight for
-      each item.
-    reduce_fn: An optional Callable that reduces the loss values. The callable
-      should accept a loss tensor and an optional `where` tensor indicating
-      which elements to include in the reduction. Can be `jnp.sum` or
-      `jnp.mean`. If `None`, no reduction is performed.
-    pair_loss_fn: A callable that computes the loss on pairs of scores.
+    a: The array used to form pairs. The last axis is used to form pairs.
+    op: The binary op to map a pair of values to a single value.
 
   Returns:
-    The reduced result of the given pairwise loss function.
+    A new array with the same leading dimensions as `a`, but with the last
+    dimension expanded so it includes all pairs `op(a[..., i], a[..., j])`
   """
-  label_i = jnp.expand_dims(labels, axis=-1)
-  label_j = jnp.expand_dims(labels, axis=-2)
-  valid_pairs = label_i > label_j
-
-  score_i = jnp.broadcast_to(
-      jnp.expand_dims(scores, axis=-1), valid_pairs.shape)
-  score_j = jnp.broadcast_to(
-      jnp.expand_dims(scores, axis=-2), valid_pairs.shape)
-  vmap_last_axis = functools.partial(jax.vmap, in_axes=-1, out_axes=-1)
-  loss_pairs = vmap_last_axis(vmap_last_axis(pair_loss_fn))(score_i, score_j)
-
-  if where is not None:
-    where_i = jnp.expand_dims(where, axis=-1)
-    where_j = jnp.expand_dims(where, axis=-2)
-    valid_pairs &= where_i & where_j
-
-  if weights is not None:
-    loss_pairs *= weights[:, None]
-
-  return utils.safe_reduce(loss_pairs, where=valid_pairs, reduce_fn=reduce_fn)
+  a_i = jnp.expand_dims(a, -1)
+  a_j = jnp.expand_dims(a, -2)
+  result_shape = jnp.broadcast_shapes(a_i.shape, a_j.shape)
+  result = jnp.broadcast_to(op(a_i, a_j), result_shape)
+  out_shape = tuple(result.shape[:-2]) + (result.shape[-2] * result.shape[-1],)
+  return jnp.reshape(result, out_shape)
 
 
-def pairwise_hinge_loss(
-    scores: jnp.ndarray,
-    labels: jnp.ndarray,
-    *,
-    where: Optional[jnp.ndarray] = None,
-    weights: Optional[jnp.ndarray] = None,
-    reduce_fn: ReduceFn = jnp.sum) -> jnp.ndarray:
+def pairwise_hinge_loss(scores: jnp.ndarray,
+                        labels: jnp.ndarray,
+                        *,
+                        where: Optional[jnp.ndarray] = None,
+                        weights: Optional[jnp.ndarray] = None,
+                        reduce_fn: ReduceFn = jnp.sum) -> jnp.ndarray:
   r"""Ranking pairwise hinge loss.
 
   Standalone usage:
@@ -231,26 +199,32 @@ def pairwise_hinge_loss(
   Returns:
     The pairwise hinge loss.
   """
+  # Expand scores and labels into pairwise versions.
+  scores = compute_pairs(scores, operator.sub)
+  labels = compute_pairs(labels, operator.gt)
 
-  def _hinge_loss(score_i: float, score_j: float) -> float:
-    return jax.nn.relu(1. - (score_i - score_j))
+  # Compute hinge function on scores.
+  scores = jax.nn.relu(1. - scores)
 
-  return compute_pairwise_loss(
-      scores,
-      labels,
-      where=where,
-      weights=weights,
-      reduce_fn=reduce_fn,
-      pair_loss_fn=_hinge_loss)
+  # Apply mask to labels, so only valid items are considered.
+  if where is not None:
+    where = compute_pairs(where, operator.and_)
+    labels &= where
+
+  # Apply weights to scores.
+  if weights is not None:
+    weights = compute_pairs(weights, lambda x, y: x)
+    scores *= weights
+
+  return utils.safe_reduce(scores, where=labels, reduce_fn=reduce_fn)
 
 
-def pairwise_logistic_loss(
-    scores: jnp.ndarray,
-    labels: jnp.ndarray,
-    *,
-    where: Optional[jnp.ndarray] = None,
-    weights: Optional[jnp.ndarray] = None,
-    reduce_fn: ReduceFn = jnp.sum) -> jnp.ndarray:
+def pairwise_logistic_loss(scores: jnp.ndarray,
+                           labels: jnp.ndarray,
+                           *,
+                           where: Optional[jnp.ndarray] = None,
+                           weights: Optional[jnp.ndarray] = None,
+                           reduce_fn: ReduceFn = jnp.sum) -> jnp.ndarray:
   r"""Ranking pairwise logistic loss.
 
   Standalone usage:
@@ -299,18 +273,24 @@ def pairwise_logistic_loss(
   Returns:
     The pairwise logistic loss.
   """
+  # Expand scores and labels into pairwise versions.
+  scores = compute_pairs(scores, operator.sub)
+  labels = compute_pairs(labels, operator.gt)
 
-  def _logistic_loss(score_i: float, score_j: float) -> float:
-    score_diff = score_i - score_j
-    return jax.nn.relu(-score_diff) + jnp.log1p(jnp.exp(-jnp.abs(score_diff)))
+  # Compute numerically stable version of logistic function on scores.
+  scores = jax.nn.relu(-scores) + jnp.log1p(jnp.exp(-jnp.abs(scores)))
 
-  return compute_pairwise_loss(
-      scores,
-      labels,
-      where=where,
-      weights=weights,
-      reduce_fn=reduce_fn,
-      pair_loss_fn=_logistic_loss)
+  # Apply mask to labels, so only valid items are considered.
+  if where is not None:
+    where = compute_pairs(where, operator.and_)
+    labels &= where
+
+  # Apply weights to scores.
+  if weights is not None:
+    weights = compute_pairs(weights, lambda x, y: x)
+    scores *= weights
+
+  return utils.safe_reduce(scores, where=labels, reduce_fn=reduce_fn)
 
 
 def compute_pointwise_loss(
@@ -355,13 +335,12 @@ def compute_pointwise_loss(
   return utils.safe_reduce(results, where=valid_items, reduce_fn=reduce_fn)
 
 
-def pointwise_sigmoid_loss(
-    scores: jnp.ndarray,
-    labels: jnp.ndarray,
-    *,
-    where: Optional[jnp.ndarray] = None,
-    weights: Optional[jnp.ndarray] = None,
-    reduce_fn: ReduceFn = jnp.sum) -> jnp.ndarray:
+def pointwise_sigmoid_loss(scores: jnp.ndarray,
+                           labels: jnp.ndarray,
+                           *,
+                           where: Optional[jnp.ndarray] = None,
+                           weights: Optional[jnp.ndarray] = None,
+                           reduce_fn: ReduceFn = jnp.sum) -> jnp.ndarray:
   r"""Ranking sigmoid cross entropy loss.
 
   Standalone usage:
@@ -418,17 +397,14 @@ def pointwise_sigmoid_loss(
   labels = jnp.where(labels >= 1, jnp.ones_like(labels), jnp.zeros_like(labels))
 
   # A numerically stable version of sigmoid cross entropy.
-  def _cross_entropy_loss(score: float, label: float) -> float:
-    return (jax.nn.relu(score) - score * label +
-            jnp.log(1. + jnp.exp(-jnp.abs(score))))
+  loss = (
+      jax.nn.relu(scores) - scores * labels +
+      jnp.log(1. + jnp.exp(-jnp.abs(scores))))
 
-  return compute_pointwise_loss(
-      scores,
-      labels,
-      where=where,
-      weights=weights,
-      reduce_fn=reduce_fn,
-      point_loss_fn=_cross_entropy_loss)
+  if weights is not None:
+    loss *= weights
+
+  return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
 def pointwise_mse_loss(scores: jnp.ndarray,
@@ -483,26 +459,20 @@ def pointwise_mse_loss(scores: jnp.ndarray,
   Returns:
     The mean squared error loss.
   """
+  loss = jnp.square(scores - labels)
 
-  def _mse_loss(score: float, label: float) -> float:
-    return (score - label)**2.0
+  if weights is not None:
+    loss *= weights
 
-  return compute_pointwise_loss(
-      scores,
-      labels,
-      where=where,
-      weights=weights,
-      reduce_fn=reduce_fn,
-      point_loss_fn=_mse_loss)
+  return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def pairwise_mse_loss(
-    scores: jnp.ndarray,
-    labels: jnp.ndarray,
-    *,
-    where: Optional[jnp.ndarray] = None,
-    weights: Optional[jnp.ndarray] = None,
-    reduce_fn: ReduceFn = jnp.sum) -> jnp.ndarray:
+def pairwise_mse_loss(scores: jnp.ndarray,
+                      labels: jnp.ndarray,
+                      *,
+                      where: Optional[jnp.ndarray] = None,
+                      weights: Optional[jnp.ndarray] = None,
+                      reduce_fn: ReduceFn = jnp.sum) -> jnp.ndarray:
   r"""Pairwise mean squared error loss.
 
   Standalone usage:
@@ -551,25 +521,20 @@ def pairwise_mse_loss(
   Returns:
     The pairwise mean squared error loss.
   """
-  # Construct (score_i - score_j)
-  scores = jnp.expand_dims(scores, axis=-1) - jnp.expand_dims(scores, axis=-2)
-  scores = jnp.reshape(scores, scores.shape[:-2] + (-1,))
+  # Expand scores and labels into pairwise versions.
+  scores = compute_pairs(scores, operator.sub)
+  labels = compute_pairs(labels, operator.sub)
 
-  # Construct (label_i - label_j)
-  labels = jnp.expand_dims(labels, axis=-1) - jnp.expand_dims(labels, axis=-2)
-  labels = jnp.reshape(labels, labels.shape[:-2] + (-1,))
-
-  # Construct (where_i & where_j)
+  # Compute pairwise mask.
   if where is not None:
-    where = jnp.expand_dims(where, axis=-1) & jnp.expand_dims(where, axis=-2)
-    where = jnp.reshape(where, where.shape[:-2] + (-1,))
+    where = compute_pairs(where, operator.and_)
 
-  # Construct weights_i (broadcasted to pairwise matrix).
+  # Compute squared error between score pairs and label pairs.
+  loss = jnp.square(scores - labels)
+
+  # Apply weights to scores.
   if weights is not None:
-    weights = jnp.expand_dims(weights, axis=-1)
-    weights = jnp.repeat(weights, axis=-1, repeats=weights.shape[-2])
-    weights = jnp.reshape(weights, weights.shape[:-2] + (-1,))
+    weights = compute_pairs(weights, lambda x, y: x)
+    loss *= weights
 
-  # Compute mse loss.
-  return pointwise_mse_loss(
-      scores, labels, where=where, weights=weights, reduce_fn=reduce_fn)
+  return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
