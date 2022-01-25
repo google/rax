@@ -14,11 +14,11 @@
 
 """Rax: Learning to Rank using JAX."""
 
-from rax._src.losses import mse_loss
 from rax._src.losses import pairwise_hinge_loss
 from rax._src.losses import pairwise_logistic_loss
 from rax._src.losses import pairwise_mse_loss
-from rax._src.losses import sigmoid_cross_entropy_loss
+from rax._src.losses import pointwise_mse_loss
+from rax._src.losses import pointwise_sigmoid_loss
 from rax._src.losses import softmax_loss
 from rax._src.metrics import ap_metric
 from rax._src.metrics import dcg_metric
@@ -36,11 +36,11 @@ __version__ = "0.0.1"
 
 # pyformat: disable
 __all__ = [
-    "mse_loss",
     "pairwise_hinge_loss",
     "pairwise_logistic_loss",
     "pairwise_mse_loss",
-    "sigmoid_cross_entropy_loss",
+    "pointwise_mse_loss",
+    "pointwise_sigmoid_loss",
     "softmax_loss",
     "ap_metric",
     "dcg_metric",

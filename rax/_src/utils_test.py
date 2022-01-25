@@ -48,14 +48,14 @@ class NormalizeProbabilitiesTest(jtu.JaxTestCase):
         result,
         jnp.asarray([[0., 1. / 3., 2. / 3.], [3. / 12., 4. / 12., 5. / 12.]]))
 
-  def test_handles_mask(self):
+  def test_handles_where(self):
     arr = jnp.asarray([[0., 1., 2.], [3., 4., 5.]])
-    mask = jnp.asarray([[True, False, True], [True, True, True]])
+    where = jnp.asarray([[True, False, True], [True, True, True]])
 
-    result = utils.normalize_probabilities(arr, mask, axis=1)
+    result = utils.normalize_probabilities(arr, where, axis=1)
 
     self.assertArraysEqual(
-        jnp.sum(result, axis=1, where=mask), jnp.asarray([1., 1.]))
+        jnp.sum(result, axis=1, where=where), jnp.asarray([1., 1.]))
 
   def test_correctly_sets_all_zeros(self):
     arr = jnp.asarray([[0., 0., 0.], [0., 0., 0.]])
@@ -68,10 +68,10 @@ class NormalizeProbabilitiesTest(jtu.JaxTestCase):
 
   def test_correctly_handles_all_masked(self):
     arr = jnp.asarray([[2., 1., 3.], [1., 1., 1.]])
-    mask = jnp.asarray([[False, False, False], [False, False, False]])
+    where = jnp.asarray([[False, False, False], [False, False, False]])
 
-    result1 = utils.normalize_probabilities(arr, mask, axis=0)
-    result2 = utils.normalize_probabilities(arr, mask, axis=1)
+    result1 = utils.normalize_probabilities(arr, where, axis=0)
+    result2 = utils.normalize_probabilities(arr, where, axis=1)
 
     self.assertArraysEqual(jnp.sum(result1, axis=0), jnp.asarray([1., 1., 1.]))
     self.assertArraysEqual(jnp.sum(result2, axis=1), jnp.asarray([1., 1.]))
@@ -114,9 +114,9 @@ class SortByTest(jtu.JaxTestCase):
   def test_places_masked_values_last(self):
     scores = jnp.asarray([0., 3., 1., 2.])
     tensors_to_sort = [jnp.asarray([10., 13., 11., 12.])]
-    mask = jnp.asarray([True, True, False, False])
+    where = jnp.asarray([True, True, False, False])
 
-    result = utils.sort_by(scores, tensors_to_sort, mask=mask)[0]
+    result = utils.sort_by(scores, tensors_to_sort, where=where)[0]
 
     self.assertArraysEqual(result, jnp.asarray([13., 10., 12., 11.]))
 
@@ -185,16 +185,16 @@ class ApproxRanksTest(jtu.JaxTestCase):
 
     self.assertArraysEqual(jnp.argsort(ranks), jnp.argsort(true_ranks))
 
-  def test_computes_approx_ranks_with_mask(self):
-    scores_without_mask = jnp.asarray([3.33, 1.125])
+  def test_computes_approx_ranks_with_where(self):
+    scores_without_where = jnp.asarray([3.33, 1.125])
     scores = jnp.asarray([3.33, 2.5, 1.125])
-    mask = jnp.asarray([True, False, True])
+    where = jnp.asarray([True, False, True])
 
-    ranks = utils.approx_ranks(scores_without_mask)
-    ranks_with_mask = utils.approx_ranks(scores, mask=mask)
+    ranks = utils.approx_ranks(scores_without_where)
+    ranks_with_where = utils.approx_ranks(scores, where=where)
 
     self.assertArraysEqual(
-        ranks, jnp.asarray([ranks_with_mask[0], ranks_with_mask[2]]))
+        ranks, jnp.asarray([ranks_with_where[0], ranks_with_where[2]]))
 
 
 def load_tests(loader, tests, ignore):

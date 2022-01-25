@@ -54,7 +54,7 @@ def softmax_loss(
     scores: jnp.ndarray,
     labels: jnp.ndarray,
     *,
-    mask: Optional[jnp.ndarray] = None,
+    where: Optional[jnp.ndarray] = None,
     weights: Optional[jnp.ndarray] = None,
     reduce_fn: Optional[ReduceFn] = jnp.sum) -> jnp.float_:
   r"""Ranking softmax loss.
@@ -70,8 +70,8 @@ def softmax_loss(
 
   >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
   >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> mask = jnp.array([[True, True, False], [True, True, True]])
-  >>> rax.softmax_loss(scores, labels, mask=mask, reduce_fn=jnp.mean)
+  >>> where = jnp.array([[True, True, False], [True, True, True]])
+  >>> rax.softmax_loss(scores, labels, where=where, reduce_fn=jnp.mean)
   DeviceArray(0.49676564, dtype=float32)
 
   Usage with `vmap` batching:
@@ -91,8 +91,8 @@ def softmax_loss(
     scores: A [..., list_size]-jnp.ndarray, indicating the score of each item.
     labels: A [..., list_size]-jnp.ndarray, indicating the relevance label for
       each item.
-    mask: An optional [..., list_size]-jnp.ndarray, indicating which items are
-      valid for computing the loss. Items for which the mask is False will be
+    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
+      valid for computing the loss. Items for which this is False will be
       ignored when computing the loss.
     weights: An optional [..., list_size]-jnp.ndarray, indicating the weight for
       each item.
@@ -104,24 +104,24 @@ def softmax_loss(
   Returns:
     The softmax loss.
   """
-  # Applies mask so that masked elements do not count towards the loss.
-  if mask is not None:
-    labels = jnp.where(mask, labels, jnp.zeros_like(labels))
-    scores = jnp.where(mask, scores, -jnp.ones_like(scores) * jnp.inf)
+  # Applies where so that whereed elements do not count towards the loss.
+  if where is not None:
+    labels = jnp.where(where, labels, jnp.zeros_like(labels))
+    scores = jnp.where(where, scores, -jnp.ones_like(scores) * jnp.inf)
 
   # Apply weights to labels.
   if weights is not None:
     labels *= weights
 
   # Scales labels and scores to match the cross entropy loss.
-  labels_probabilities = utils.normalize_probabilities(labels, mask, axis=-1)
+  labels_probabilities = utils.normalize_probabilities(labels, where, axis=-1)
   scores_log_softmax = jax.nn.log_softmax(scores, axis=-1)
 
   # Computes per-element cross entropy.
   softmax_cross_entropy = labels_probabilities * scores_log_softmax
 
   # Reduces softmax cross-entropy loss.
-  loss = -jnp.sum(softmax_cross_entropy, axis=-1, where=mask)
+  loss = -jnp.sum(softmax_cross_entropy, axis=-1, where=where)
   return utils.safe_reduce(loss, reduce_fn=reduce_fn)
 
 
@@ -129,7 +129,7 @@ def compute_pairwise_loss(
     scores: jnp.ndarray,
     labels: jnp.ndarray,
     *,
-    mask: Optional[jnp.ndarray] = None,
+    where: Optional[jnp.ndarray] = None,
     weights: Optional[jnp.ndarray] = None,
     reduce_fn: ReduceFn = jnp.sum,
     pair_loss_fn: Callable[[jnp.float_, jnp.ndarray], jnp.float_],
@@ -140,8 +140,8 @@ def compute_pairwise_loss(
     scores: A [..., list_size]-jnp.ndarray, indicating the score of each item.
     labels: A [..., list_size]-jnp.ndarray, indicating the relevance label for
       each item.
-    mask: An optional [..., list_size]-jnp.ndarray, indicating which items are
-      valid for computing the loss. Items for which the mask is False will be
+    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
+      valid for computing the loss. Items for which this is False will be
       ignored when computing the loss.
     weights: An optional [..., list_size]-jnp.ndarray, indicating the weight for
       each item.
@@ -165,10 +165,10 @@ def compute_pairwise_loss(
   vmap_last_axis = functools.partial(jax.vmap, in_axes=-1, out_axes=-1)
   loss_pairs = vmap_last_axis(vmap_last_axis(pair_loss_fn))(score_i, score_j)
 
-  if mask is not None:
-    mask_i = jnp.expand_dims(mask, axis=-1)
-    mask_j = jnp.expand_dims(mask, axis=-2)
-    valid_pairs &= mask_i & mask_j
+  if where is not None:
+    where_i = jnp.expand_dims(where, axis=-1)
+    where_j = jnp.expand_dims(where, axis=-2)
+    valid_pairs &= where_i & where_j
 
   if weights is not None:
     loss_pairs *= weights[:, None]
@@ -180,7 +180,7 @@ def pairwise_hinge_loss(
     scores: jnp.ndarray,
     labels: jnp.ndarray,
     *,
-    mask: Optional[jnp.ndarray] = None,
+    where: Optional[jnp.ndarray] = None,
     weights: Optional[jnp.ndarray] = None,
     reduce_fn: ReduceFn = jnp.sum) -> jnp.ndarray:
   r"""Ranking pairwise hinge loss.
@@ -196,9 +196,9 @@ def pairwise_hinge_loss(
 
   >>> scores = jnp.array([[2., 1., 0.], [1., 0.5, 1.5]])
   >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> mask = jnp.array([[True, True, False], [True, True, True]])
+  >>> where = jnp.array([[True, True, False], [True, True, True]])
   >>> rax.pairwise_hinge_loss(
-  ...     scores, labels, mask=mask, reduce_fn=jnp.mean)
+  ...     scores, labels, where=where, reduce_fn=jnp.mean)
   DeviceArray(0.16666667, dtype=float32)
 
   Usage with `vmap` batching:
@@ -218,8 +218,8 @@ def pairwise_hinge_loss(
     scores: A [..., list_size]-jnp.ndarray, indicating the score of each item.
     labels: A [..., list_size]-jnp.ndarray, indicating the relevance label for
       each item.
-    mask: An optional [..., list_size]-jnp.ndarray, indicating which items are
-      valid for computing the loss. Items for which the mask is False will be
+    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
+      valid for computing the loss. Items for which this is False will be
       ignored when computing the loss.
     weights: An optional [..., list_size]-jnp.ndarray, indicating the weight for
       each item.
@@ -238,7 +238,7 @@ def pairwise_hinge_loss(
   return compute_pairwise_loss(
       scores,
       labels,
-      mask=mask,
+      where=where,
       weights=weights,
       reduce_fn=reduce_fn,
       pair_loss_fn=_hinge_loss)
@@ -248,7 +248,7 @@ def pairwise_logistic_loss(
     scores: jnp.ndarray,
     labels: jnp.ndarray,
     *,
-    mask: Optional[jnp.ndarray] = None,
+    where: Optional[jnp.ndarray] = None,
     weights: Optional[jnp.ndarray] = None,
     reduce_fn: ReduceFn = jnp.sum) -> jnp.ndarray:
   r"""Ranking pairwise logistic loss.
@@ -264,9 +264,9 @@ def pairwise_logistic_loss(
 
   >>> scores = jnp.array([[2., 1., 0.], [1., 0.5, 1.5]])
   >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> mask = jnp.array([[True, True, False], [True, True, True]])
+  >>> where = jnp.array([[True, True, False], [True, True, True]])
   >>> rax.pairwise_logistic_loss(
-  ...     scores, labels, mask=mask, reduce_fn=jnp.mean)
+  ...     scores, labels, where=where, reduce_fn=jnp.mean)
   DeviceArray(0.3668668, dtype=float32)
 
   Usage with `vmap` batching:
@@ -286,8 +286,8 @@ def pairwise_logistic_loss(
     scores: A [..., list_size]-jnp.ndarray, indicating the score of each item.
     labels: A [..., list_size]-jnp.ndarray, indicating the relevance label for
       each item.
-    mask: An optional [..., list_size]-jnp.ndarray, indicating which items are
-      valid for computing the loss. Items for which the mask is False will be
+    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
+      valid for computing the loss. Items for which this is False will be
       ignored when computing the loss.
     weights: An optional [..., list_size]-jnp.ndarray, indicating the weight for
       each item.
@@ -307,7 +307,7 @@ def pairwise_logistic_loss(
   return compute_pairwise_loss(
       scores,
       labels,
-      mask=mask,
+      where=where,
       weights=weights,
       reduce_fn=reduce_fn,
       pair_loss_fn=_logistic_loss)
@@ -317,7 +317,7 @@ def compute_pointwise_loss(
     scores: jnp.ndarray,
     labels: jnp.ndarray,
     *,
-    mask: Optional[jnp.ndarray] = None,
+    where: Optional[jnp.ndarray] = None,
     weights: Optional[jnp.ndarray] = None,
     reduce_fn: ReduceFn = jnp.sum,
     point_loss_fn: Callable[[jnp.float_, jnp.float_],
@@ -328,8 +328,8 @@ def compute_pointwise_loss(
     scores: A [..., list_size]-jnp.ndarray, indicating the score of each item.
     labels: A [..., list_size]-jnp.ndarray, indicating the relevance label for
       each item.
-    mask: An optional [..., list_size]-jnp.ndarray, indicating which items are
-      valid for computing the loss. Items for which the mask is False will be
+    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
+      valid for computing the loss. Items for which this is False will be
       ignored when computing the loss.
     weights: An optional [..., list_size]-jnp.ndarray, indicating the weight for
       each item.
@@ -345,9 +345,9 @@ def compute_pointwise_loss(
   results = jax.vmap(point_loss_fn, in_axes=-1, out_axes=-1)(scores, labels)
   valid_items = jnp.ones_like(labels, dtype=jnp.int32)
 
-  if mask is not None:
-    results *= mask
-    valid_items = jnp.int32(mask)
+  if where is not None:
+    results *= where
+    valid_items = jnp.int32(where)
 
   if weights is not None:
     results *= weights
@@ -355,11 +355,11 @@ def compute_pointwise_loss(
   return utils.safe_reduce(results, where=valid_items, reduce_fn=reduce_fn)
 
 
-def sigmoid_cross_entropy_loss(
+def pointwise_sigmoid_loss(
     scores: jnp.ndarray,
     labels: jnp.ndarray,
     *,
-    mask: Optional[jnp.ndarray] = None,
+    where: Optional[jnp.ndarray] = None,
     weights: Optional[jnp.ndarray] = None,
     reduce_fn: ReduceFn = jnp.sum) -> jnp.ndarray:
   r"""Ranking sigmoid cross entropy loss.
@@ -368,29 +368,29 @@ def sigmoid_cross_entropy_loss(
 
   >>> scores = jnp.array([2., 1., 3.])
   >>> labels = jnp.array([1., 0., 0.])
-  >>> rax.sigmoid_cross_entropy_loss(scores, labels)
+  >>> rax.pointwise_sigmoid_loss(scores, labels)
   DeviceArray(4.488777, dtype=float32)
 
   Usage with mean reduction across a batch and a mask to indicate valid items:
 
   >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
   >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> mask = jnp.array([[True, True, False], [True, True, True]])
-  >>> rax.sigmoid_cross_entropy_loss(
-  ...     scores, labels, mask=mask, reduce_fn=jnp.mean)
+  >>> where = jnp.array([[True, True, False], [True, True, True]])
+  >>> rax.pointwise_sigmoid_loss(
+  ...     scores, labels, where=where, reduce_fn=jnp.mean)
   DeviceArray(0.78578836, dtype=float32)
 
-  Usage with `vmap` batching and a mask to indicate valid items:
+  Usage with `vmap` batching:
 
   >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
   >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> jax.vmap(rax.sigmoid_cross_entropy_loss)(scores, labels)
+  >>> jax.vmap(rax.pointwise_sigmoid_loss)(scores, labels)
   DeviceArray([4.488777, 2.488752], dtype=float32)
 
   Definition:
 
   .. math::
-      \operatorname{sigmoid_cross_entropy_loss}(s, y) =
+      \operatorname{pointwise_sigmoid_loss}(s, y) =
       \sum_i y_i * -log(sigmoid(s_i)) + (1 - y_i) * -log(1 - sigmoid(s_i))
 
   This loss converts graded relevance to binary relevance by considering items
@@ -400,8 +400,8 @@ def sigmoid_cross_entropy_loss(
     scores: A [..., list_size]-jnp.ndarray, indicating the score of each item.
     labels: A [..., list_size]-jnp.ndarray, indicating the relevance label for
       each item.
-    mask: An optional [..., list_size]-jnp.ndarray, indicating which items are
-      valid for computing the loss. Items for which the mask is False will be
+    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
+      valid for computing the loss. Items for which this is False will be
       ignored when computing the loss.
     weights: An optional [..., list_size]-jnp.ndarray, indicating the weight for
       each item.
@@ -425,53 +425,53 @@ def sigmoid_cross_entropy_loss(
   return compute_pointwise_loss(
       scores,
       labels,
-      mask=mask,
+      where=where,
       weights=weights,
       reduce_fn=reduce_fn,
       point_loss_fn=_cross_entropy_loss)
 
 
-def mse_loss(scores: jnp.ndarray,
-             labels: jnp.ndarray,
-             *,
-             mask: Optional[jnp.ndarray] = None,
-             weights: Optional[jnp.ndarray] = None,
-             reduce_fn: ReduceFn = jnp.sum) -> jnp.ndarray:
+def pointwise_mse_loss(scores: jnp.ndarray,
+                       labels: jnp.ndarray,
+                       *,
+                       where: Optional[jnp.ndarray] = None,
+                       weights: Optional[jnp.ndarray] = None,
+                       reduce_fn: ReduceFn = jnp.sum) -> jnp.ndarray:
   r"""Ranking mean squared error loss.
 
   Standalone usage:
 
   >>> scores = jnp.array([2., 1., 3.])
   >>> labels = jnp.array([1., 0., 0.])
-  >>> rax.mse_loss(scores, labels)
+  >>> rax.pointwise_mse_loss(scores, labels)
   DeviceArray(11., dtype=float32)
 
   Usage with mean reduction across a batch and a mask to indicate valid items:
 
   >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
   >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> mask = jnp.array([[True, True, False], [True, True, True]])
-  >>> rax.mse_loss(scores, labels, mask=mask, reduce_fn=jnp.mean)
+  >>> where = jnp.array([[True, True, False], [True, True, True]])
+  >>> rax.pointwise_mse_loss(scores, labels, where=where, reduce_fn=jnp.mean)
   DeviceArray(0.7, dtype=float32)
 
-  Usage with `vmap` batching and a mask to indicate valid items:
+  Usage with `vmap` batching:
 
   >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
   >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> jax.vmap(rax.mse_loss)(scores, labels)
+  >>> jax.vmap(rax.pointwise_mse_loss)(scores, labels)
   DeviceArray([11. ,  1.5], dtype=float32)
 
   Definition:
 
   .. math::
-      \operatorname{mse_loss}(s, y) = \sum_i (y_i - s_i)^2
+      \operatorname{pointwise_mse_loss}(s, y) = \sum_i (y_i - s_i)^2
 
   Args:
     scores: A [..., list_size]-jnp.ndarray, indicating the score of each item.
     labels: A [..., list_size]-jnp.ndarray, indicating the relevance label for
       each item.
-    mask: An optional [..., list_size]-jnp.ndarray, indicating which items are
-      valid for computing the loss. Items for which the mask is False will be
+    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
+      valid for computing the loss. Items for which this is False will be
       ignored when computing the loss.
     weights: An optional [..., list_size]-jnp.ndarray, indicating the weight for
       each item.
@@ -490,7 +490,7 @@ def mse_loss(scores: jnp.ndarray,
   return compute_pointwise_loss(
       scores,
       labels,
-      mask=mask,
+      where=where,
       weights=weights,
       reduce_fn=reduce_fn,
       point_loss_fn=_mse_loss)
@@ -500,7 +500,7 @@ def pairwise_mse_loss(
     scores: jnp.ndarray,
     labels: jnp.ndarray,
     *,
-    mask: Optional[jnp.ndarray] = None,
+    where: Optional[jnp.ndarray] = None,
     weights: Optional[jnp.ndarray] = None,
     reduce_fn: ReduceFn = jnp.sum) -> jnp.ndarray:
   r"""Pairwise mean squared error loss.
@@ -516,12 +516,12 @@ def pairwise_mse_loss(
 
   >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
   >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> mask = jnp.array([[True, True, False], [True, True, True]])
+  >>> where = jnp.array([[True, True, False], [True, True, True]])
   >>> rax.pairwise_mse_loss(
-  ...     scores, labels, mask=mask, reduce_fn=jnp.mean)
+  ...     scores, labels, where=where, reduce_fn=jnp.mean)
   DeviceArray(0.07692308, dtype=float32)
 
-  Usage with `vmap` batching and a mask to indicate valid items:
+  Usage with `vmap` batching:
 
   >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
   >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
@@ -538,8 +538,8 @@ def pairwise_mse_loss(
     scores: A [..., list_size]-jnp.ndarray, indicating the score of each item.
     labels: A [..., list_size]-jnp.ndarray, indicating the relevance label for
       each item.
-    mask: An optional [..., list_size]-jnp.ndarray, indicating which items are
-      valid for computing the loss. Items for which the mask is False will be
+    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
+      valid for computing the loss. Items for which this is False will be
       ignored when computing the loss.
     weights: An optional [..., list_size]-jnp.ndarray, indicating the weight for
       each item.
@@ -559,10 +559,10 @@ def pairwise_mse_loss(
   labels = jnp.expand_dims(labels, axis=-1) - jnp.expand_dims(labels, axis=-2)
   labels = jnp.reshape(labels, labels.shape[:-2] + (-1,))
 
-  # Construct (mask_i & mask_j)
-  if mask is not None:
-    mask = jnp.expand_dims(mask, axis=-1) & jnp.expand_dims(mask, axis=-2)
-    mask = jnp.reshape(mask, mask.shape[:-2] + (-1,))
+  # Construct (where_i & where_j)
+  if where is not None:
+    where = jnp.expand_dims(where, axis=-1) & jnp.expand_dims(where, axis=-2)
+    where = jnp.reshape(where, where.shape[:-2] + (-1,))
 
   # Construct weights_i (broadcasted to pairwise matrix).
   if weights is not None:
@@ -571,5 +571,5 @@ def pairwise_mse_loss(
     weights = jnp.reshape(weights, weights.shape[:-2] + (-1,))
 
   # Compute mse loss.
-  return mse_loss(
-      scores, labels, mask=mask, weights=weights, reduce_fn=reduce_fn)
+  return pointwise_mse_loss(
+      scores, labels, where=where, weights=weights, reduce_fn=reduce_fn)

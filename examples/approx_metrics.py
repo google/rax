@@ -97,7 +97,7 @@ def train(ds, approx_metric, epochs: int = 10, lr: float = 10.0, seed: int = 7):
   def loss_fn(w, batch):
     features, labels, mask = batch
     scores = model_fn(w, features)
-    return approx_metric(scores, labels, mask=mask)
+    return approx_metric(scores, labels, where=mask)
 
   grad_fn = jax.jit(jax.grad(loss_fn))
 
@@ -132,7 +132,7 @@ def eval_metrics(ds, w, metrics):
     scores = model_fn(w, features)
     for metric_name, metric in metrics.items():
       metric_values[metric_name] = metric_values[metric_name].merge(
-          Average(metric(scores, labels, mask=mask), jnp.int32(1)))
+          Average(metric(scores, labels, where=mask), jnp.int32(1)))
     return metric_values
 
   # Iterate over each batch and update the metric average values.

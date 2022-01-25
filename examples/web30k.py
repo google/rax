@@ -115,11 +115,11 @@ def main(argv: Sequence[str]):
   optimizer = optax.adam(learning_rate=0.01)
 
   # Create Rax loss and metrics.
-  loss_fn = jax.vmap(rax.softmax_loss)
+  loss_fn = rax.softmax_loss
   metric_fns = {
-      "metric/mrr": jax.vmap(rax.mrr_metric),
-      "metric/ndcg": jax.vmap(rax.ndcg_metric),
-      "metric/ndcg@10": jax.vmap(functools.partial(rax.ndcg_metric, topn=10))
+      "metric/mrr": rax.mrr_metric,
+      "metric/ndcg": rax.ndcg_metric,
+      "metric/ndcg@10": functools.partial(rax.ndcg_metric, topn=10)
   }
 
   # Implement train and eval logic.
@@ -133,7 +133,7 @@ def main(argv: Sequence[str]):
     # Compute gradients wrt model params
     def _loss_fn(params):
       scores = model.apply(model_state.copy({"params": params}), inputs)
-      loss = jnp.mean(loss_fn(scores, labels, mask=mask))
+      loss = loss_fn(scores, labels, where=mask, reduce_fn=jnp.mean)
       return loss
 
     params = model_state["params"]
@@ -150,7 +150,7 @@ def main(argv: Sequence[str]):
     inputs, labels, mask = batch
     scores = model.apply(model_state, inputs)
     return {
-        name: jnp.mean(metric_fn(scores, labels, mask=mask))
+        name: metric_fn(scores, labels, where=mask, reduce_fn=jnp.mean)
         for name, metric_fn in metric_fns.items()
     }
 

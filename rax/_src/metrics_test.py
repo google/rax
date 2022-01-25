@@ -262,9 +262,9 @@ class MetricsTest(jtu.JaxTestCase, parameterized.TestCase):
                                                  expected_value):
     scores = jnp.asarray([0., 3., 1., 2.])
     labels = jnp.asarray([0., 0., 1., 1.])
-    mask = jnp.asarray([False, False, False, False])
+    where = jnp.asarray([False, False, False, False])
 
-    metric = metric_fn(scores, labels, mask=mask)
+    metric = metric_fn(scores, labels, where=where)
 
     self.assertArraysAllClose(jnp.asarray(expected_value), metric)
 
@@ -343,9 +343,9 @@ class RetrievedItemsTest(jtu.JaxTestCase, parameterized.TestCase):
   def test_does_not_retrieve_masked_items(self):
     scores = jnp.array([-2., 1., 4., 3.])
     ranks = jnp.array([4., 3., 1., 2.])
-    mask = jnp.array([True, False, True, True])
+    where = jnp.array([True, False, True, True])
 
-    retrieved_items = metrics._retrieved_items(scores, ranks, mask=mask)
+    retrieved_items = metrics._retrieved_items(scores, ranks, where=where)
 
     self.assertArraysEqual(jnp.array([1., 0, 1, 1]), retrieved_items)
 

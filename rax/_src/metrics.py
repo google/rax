@@ -49,7 +49,7 @@ from rax._src.protocols import ReduceFn
 def _retrieved_items(scores: jnp.ndarray,
                      ranks: jnp.ndarray,
                      *,
-                     mask: Optional[jnp.ndarray] = None,
+                     where: Optional[jnp.ndarray] = None,
                      topn: Optional[int] = None,
                      cutoff_fn: CutoffFn = utils.cutoff) -> jnp.ndarray:
   """Computes an array that indicates which items are retrieved.
@@ -58,7 +58,7 @@ def _retrieved_items(scores: jnp.ndarray,
     scores: A [..., list_size]-jnp.ndarray, indicating the score of each item.
     ranks: A [..., list_size]-jnp.ndarray, indicating the 1-based rank of each
       item.
-    mask: An optional [..., list_size]-jnp.ndarray, indicating which items are
+    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
       valid.
     topn: An optional integer value indicating at which rank items are cut off.
       If None, no cutoff is performed.
@@ -75,8 +75,8 @@ def _retrieved_items(scores: jnp.ndarray,
   retrieved_items = jnp.float32(jnp.logical_not(jnp.isneginf(scores)))
 
   # Masked items should always be ignored and not retrieved.
-  if mask is not None:
-    retrieved_items *= jnp.float32(mask)
+  if where is not None:
+    retrieved_items *= jnp.float32(where)
 
   # Only consider items in the topn as retrieved items.
   retrieved_items *= cutoff_fn(-ranks, n=topn)
@@ -121,7 +121,7 @@ def default_discount_fn(rank: jnp.ndarray) -> jnp.ndarray:
 def mrr_metric(scores: jnp.ndarray,
                labels: jnp.ndarray,
                *,
-               mask: Optional[jnp.ndarray] = None,
+               where: Optional[jnp.ndarray] = None,
                topn: Optional[int] = None,
                rng_key: Optional[jnp.ndarray] = None,
                rank_fn: RankFn = utils.sort_ranks,
@@ -147,8 +147,8 @@ def mrr_metric(scores: jnp.ndarray,
 
   >>> scores = jnp.array([[2., 1., 0.], [1., 0.5, 1.5]])
   >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> mask = jnp.array([[True, True, False], [True, True, True]])
-  >>> jax.vmap(rax.mrr_metric)(scores, labels, mask=mask)
+  >>> where = jnp.array([[True, True, False], [True, True, True]])
+  >>> jax.vmap(rax.mrr_metric)(scores, labels, where=where)
   DeviceArray([1., 1.], dtype=float32)
 
   Definition:
@@ -167,14 +167,14 @@ def mrr_metric(scores: jnp.ndarray,
       for which the score is `-inf` are treated as unranked items.
     labels: A [list_size]-jnp.ndarray, indicating the relevance label for each
       item.
-    mask: An optional [list_size]-jnp.ndarray, indicating which items are valid
+    where: An optional [list_size]-jnp.ndarray, indicating which items are valid
       for computing the metric.
     topn: An optional integer value indicating at which rank the metric cuts
       off. If None, no cutoff is performed.
     rng_key: An optional jax rng key. If provided, any random operations in this
       metric will be based on this key.
     rank_fn: A callable that maps scores to 1-based ranks. The callable should
-      accept a `scores` argument and optional `mask` and `rng_key` keyword
+      accept a `scores` argument and optional `where` and `rng_key` keyword
       arguments and return a `ranks` jnp.ndarray of the same shape as `scores`.
     cutoff_fn: A callable that computes a cutoff tensor indicating which
       elements to include and which ones to exclude based on a topn cutoff. The
@@ -193,9 +193,9 @@ def mrr_metric(scores: jnp.ndarray,
                              jnp.zeros_like(labels))
 
   # Get the retrieved items.
-  ranks = rank_fn(scores, mask=mask, rng_key=rng_key)
+  ranks = rank_fn(scores, where=where, rng_key=rng_key)
   retrieved_items = _retrieved_items(
-      scores, ranks, mask=mask, topn=topn, cutoff_fn=cutoff_fn)
+      scores, ranks, where=where, topn=topn, cutoff_fn=cutoff_fn)
 
   # Compute reciprocal ranks.
   reciprocal_ranks = jnp.reciprocal(jnp.where(ranks == 0., jnp.inf, ranks))
@@ -204,7 +204,7 @@ def mrr_metric(scores: jnp.ndarray,
   values = jnp.max(
       relevant_items * retrieved_items * reciprocal_ranks,
       axis=-1,
-      where=mask,
+      where=where,
       initial=0.)
   return utils.safe_reduce(values, reduce_fn=reduce_fn)
 
@@ -213,7 +213,7 @@ def recall_metric(scores: jnp.ndarray,
                   labels: jnp.ndarray,
                   *,
                   topn: Optional[int] = None,
-                  mask: Optional[jnp.ndarray] = None,
+                  where: Optional[jnp.ndarray] = None,
                   rng_key: Optional[jnp.ndarray] = None,
                   rank_fn: RankFn = utils.sort_ranks,
                   cutoff_fn: CutoffFn = utils.cutoff,
@@ -238,9 +238,9 @@ def recall_metric(scores: jnp.ndarray,
 
   >>> scores = jnp.array([[2., 1., 0.], [1., 0.5, 1.5]])
   >>> labels = jnp.array([[1., 0., 1.], [0., 1., 1.]])
-  >>> mask = jnp.array([[True, True, False], [True, True, True]])
+  >>> where = jnp.array([[True, True, False], [True, True, True]])
   >>> jax.vmap(functools.partial(rax.recall_metric, topn=2))(
-  ...     scores, labels, mask=mask)
+  ...     scores, labels, where=where)
   DeviceArray([1. , 0.5], dtype=float32)
 
   Definition:
@@ -262,12 +262,12 @@ def recall_metric(scores: jnp.ndarray,
       item.
     topn: An optional integer value indicating at which rank the metric cuts
       off. If None, no cutoff is performed.
-    mask: An optional [list_size]-jnp.ndarray, indicating which items are valid
+    where: An optional [list_size]-jnp.ndarray, indicating which items are valid
       for computing the metric.
     rng_key: An optional jax rng key. If provided, any random operations in this
       metric will be based on this key.
     rank_fn: A callable that maps scores to 1-based ranks. The callable should
-      accept a `scores` argument and optional `mask` and `rng_key` keyword
+      accept a `scores` argument and optional `where` and `rng_key` keyword
       arguments and return a `ranks` jnp.ndarray of the same shape as `scores`.
     cutoff_fn: A callable that computes a cutoff tensor indicating which
       elements to include and which ones to exclude based on a topn cutoff. The
@@ -286,14 +286,14 @@ def recall_metric(scores: jnp.ndarray,
                              jnp.zeros_like(labels))
 
   # Get the retrieved items.
-  ranks = rank_fn(scores, mask=mask, rng_key=rng_key)
+  ranks = rank_fn(scores, where=where, rng_key=rng_key)
   retrieved_items = _retrieved_items(
-      scores, ranks, mask=mask, topn=topn, cutoff_fn=cutoff_fn)
+      scores, ranks, where=where, topn=topn, cutoff_fn=cutoff_fn)
 
   # Compute number of retrieved+relevant items and relevant items.
   n_retrieved_relevant = jnp.sum(
-      retrieved_items * relevant_items, where=mask, axis=-1)
-  n_relevant = jnp.sum(relevant_items, where=mask, axis=-1)
+      retrieved_items * relevant_items, where=where, axis=-1)
+  n_relevant = jnp.sum(relevant_items, where=where, axis=-1)
 
   # Compute recall but prevent division by zero.
   n_relevant = jnp.where(n_relevant == 0, 1., n_relevant)
@@ -305,7 +305,7 @@ def precision_metric(scores: jnp.ndarray,
                      labels: jnp.ndarray,
                      *,
                      topn: Optional[int] = None,
-                     mask: Optional[jnp.ndarray] = None,
+                     where: Optional[jnp.ndarray] = None,
                      rng_key: Optional[jnp.ndarray] = None,
                      rank_fn: RankFn = utils.sort_ranks,
                      cutoff_fn: CutoffFn = utils.cutoff,
@@ -330,9 +330,9 @@ def precision_metric(scores: jnp.ndarray,
 
   >>> scores = jnp.array([[2., 1., 0.], [1., 0.5, 1.5]])
   >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> mask = jnp.array([[True, True, False], [True, True, True]])
+  >>> where = jnp.array([[True, True, False], [True, True, True]])
   >>> jax.vmap(functools.partial(rax.precision_metric, topn=None))(
-  ...     scores, labels, mask=mask)
+  ...     scores, labels, where=where)
   DeviceArray([0.5       , 0.33333334], dtype=float32)
 
   Definition:
@@ -354,12 +354,12 @@ def precision_metric(scores: jnp.ndarray,
       item.
     topn: An optional integer value indicating at which rank the metric cuts
       off. If not provided, no cutoff is performed.
-    mask: An optional [list_size]-jnp.ndarray, indicating which items are valid
+    where: An optional [list_size]-jnp.ndarray, indicating which items are valid
       for computing the metric.
     rng_key: An optional jax rng key. If provided, any random operations in this
       metric will be based on this key.
     rank_fn: A callable that maps scores to 1-based ranks. The callable should
-      accept a `scores` argument and optional `mask` and `rng_key` keyword
+      accept a `scores` argument and optional `where` and `rng_key` keyword
       arguments and return a `ranks` jnp.ndarray of the same shape as `scores`.
     cutoff_fn: A callable that computes a cutoff tensor indicating which
       elements to include and which ones to exclude based on a topn cutoff. The
@@ -378,14 +378,14 @@ def precision_metric(scores: jnp.ndarray,
                              jnp.zeros_like(labels))
 
   # Get the retrieved items.
-  ranks = rank_fn(scores, mask=mask, rng_key=rng_key)
+  ranks = rank_fn(scores, where=where, rng_key=rng_key)
   retrieved_items = _retrieved_items(
-      scores, ranks, mask=mask, topn=topn, cutoff_fn=cutoff_fn)
+      scores, ranks, where=where, topn=topn, cutoff_fn=cutoff_fn)
 
   # Compute number of retrieved+relevant items and retrieved items.
   n_retrieved_relevant = jnp.sum(
-      retrieved_items * relevant_items, where=mask, axis=-1)
-  n_retrieved = jnp.sum(retrieved_items, where=mask, axis=-1)
+      retrieved_items * relevant_items, where=where, axis=-1)
+  n_retrieved = jnp.sum(retrieved_items, where=where, axis=-1)
 
   # Compute precision but prevent division by zero.
   n_retrieved = jnp.where(n_retrieved == 0, 1., n_retrieved)
@@ -397,7 +397,7 @@ def ap_metric(scores: jnp.ndarray,
               labels: jnp.ndarray,
               *,
               topn: Optional[int] = None,
-              mask: Optional[jnp.ndarray] = None,
+              where: Optional[jnp.ndarray] = None,
               rng_key: Optional[jnp.ndarray] = None,
               rank_fn: RankFn = utils.sort_ranks,
               cutoff_fn: CutoffFn = utils.cutoff,
@@ -422,8 +422,8 @@ def ap_metric(scores: jnp.ndarray,
 
   >>> scores = jnp.array([[2., 1., 0.], [1., 0.5, 1.5]])
   >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> mask = jnp.array([[True, True, False], [True, True, True]])
-  >>> jax.vmap(rax.ap_metric)(scores, labels, mask=mask)
+  >>> where = jnp.array([[True, True, False], [True, True, True]])
+  >>> jax.vmap(rax.ap_metric)(scores, labels, where=where)
   DeviceArray([1., 1.], dtype=float32)
 
   Definition:
@@ -445,12 +445,12 @@ def ap_metric(scores: jnp.ndarray,
       item.
     topn: An optional integer value indicating at which rank the metric cuts
       off. If not provided, no cutoff is performed.
-    mask: An optional [list_size]-jnp.ndarray, indicating which items are valid
+    where: An optional [list_size]-jnp.ndarray, indicating which items are valid
       for computing the metric.
     rng_key: An optional jax rng key. If provided, any random operations in this
       metric will be based on this key.
     rank_fn: A callable that maps scores to 1-based ranks. The callable should
-      accept a `scores` argument and optional `mask` and `rng_key` keyword
+      accept a `scores` argument and optional `where` and `rng_key` keyword
       arguments and return a `ranks` jnp.ndarray of the same shape as `scores`.
     cutoff_fn: A callable that computes a cutoff tensor indicating which
       elements to include and which ones to exclude based on a topn cutoff. The
@@ -469,12 +469,12 @@ def ap_metric(scores: jnp.ndarray,
                              jnp.zeros_like(labels))
 
   # Get the retrieved items.
-  ranks = rank_fn(scores, mask=mask, rng_key=rng_key)
+  ranks = rank_fn(scores, where=where, rng_key=rng_key)
   retrieved_items = _retrieved_items(
-      scores, ranks, mask=mask, topn=topn, cutoff_fn=cutoff_fn)
+      scores, ranks, where=where, topn=topn, cutoff_fn=cutoff_fn)
 
   # Compute ranks.
-  ranks = rank_fn(scores, mask=mask, rng_key=rng_key)
+  ranks = rank_fn(scores, where=where, rng_key=rng_key)
 
   # Compute a matrix of all precision@k values
   relevant_i = jnp.expand_dims(relevant_items, axis=-1)
@@ -488,7 +488,7 @@ def ap_metric(scores: jnp.ndarray,
       prec_at_k * jnp.expand_dims(retrieved_items, -1), axis=(-2, -1))
 
   # Compute number of relevant items.
-  n_relevant = jnp.sum(relevant_items, where=mask, axis=-1)
+  n_relevant = jnp.sum(relevant_items, where=where, axis=-1)
 
   # Compute average precision but prevent division by zero.
   n_relevant = jnp.where(n_relevant == 0, 1., n_relevant)
@@ -499,7 +499,7 @@ def ap_metric(scores: jnp.ndarray,
 def dcg_metric(scores: jnp.ndarray,
                labels: jnp.ndarray,
                *,
-               mask: Optional[jnp.ndarray] = None,
+               where: Optional[jnp.ndarray] = None,
                topn: Optional[int] = None,
                weights: Optional[jnp.ndarray] = None,
                rng_key: Optional[jnp.ndarray] = None,
@@ -529,8 +529,8 @@ def dcg_metric(scores: jnp.ndarray,
 
   >>> scores = jnp.array([[2., 1., 0.], [1., 0.5, 1.5]])
   >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> mask = jnp.array([[True, True, False], [True, True, True]])
-  >>> jax.vmap(rax.dcg_metric)(scores, labels, mask=mask)
+  >>> where = jnp.array([[True, True, False], [True, True, True]])
+  >>> jax.vmap(rax.dcg_metric)(scores, labels, where=where)
   DeviceArray([1., 1.], dtype=float32)
 
   Definition:
@@ -549,7 +549,7 @@ def dcg_metric(scores: jnp.ndarray,
     labels: A [list_size]-jnp.ndarray, indicating the relevance label for each
       item. All labels are assumed to be positive when using the default gain
       function.
-    mask: An optional [list_size]-jnp.ndarray, indicating which items are valid
+    where: An optional [list_size]-jnp.ndarray, indicating which items are valid
       for computing the metric.
     topn: An optional integer value indicating at which rank the metric cuts
       off. If not provided, no cutoff is performed.
@@ -560,7 +560,7 @@ def dcg_metric(scores: jnp.ndarray,
     gain_fn: A callable that maps relevance label to gain values.
     discount_fn: A callable that maps 1-based ranks to discount values.
     rank_fn: A callable that maps scores to 1-based ranks. The callable should
-      accept a `scores` argument and optional `mask` and `rng_key` keyword
+      accept a `scores` argument and optional `where` and `rng_key` keyword
       arguments and return a `ranks` jnp.ndarray of the same shape as `scores`.
     cutoff_fn: A callable that computes a cutoff tensor indicating which
       elements to include and which ones to exclude based on a topn cutoff. The
@@ -575,9 +575,9 @@ def dcg_metric(scores: jnp.ndarray,
     The DCG metric.
   """
   # Get the retrieved items.
-  ranks = rank_fn(scores, mask=mask, rng_key=rng_key)
+  ranks = rank_fn(scores, where=where, rng_key=rng_key)
   retrieved_items = _retrieved_items(
-      scores, ranks, mask=mask, topn=topn, cutoff_fn=cutoff_fn)
+      scores, ranks, where=where, topn=topn, cutoff_fn=cutoff_fn)
 
   # Computes (weighted) gains.
   gains = gain_fn(labels)
@@ -588,14 +588,14 @@ def dcg_metric(scores: jnp.ndarray,
   discounts = discount_fn(ranks)
 
   # Compute DCG.
-  values = jnp.sum(retrieved_items * gains * discounts, axis=-1, where=mask)
+  values = jnp.sum(retrieved_items * gains * discounts, axis=-1, where=where)
   return utils.safe_reduce(values, reduce_fn=reduce_fn)
 
 
 def ndcg_metric(scores: jnp.ndarray,
                 labels: jnp.ndarray,
                 *,
-                mask: Optional[jnp.ndarray] = None,
+                where: Optional[jnp.ndarray] = None,
                 topn: Optional[int] = None,
                 weights: Optional[jnp.ndarray] = None,
                 rng_key: Optional[jnp.ndarray] = None,
@@ -625,8 +625,8 @@ def ndcg_metric(scores: jnp.ndarray,
 
   >>> scores = jnp.array([[2., 1., 0.], [1., 0.5, 1.5]])
   >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> mask = jnp.array([[True, True, False], [True, True, True]])
-  >>> jax.vmap(rax.ndcg_metric)(scores, labels, mask=mask)
+  >>> where = jnp.array([[True, True, False], [True, True, True]])
+  >>> jax.vmap(rax.ndcg_metric)(scores, labels, where=where)
   DeviceArray([1., 1.], dtype=float32)
 
   Definition:
@@ -643,7 +643,7 @@ def ndcg_metric(scores: jnp.ndarray,
     labels: A [list_size]-jnp.ndarray, indicating the relevance label for each
       item. All labels are assumed to be positive when using the default gain
       function.
-    mask: An optional [list_size]-jnp.ndarray, indicating which items are valid
+    where: An optional [list_size]-jnp.ndarray, indicating which items are valid
       for computing the metric.
     topn: An optional integer value indicating at which rank the metric cuts
       off. If not provided, no cutoff is performed.
@@ -654,7 +654,7 @@ def ndcg_metric(scores: jnp.ndarray,
     gain_fn: A callable that maps relevance label to gain values.
     discount_fn: A callable that maps 1-based ranks to discount values.
     rank_fn: A callable that maps scores to 1-based ranks. The callable should
-      accept a `scores` argument and optional `mask` and `rng_key` keyword
+      accept a `scores` argument and optional `where` and `rng_key` keyword
       arguments and return a `ranks` jnp.ndarray of the same shape as `scores`.
     cutoff_fn: A callable that computes a cutoff tensor indicating which
       elements to include and which ones to exclude based on a topn cutoff. The
@@ -672,7 +672,7 @@ def ndcg_metric(scores: jnp.ndarray,
   regular_dcg = dcg_metric(
       scores,
       labels,
-      mask=mask,
+      where=where,
       topn=topn,
       weights=weights,
       rng_key=rng_key,
@@ -689,7 +689,7 @@ def ndcg_metric(scores: jnp.ndarray,
   ideal_dcg = dcg_metric(
       ideal_scores,
       labels,
-      mask=mask,
+      where=where,
       topn=topn,
       weights=weights,
       rng_key=None,

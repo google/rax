@@ -28,7 +28,7 @@ except ImportError:
 class RankFn(Protocol):
   """Computes the ranks for the given scores."""
 
-  def __call__(self, scores: jnp.ndarray, mask: Optional[jnp.ndarray],
+  def __call__(self, scores: jnp.ndarray, where: Optional[jnp.ndarray],
                rng_key: Optional[jnp.ndarray]) -> jnp.ndarray:
     pass
 
@@ -52,7 +52,7 @@ class LossFn(Protocol):
   """A Rax loss function."""
 
   def __call__(self, scores: jnp.ndarray, labels: jnp.ndarray, *,
-               mask: Optional[jnp.ndarray], **kwargs) -> jnp.ndarray:
+               where: Optional[jnp.ndarray], **kwargs) -> jnp.ndarray:
     pass
 
 
@@ -60,5 +60,5 @@ class MetricFn(Protocol):
   """A Rax metric function."""
 
   def __call__(self, scores: jnp.ndarray, labels: jnp.ndarray, *,
-               mask: Optional[jnp.ndarray], **kwargs) -> jnp.ndarray:
+               where: Optional[jnp.ndarray], **kwargs) -> jnp.ndarray:
     pass

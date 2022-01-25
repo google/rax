@@ -75,13 +75,13 @@ class ApproxT12nTest(jtu.JaxTestCase, parameterized.TestCase):
       metrics.dcg_metric,
       metrics.ndcg_metric,
   ])
-  def test_approx_t12n_metric_has_nonnan_grads_with_all_mask(self, metric_fn):
+  def test_approx_t12n_metric_has_nonnan_grads_with_all_where(self, metric_fn):
     scores = jnp.asarray([-2., 1., 3., 9.])
     labels = jnp.asarray([1., 0., 1., 0.])
-    mask = jnp.asarray([False, False, False, False])
+    where = jnp.asarray([False, False, False, False])
 
     loss_fn = t12n.approx_t12n(metric_fn)
-    grads = jax.grad(loss_fn)(scores, labels, mask=mask)
+    grads = jax.grad(loss_fn)(scores, labels, where=where)
 
     self.assertArraysEqual(jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
 
@@ -178,13 +178,13 @@ class BoundT12nTest(jtu.JaxTestCase, parameterized.TestCase):
       metrics.dcg_metric,
       metrics.ndcg_metric,
   ])
-  def test_bound_t12n_metric_has_nonnan_grads_with_all_mask(self, metric_fn):
+  def test_bound_t12n_metric_has_nonnan_grads_with_all_where(self, metric_fn):
     scores = jnp.asarray([-2., 1., 3., 9.])
     labels = jnp.asarray([1., 0., 1., 0.])
-    mask = jnp.asarray([False, False, False, False])
+    where = jnp.asarray([False, False, False, False])
 
     loss_fn = t12n.bound_t12n(metric_fn)
-    grads = jax.grad(loss_fn)(scores, labels, mask=mask)
+    grads = jax.grad(loss_fn)(scores, labels, where=where)
 
     self.assertArraysEqual(jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
 
@@ -215,24 +215,24 @@ class GumbelT12nTest(jtu.JaxTestCase):
 
     new_loss_fn = t12n.gumbel_t12n(mock_loss_fn, samples=1)
 
-    loss = new_loss_fn(scores, labels, gumbel_key=jax.random.PRNGKey(42))
+    loss = new_loss_fn(scores, labels, rng_key=jax.random.PRNGKey(42))
     self.assertArraysAllClose(loss, jnp.asarray([[0.589013, 0.166654,
                                                   0.962401]]))
 
   def test_repeats_inputs_n_times(self):
     scores = jnp.asarray([0., 1., 2.])
     labels = jnp.asarray([0., 1., 0.])
-    mask = jnp.asarray([True, True, False])
+    where = jnp.asarray([True, True, False])
     n = 32
-    mock_loss_fn = lambda scores, labels, mask: (scores, labels, mask)
+    mock_loss_fn = lambda scores, labels, where: (scores, labels, where)
 
     new_loss_fn = t12n.gumbel_t12n(mock_loss_fn, samples=n)
 
-    new_scores, new_labels, new_mask = new_loss_fn(
-        scores, labels, mask=mask, gumbel_key=jax.random.PRNGKey(42))
+    new_scores, new_labels, new_where = new_loss_fn(
+        scores, labels, where=where, rng_key=jax.random.PRNGKey(42))
     self.assertEqual(new_scores.shape, (n, 3))
     self.assertEqual(new_labels.shape, (n, 3))
-    self.assertEqual(new_mask.shape, (n, 3))
+    self.assertEqual(new_where.shape, (n, 3))
 
   def test_samples_scores_using_gumbel_beta_shape(self):
     scores = jnp.asarray([0., 1., 2.])
@@ -242,7 +242,7 @@ class GumbelT12nTest(jtu.JaxTestCase):
     new_loss_fn = t12n.gumbel_t12n(mock_loss_fn, samples=1)
 
     loss = new_loss_fn(
-        scores, labels, gumbel_key=jax.random.PRNGKey(42), gumbel_beta=0.00001)
+        scores, labels, rng_key=jax.random.PRNGKey(42), gumbel_beta=0.00001)
     self.assertArraysAllClose(loss, jnp.expand_dims(scores, 0), atol=1e-3)
 
   def test_handles_extreme_scores(self):
@@ -252,10 +252,10 @@ class GumbelT12nTest(jtu.JaxTestCase):
 
     new_loss_fn = t12n.gumbel_t12n(mock_loss_fn, samples=1)
 
-    loss = new_loss_fn(scores, labels, gumbel_key=jax.random.PRNGKey(42))
+    loss = new_loss_fn(scores, labels, rng_key=jax.random.PRNGKey(42))
     self.assertArraysAllClose(loss, jnp.asarray([[-3e18, 1.666543e-01, 2e22]]))
 
-  def test_raises_an_error_if_no_gumbel_key_is_provided(self):
+  def test_raises_an_error_if_no_rng_key_is_provided(self):
     scores = jnp.asarray([-3e18, 1., 2e22])
     labels = jnp.asarray([0., 1., 0.])
     mock_loss_fn = lambda scores, labels: scores

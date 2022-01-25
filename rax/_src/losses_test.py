@@ -52,13 +52,13 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
           logloss(2. - 0.)
   }, {
       "loss_fn":
-          losses.sigmoid_cross_entropy_loss,
+          losses.pointwise_sigmoid_loss,
       "expected_value":
           -log(1. - sigmoid(0.)) - log(1. - sigmoid(3.)) - log(sigmoid(1.)) -
           log(sigmoid(2.))
   }, {
       "loss_fn":
-          losses.mse_loss,
+          losses.pointwise_mse_loss,
       "expected_value":
           (0. - 0.)**2 + (3. - 0.)**2 + (1. - 1.)**2 + (2. - 1.)**2
   }, {
@@ -93,11 +93,11 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
       "loss_fn": losses.pairwise_logistic_loss,
       "expected_value": 2.1e26 + 2.1e26
   }, {
-      "loss_fn": losses.sigmoid_cross_entropy_loss,
+      "loss_fn": losses.pointwise_sigmoid_loss,
       "expected_value": 2.1e26 - log(1. - sigmoid(0.)) + 42.0
   }, {
       "loss_fn":
-          losses.mse_loss,
+          losses.pointwise_mse_loss,
       "expected_value":
           (0. - 0.)**2 + (-2.1e26 - 1.)**2 + (3.4e37 - 1.)**2 + (42. - 0.)**2
   }, {
@@ -134,13 +134,13 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
       "expected_value": 0.
   }, {
       "loss_fn":
-          losses.sigmoid_cross_entropy_loss,
+          losses.pointwise_sigmoid_loss,
       "expected_value":
           -log(1. - sigmoid(0.)) - log(1. - sigmoid(3.)) -
           log(1. - sigmoid(1.)) - log(1. - sigmoid(2.))
   }, {
       "loss_fn":
-          losses.mse_loss,
+          losses.pointwise_mse_loss,
       "expected_value":
           (0. - 0.)**2 + (3. - 0.)**2 + (1. - 0.)**2 + (2. - 0.)**2
   }, {
@@ -165,13 +165,13 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
       "expected_value": 6.32057
   }, {
       "loss_fn":
-          losses.sigmoid_cross_entropy_loss,
+          losses.pointwise_sigmoid_loss,
       "expected_value":
           -log(1. - sigmoid(0.)) - log(1. - sigmoid(3.)) -
           2. * log(sigmoid(1.)) - log(sigmoid(2.))
   }, {
       "loss_fn":
-          losses.mse_loss,
+          losses.pointwise_mse_loss,
       "expected_value":
           (0. - 0.)**2 + (3. - 0.)**2 + 2. * (1. - 1.)**2 + (2. - 1.)**2
   }, {
@@ -215,7 +215,7 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
       ]
   }, {
       "loss_fn":
-          losses.sigmoid_cross_entropy_loss,
+          losses.pointwise_sigmoid_loss,
       "expected_value": [
           -log(1. - sigmoid(0.)) - log(1. - sigmoid(3.)) - log(sigmoid(1.)) -
           log(sigmoid(2.)),
@@ -224,7 +224,7 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
       ]
   }, {
       "loss_fn":
-          losses.mse_loss,
+          losses.pointwise_mse_loss,
       "expected_value": [
           (0. - 0.)**2 + (3. - 0.)**2 + (1. - 1.)**2 + (2. - 1.)**2,
           (3. - 2.)**2 + (1. - 0.)**2 + (4. - 1.)**2 + (2. - 0.)**2
@@ -271,14 +271,14 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
       ],
       "normalizer": 4.
   }, {
-      "loss_fn": losses.sigmoid_cross_entropy_loss,
+      "loss_fn": losses.pointwise_sigmoid_loss,
       "expected_value": [
           -log(sigmoid(2.)) - log(1. - sigmoid(1.)) - log(1. - sigmoid(3.)),
           -log(sigmoid(1.5)) - log(1. - sigmoid(1.)) - log(1. - sigmoid(0.5))
       ],
       "normalizer": 6.
   }, {
-      "loss_fn": losses.mse_loss,
+      "loss_fn": losses.pointwise_mse_loss,
       "expected_value": [(2. - 1.)**2 + (1. - 0.)**2 + (3. - 0.)**2,
                          (1. - 0.)**2 + (0.5 - 0.)**2 + (1.5 - 1.)**2],
       "normalizer": 6.
@@ -314,10 +314,10 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
       "loss_fn": losses.pairwise_mse_loss,
       "expected_shape": (2, 9)
   }, {
-      "loss_fn": losses.sigmoid_cross_entropy_loss,
+      "loss_fn": losses.pointwise_sigmoid_loss,
       "expected_shape": (2, 3)
   }, {
-      "loss_fn": losses.mse_loss,
+      "loss_fn": losses.pointwise_mse_loss,
       "expected_shape": (2, 3)
   }])
   def test_computes_unreduced_loss(self, loss_fn, expected_shape):
@@ -330,39 +330,39 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
 
   @parameterized.parameters([
       losses.softmax_loss, losses.pairwise_hinge_loss,
-      losses.pairwise_logistic_loss, losses.sigmoid_cross_entropy_loss,
-      losses.mse_loss, losses.pairwise_mse_loss
+      losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
+      losses.pointwise_mse_loss, losses.pairwise_mse_loss
   ])
-  def test_computes_loss_value_with_mask(self, loss_fn):
+  def test_computes_loss_value_with_where(self, loss_fn):
     scores = jnp.asarray([0., 3., 1., 2.])
     labels = jnp.asarray([0., 0., 1., 1.])
-    mask = jnp.asarray([True, True, False, True])
+    where = jnp.asarray([True, True, False, True])
     expected_scores = jnp.asarray([0., 3., 2.])
     expected_labels = jnp.asarray([0., 0., 1.])
 
-    loss = loss_fn(scores, labels, mask=mask)
+    loss = loss_fn(scores, labels, where=where)
     expected_loss = loss_fn(expected_scores, expected_labels)
 
     self.assertArraysAllClose(expected_loss, loss)
 
   @parameterized.parameters([
       losses.softmax_loss, losses.pairwise_hinge_loss,
-      losses.pairwise_logistic_loss, losses.sigmoid_cross_entropy_loss,
-      losses.mse_loss, losses.pairwise_mse_loss
+      losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
+      losses.pointwise_mse_loss, losses.pairwise_mse_loss
   ])
-  def test_computes_loss_value_with_all_masked(self, loss_fn):
+  def test_computes_loss_value_with_all_whereed(self, loss_fn):
     scores = jnp.asarray([0., 3., 1., 2.])
     labels = jnp.asarray([0., 0., 1., 1.])
-    mask = jnp.asarray([False, False, False, False])
+    where = jnp.asarray([False, False, False, False])
 
-    loss = loss_fn(scores, labels, mask=mask)
+    loss = loss_fn(scores, labels, where=where)
 
     self.assertArraysAllClose(jnp.asarray(0.), loss)
 
   @parameterized.parameters([
       losses.softmax_loss, losses.pairwise_hinge_loss,
-      losses.pairwise_logistic_loss, losses.sigmoid_cross_entropy_loss,
-      losses.mse_loss, losses.pairwise_mse_loss
+      losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
+      losses.pointwise_mse_loss, losses.pairwise_mse_loss
   ])
   def test_grad_does_not_return_nan_for_zero_labels(self, loss_fn):
     scores = jnp.asarray([0., 3., 1., 2.])
@@ -374,15 +374,15 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
 
   @parameterized.parameters([
       losses.softmax_loss, losses.pairwise_hinge_loss,
-      losses.pairwise_logistic_loss, losses.sigmoid_cross_entropy_loss,
-      losses.mse_loss, losses.pairwise_mse_loss
+      losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
+      losses.pointwise_mse_loss, losses.pairwise_mse_loss
   ])
-  def test_grad_does_not_return_nan_with_all_masked(self, loss_fn):
+  def test_grad_does_not_return_nan_with_all_whereed(self, loss_fn):
     scores = jnp.asarray([0., 3., 1., 2.])
     labels = jnp.asarray([0., 0., 1., 1.])
-    mask = jnp.asarray([False, False, False, False])
+    where = jnp.asarray([False, False, False, False])
 
-    grads = jax.grad(loss_fn)(scores, labels, mask=mask, reduce_fn=jnp.mean)
+    grads = jax.grad(loss_fn)(scores, labels, where=where, reduce_fn=jnp.mean)
 
     self.assertArraysEqual(jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
 

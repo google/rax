@@ -52,7 +52,7 @@ def safe_reduce(
 
 
 def normalize_probabilities(unscaled_probabilities: jnp.ndarray,
-                            mask: Optional[jnp.ndarray] = None,
+                            where: Optional[jnp.ndarray] = None,
                             axis: int = -1) -> jnp.ndarray:
   """Normalizes given unscaled probabilities so they sum to one in given axis.
 
@@ -68,37 +68,37 @@ def normalize_probabilities(unscaled_probabilities: jnp.ndarray,
 
   Args:
     unscaled_probabilities: The probabilities to normalize.
-    mask: The mask to indicate which entries are valid.
+    where: The mask to indicate which entries are valid.
     axis: The axis to normalize on.
 
   Returns:
     Given unscaled probabilities normalized so they sum to one for the valid
     (non-masked) items in the given axis.
   """
-  if mask is None:
-    mask = jnp.ones_like(unscaled_probabilities, dtype=jnp.bool_)
+  if where is None:
+    where = jnp.ones_like(unscaled_probabilities, dtype=jnp.bool_)
 
   # Sum only the valid items across the given axis.
   unscaled_probabilities_sum = jnp.sum(
-      unscaled_probabilities, axis=axis, keepdims=True, where=mask)
+      unscaled_probabilities, axis=axis, keepdims=True, where=where)
 
   # Sum mask for correctly normalizing all-zero elements with mask.
-  mask_sum = jnp.sum(mask, axis=axis, keepdims=True)
-  mask_sum = jnp.where(mask_sum == 0.,
-                       jnp.sum(jnp.ones_like(mask), axis=axis, keepdims=True),
-                       mask_sum)
+  where_sum = jnp.sum(where, axis=axis, keepdims=True)
+  where_sum = jnp.where(where_sum == 0.,
+                        jnp.sum(jnp.ones_like(where), axis=axis, keepdims=True),
+                        where_sum)
 
   # Compute output
   return jnp.where(
       unscaled_probabilities_sum != 0.,
       unscaled_probabilities / unscaled_probabilities_sum,
-      jnp.ones_like(mask, dtype=unscaled_probabilities.dtype) / mask_sum)
+      jnp.ones_like(where, dtype=unscaled_probabilities.dtype) / where_sum)
 
 
 def sort_by(scores: jnp.ndarray,
             tensors_to_sort: Sequence[jnp.ndarray],
             axis: int = -1,
-            mask: Optional[jnp.ndarray] = None,
+            where: Optional[jnp.ndarray] = None,
             rng_key: Optional[jnp.ndarray] = None) -> Sequence[jnp.ndarray]:
   """Sorts given list of tensors by given scores.
 
@@ -110,7 +110,7 @@ def sort_by(scores: jnp.ndarray,
     tensors_to_sort: A sequence of tensors of the same shape as scores. These
       are the tensors that will be sorted in the order of scores.
     axis: The axis to sort on, by default this is the last axis.
-    mask: An optional tensor of the same shape as scores, indicating which
+    where: An optional tensor of the same shape as scores, indicating which
       entries are valid for sorting. Invalid entries are pushed to the end.
     rng_key: An optional jax rng key. If provided, ties will be broken randomly
       using this key. If not provided, ties will retain the order of their
@@ -122,8 +122,8 @@ def sort_by(scores: jnp.ndarray,
   """
   # Sets up the keys we want to sort on.
   sort_operands = []
-  if mask is not None:
-    sort_operands.append(jnp.logical_not(mask))
+  if where is not None:
+    sort_operands.append(jnp.logical_not(where))
   sort_operands.append(-scores)
   if rng_key is not None:
     sort_operands.append(jax.random.uniform(rng_key, scores.shape))
@@ -140,7 +140,7 @@ def sort_by(scores: jnp.ndarray,
 def sort_ranks(scores: jnp.ndarray,
                *,
                axis: int = -1,
-               mask: Optional[jnp.ndarray] = None,
+               where: Optional[jnp.ndarray] = None,
                rng_key: Optional[jnp.ndarray] = None) -> jnp.ndarray:
   """Returns the ranks for given scores via sorting.
 
@@ -150,7 +150,7 @@ def sort_ranks(scores: jnp.ndarray,
   Args:
     scores: A tensor, representing scores to be ranked.
     axis: The axis to sort on, by default this is the last axis.
-    mask: An optional tensor of the same shape as scores, indicating which
+    where: An optional tensor of the same shape as scores, indicating which
       entries are valid for ranking. Invalid entries are ranked last.
     rng_key: An optional jax rng key. If provided, ties will be broken randomly
       using this key. If not provided, ties will retain the order of their
@@ -170,7 +170,8 @@ def sort_ranks(scores: jnp.ndarray,
   # Perform an argsort on the scores along given axis. This returns the indices
   # that would sort the scores. Note that we can not use the `jnp.argsort`
   # method here as it does not support masked arrays or randomized tie-breaking.
-  indices = sort_by(scores, [arange], axis=axis, mask=mask, rng_key=rng_key)[0]
+  indices = sort_by(
+      scores, [arange], axis=axis, where=where, rng_key=rng_key)[0]
 
   # Perform an argsort on the indices to get the 1-based ranks.
   return jnp.argsort(indices, axis=axis) + 1
@@ -179,7 +180,7 @@ def sort_ranks(scores: jnp.ndarray,
 def approx_ranks(
     scores: jnp.ndarray,
     *,
-    mask: Optional[jnp.ndarray] = None,
+    where: Optional[jnp.ndarray] = None,
     rng_key: Optional[jnp.ndarray] = None,
     step_fn: Callable[[jnp.ndarray],
                       jnp.ndarray] = jax.nn.sigmoid) -> jnp.ndarray:
@@ -199,7 +200,7 @@ def approx_ranks(
 
   Args:
     scores: A [..., list_size]-jnp.ndarray, indicating the score for each item.
-    mask: An optional [..., list_size]-jnp.ndarray, indicating which items are
+    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
       valid.
     rng_key: An optional jax rng key. Unused by approx_ranks.
     step_fn: A callable that approximates the step function `x >= 0`.
@@ -217,9 +218,9 @@ def approx_ranks(
 
   # Build mask to prevent counting (i == j) pairs.
   triangular_mask = (jnp.triu(jnp.tril(jnp.ones_like(score_pairs))) == 0.0)
-  if mask is not None:
-    mask = jnp.expand_dims(mask, axis=-1) & jnp.expand_dims(mask, axis=-2)
-    triangular_mask &= mask
+  if where is not None:
+    where = jnp.expand_dims(where, axis=-1) & jnp.expand_dims(where, axis=-2)
+    triangular_mask &= where
 
   return jnp.sum(score_pairs, axis=-1, where=triangular_mask, initial=1.0)
 
@@ -252,7 +253,7 @@ def cutoff(
 
   if n is None:
     return jnp.ones_like(a)
-  a_topn = sort_by(a, [a], mask=where)[0][..., :n]
+  a_topn = sort_by(a, [a], where=where)[0][..., :n]
   if a_topn.shape[-1] == 0:
     return jnp.zeros_like(a)
   return step_fn(a - jnp.expand_dims(a_topn[..., -1], -1))
