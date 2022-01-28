@@ -1,21 +1,20 @@
-name: Unit tests
+name: Publish to PyPI
 
-on: [push, pull_request]
+on:
+  release:
+    types: [created]
 
 jobs:
-  unittests:
-    name: "unittests"
+  publish:
+    name: "publish"
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.7, 3.8, 3.9]
 
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python 3.9
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: 3.9
 
       - name: Install dependencies
         run: |
@@ -32,4 +31,16 @@ jobs:
         run: |
           python -m unittest discover -v -s ./rax -p "*_test.py"
           python -m unittest discover -v -s ./examples -p "*_test.py"
+
+      - name: Create package
+        run: |
+          pip install --upgrade setuptools build twine virtualenv
+          python -m build
+
+      - name: Upload package
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          python -m twine upload dist/*
 
