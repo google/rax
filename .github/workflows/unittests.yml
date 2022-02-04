@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   unittests:
-    name: "unittests"
+    name: "unittests (${{ matrix.python-version }})"
     runs-on: ubuntu-latest
     strategy:
       matrix:

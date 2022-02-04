@@ -16,11 +16,11 @@
 
 Usage with example output:
 
-$ blaze run -c opt //third_party/py/rax/examples:approx_metrics
+$ python examples/approx_metrics.py
              | AP      | NDCG    | R@50
-ApproxAP     | 0.59480 | 0.65895 | 0.58062
+ApproxAP     | 0.59476 | 0.65876 | 0.58073
 ApproxNDCG   | 0.58769 | 0.67001 | 0.57444
-ApproxR@50   | 0.58794 | 0.64281 | 0.58129
+ApproxR@50   | 0.58459 | 0.64394 | 0.57380
 """
 
 import functools

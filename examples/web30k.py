@@ -16,22 +16,22 @@
 
 Usage with example output:
 
-$ blaze run -c opt //third_party/py/rax/examples:web30k
+$ python examples/web30k.py
 epoch=1
-  loss=4.46001
-  metric/mrr=0.81766
-  metric/ndcg=0.67343
-  metric/ndcg@10=0.41583
+  loss=4.45970
+  metric/mrr=0.82006
+  metric/ndcg=0.67454
+  metric/ndcg@10=0.41723
 epoch=2
-  loss=4.44818
-  metric/mrr=0.82619
-  metric/ndcg=0.68358
-  metric/ndcg@10=0.43313
+  loss=4.44802
+  metric/mrr=0.82790
+  metric/ndcg=0.68373
+  metric/ndcg@10=0.43320
 epoch=3
-  loss=4.44677
-  metric/mrr=0.82789
-  metric/ndcg=0.68388
-  metric/ndcg@10=0.43411
+  loss=4.44635
+  metric/mrr=0.83018
+  metric/ndcg=0.68511
+  metric/ndcg@10=0.43604
 """
 
 import collections
