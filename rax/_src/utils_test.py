@@ -120,32 +120,32 @@ class SortByTest(jtu.JaxTestCase):
 
     self.assertArraysEqual(result, jnp.asarray([13., 10., 12., 11.]))
 
-  def test_breaks_ties_randomly_when_rng_key_is_provided(self):
+  def test_breaks_ties_randomly_when_key_is_provided(self):
     scores = jnp.asarray([0., 1., 1., 2.])
     tensors_to_sort = [jnp.asarray([10., 11.1, 11.2, 12.])]
-    rng_key = jax.random.PRNGKey(4242)
-    rng_key1, rng_key2 = jax.random.split(rng_key)
+    key = jax.random.PRNGKey(4242)
+    key1, key2 = jax.random.split(key)
 
-    result1 = utils.sort_by(scores, tensors_to_sort, rng_key=rng_key1)[0]
-    result2 = utils.sort_by(scores, tensors_to_sort, rng_key=rng_key2)[0]
+    result1 = utils.sort_by(scores, tensors_to_sort, key=key1)[0]
+    result2 = utils.sort_by(scores, tensors_to_sort, key=key2)[0]
 
     self.assertArraysEqual(result1, jnp.asarray([12., 11.2, 11.1, 10.]))
     self.assertArraysEqual(result2, jnp.asarray([12., 11.1, 11.2, 10.]))
 
 
-class SortRankTest(jtu.JaxTestCase):
+class RanksTest(jtu.JaxTestCase):
 
   def test_ranks_by_sorting_scores(self):
     scores = jnp.asarray([[0., 1., 2.], [2., 1., 3.]])
 
-    ranks = utils.sort_ranks(scores)
+    ranks = utils.ranks(scores)
 
     self.assertArraysEqual(ranks, jnp.asarray([[3, 2, 1], [2, 3, 1]]))
 
   def test_ranks_along_given_axis(self):
     scores = jnp.asarray([[0., 1., 2.], [1., 2., 0.]])
 
-    ranks = utils.sort_ranks(scores, axis=0)
+    ranks = utils.ranks(scores, axis=0)
 
     self.assertArraysEqual(ranks, jnp.asarray([[2, 2, 1], [1, 1, 2]]))
 
@@ -154,8 +154,8 @@ class SortRankTest(jtu.JaxTestCase):
     key = jax.random.PRNGKey(1)
     key1, key2 = jax.random.split(key)
 
-    ranks1 = utils.sort_ranks(scores, rng_key=key1)
-    ranks2 = utils.sort_ranks(scores, rng_key=key2)
+    ranks1 = utils.ranks(scores, key=key1)
+    ranks2 = utils.ranks(scores, key=key2)
 
     self.assertArraysEqual(ranks1, jnp.asarray([1, 2, 3]))
     self.assertArraysEqual(ranks2, jnp.asarray([1, 3, 2]))
@@ -181,7 +181,7 @@ class ApproxRanksTest(jtu.JaxTestCase):
     scores = jnp.asarray([-4., 1., -3., 2.])
 
     ranks = utils.approx_ranks(scores)
-    true_ranks = utils.sort_ranks(scores)
+    true_ranks = utils.ranks(scores)
 
     self.assertArraysEqual(jnp.argsort(ranks), jnp.argsort(true_ranks))
 

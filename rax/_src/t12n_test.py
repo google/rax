@@ -215,7 +215,7 @@ class GumbelT12nTest(jtu.JaxTestCase):
 
     new_loss_fn = t12n.gumbel_t12n(mock_loss_fn, samples=1)
 
-    loss = new_loss_fn(scores, labels, rng_key=jax.random.PRNGKey(42))
+    loss = new_loss_fn(scores, labels, key=jax.random.PRNGKey(42))
     self.assertArraysAllClose(loss, jnp.asarray([[0.589013, 0.166654,
                                                   0.962401]]))
 
@@ -229,7 +229,7 @@ class GumbelT12nTest(jtu.JaxTestCase):
     new_loss_fn = t12n.gumbel_t12n(mock_loss_fn, samples=n)
 
     new_scores, new_labels, new_where = new_loss_fn(
-        scores, labels, where=where, rng_key=jax.random.PRNGKey(42))
+        scores, labels, where=where, key=jax.random.PRNGKey(42))
     self.assertEqual(new_scores.shape, (n, 3))
     self.assertEqual(new_labels.shape, (n, 3))
     self.assertEqual(new_where.shape, (n, 3))
@@ -242,7 +242,7 @@ class GumbelT12nTest(jtu.JaxTestCase):
     new_loss_fn = t12n.gumbel_t12n(mock_loss_fn, samples=1)
 
     loss = new_loss_fn(
-        scores, labels, rng_key=jax.random.PRNGKey(42), gumbel_beta=0.00001)
+        scores, labels, key=jax.random.PRNGKey(42), gumbel_beta=0.00001)
     self.assertArraysAllClose(loss, jnp.expand_dims(scores, 0), atol=1e-3)
 
   def test_handles_extreme_scores(self):
@@ -252,10 +252,10 @@ class GumbelT12nTest(jtu.JaxTestCase):
 
     new_loss_fn = t12n.gumbel_t12n(mock_loss_fn, samples=1)
 
-    loss = new_loss_fn(scores, labels, rng_key=jax.random.PRNGKey(42))
+    loss = new_loss_fn(scores, labels, key=jax.random.PRNGKey(42))
     self.assertArraysAllClose(loss, jnp.asarray([[-3e18, 1.666543e-01, 2e22]]))
 
-  def test_raises_an_error_if_no_rng_key_is_provided(self):
+  def test_raises_an_error_if_no_key_is_provided(self):
     scores = jnp.asarray([-3e18, 1., 2e22])
     labels = jnp.asarray([0., 1., 0.])
     mock_loss_fn = lambda scores, labels: scores

@@ -29,7 +29,7 @@ class RankFn(Protocol):
   """Computes the ranks for the given scores."""
 
   def __call__(self, scores: jnp.ndarray, where: Optional[jnp.ndarray],
-               rng_key: Optional[jnp.ndarray]) -> jnp.ndarray:
+               key: Optional[jnp.ndarray]) -> jnp.ndarray:
     pass
 
 

@@ -122,7 +122,7 @@ def sort_by(scores: jnp.ndarray,
             tensors_to_sort: Sequence[jnp.ndarray],
             axis: int = -1,
             where: Optional[jnp.ndarray] = None,
-            rng_key: Optional[jnp.ndarray] = None) -> Sequence[jnp.ndarray]:
+            key: Optional[jnp.ndarray] = None) -> Sequence[jnp.ndarray]:
   """Sorts given list of tensors by given scores.
 
   Each of the entries in the `tensors_to_sort` sequence must be a tensor that
@@ -135,7 +135,7 @@ def sort_by(scores: jnp.ndarray,
     axis: The axis to sort on, by default this is the last axis.
     where: An optional tensor of the same shape as scores, indicating which
       entries are valid for sorting. Invalid entries are pushed to the end.
-    rng_key: An optional jax rng key. If provided, ties will be broken randomly
+    key: An optional jax rng key. If provided, ties will be broken randomly
       using this key. If not provided, ties will retain the order of their
       appearance in the `scores` array.
 
@@ -148,8 +148,8 @@ def sort_by(scores: jnp.ndarray,
   if where is not None:
     sort_operands.append(jnp.logical_not(where))
   sort_operands.append(-scores)
-  if rng_key is not None:
-    sort_operands.append(jax.random.uniform(rng_key, scores.shape))
+  if key is not None:
+    sort_operands.append(jax.random.uniform(key, scores.shape))
   num_keys = len(sort_operands)
 
   # Adds the tensors that we want sort.
@@ -160,12 +160,12 @@ def sort_by(scores: jnp.ndarray,
   return sorted_values[num_keys:]
 
 
-def sort_ranks(scores: jnp.ndarray,
-               *,
-               axis: int = -1,
-               where: Optional[jnp.ndarray] = None,
-               rng_key: Optional[jnp.ndarray] = None) -> jnp.ndarray:
-  """Returns the ranks for given scores via sorting.
+def ranks(scores: jnp.ndarray,
+          *,
+          axis: int = -1,
+          where: Optional[jnp.ndarray] = None,
+          key: Optional[jnp.ndarray] = None) -> jnp.ndarray:
+  """Computes the ranks for given scores.
 
   Note that the ranks returned by this function are not differentiable due to
   the sort operation having no gradients.
@@ -175,7 +175,7 @@ def sort_ranks(scores: jnp.ndarray,
     axis: The axis to sort on, by default this is the last axis.
     where: An optional tensor of the same shape as scores, indicating which
       entries are valid for ranking. Invalid entries are ranked last.
-    rng_key: An optional jax rng key. If provided, ties will be broken randomly
+    key: An optional jax rng key. If provided, ties will be broken randomly
       using this key. If not provided, ties will retain the order of their
       appearance in the `scores` array.
 
@@ -194,7 +194,7 @@ def sort_ranks(scores: jnp.ndarray,
   # that would sort the scores. Note that we can not use the `jnp.argsort`
   # method here as it does not support masked arrays or randomized tie-breaking.
   indices = sort_by(
-      scores, [arange], axis=axis, where=where, rng_key=rng_key)[0]
+      scores, [arange], axis=axis, where=where, key=key)[0]
 
   # Perform an argsort on the indices to get the 1-based ranks.
   return jnp.argsort(indices, axis=axis) + 1
@@ -204,7 +204,7 @@ def approx_ranks(
     scores: jnp.ndarray,
     *,
     where: Optional[jnp.ndarray] = None,
-    rng_key: Optional[jnp.ndarray] = None,
+    key: Optional[jnp.ndarray] = None,
     step_fn: Callable[[jnp.ndarray],
                       jnp.ndarray] = jax.nn.sigmoid) -> jnp.ndarray:
   """Computes approximate ranks.
@@ -225,7 +225,7 @@ def approx_ranks(
     scores: A [..., list_size]-jnp.ndarray, indicating the score for each item.
     where: An optional [..., list_size]-jnp.ndarray, indicating which items are
       valid.
-    rng_key: An optional jax rng key. Unused by approx_ranks.
+    key: An optional jax rng key. Unused by approx_ranks.
     step_fn: A callable that approximates the step function `x >= 0`.
 
   Returns:
@@ -233,7 +233,7 @@ def approx_ranks(
     each item.
   """
 
-  del rng_key  # unused for approximate ranks.
+  del key  # unused for approximate ranks.
 
   score_i = jnp.expand_dims(scores, axis=-1)
   score_j = jnp.expand_dims(scores, axis=-2)

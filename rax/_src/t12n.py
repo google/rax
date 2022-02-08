@@ -62,7 +62,7 @@ def approx_t12n(metric_fn: MetricFn, temperature: float = 1.0) -> LossFn:
   >>> gumbel_approx_mrr = rax.gumbel_t12n(rax.approx_t12n(rax.mrr_metric))
   >>> scores = jnp.asarray([0., 1., 3., 2.])
   >>> labels = jnp.asarray([0., 0., 1., 2.])
-  >>> gumbel_approx_mrr(scores, labels, rng_key=jax.random.PRNGKey(42))
+  >>> gumbel_approx_mrr(scores, labels, key=jax.random.PRNGKey(42))
   DeviceArray(-0.71880937, dtype=float32)
 
   Args:
@@ -115,7 +115,7 @@ def bound_t12n(metric_fn: MetricFn):
   >>> gumbel_bound_mrr = rax.gumbel_t12n(rax.bound_t12n(rax.mrr_metric))
   >>> scores = jnp.asarray([0., 1., 3., 2.])
   >>> labels = jnp.asarray([0., 1., 0., 1.])
-  >>> gumbel_bound_mrr(scores, labels, rng_key=jax.random.PRNGKey(42))
+  >>> gumbel_bound_mrr(scores, labels, key=jax.random.PRNGKey(42))
   DeviceArray(-0.31619418, dtype=float32)
 
   Args:
@@ -155,16 +155,16 @@ def gumbel_t12n(loss_or_metric_fn: LossOrMetricFn,
 
   This transformation changes given `loss_or_metric_fn` so that it samples
   scores from a gumbel distribution prior to computing the loss or metric. The
-  returned function requires a new `rng_key` keyword argument.
+  returned function requires a new `key` keyword argument.
 
   Example usage:
 
   >>> loss_fn = rax.gumbel_t12n(rax.softmax_loss)
   >>> scores = jnp.asarray([0., 1., 3., 2.])
   >>> labels = jnp.asarray([0., 0., 1., 2.])
-  >>> loss_fn(scores, labels, rng_key=jax.random.PRNGKey(42))
+  >>> loss_fn(scores, labels, key=jax.random.PRNGKey(42))
   DeviceArray(16.551075, dtype=float32)
-  >>> loss_fn(scores, labels, rng_key=jax.random.PRNGKey(79))
+  >>> loss_fn(scores, labels, key=jax.random.PRNGKey(79))
   DeviceArray(13.367413, dtype=float32)
 
   Args:
@@ -173,9 +173,9 @@ def gumbel_t12n(loss_or_metric_fn: LossOrMetricFn,
 
   Returns:
     A new function that behaves the same as `loss_or_metric_fn` but which
-    requires an additional `rng_key` argument that will be used to randomly
-    sample the scores from a gumbel distribution and an optional `gumbel_beta`
-    argument that specifies the shape of the gumbel distribution (default 1.0).
+    requires an additional `key` argument that will be used to randomly sample
+    the scores from a gumbel distribution and an optional `gumbel_beta` argument
+    that specifies the shape of the gumbel distribution (default 1.0).
   """
 
   def expand_and_repeat_dim(a: jnp.ndarray, axis: int = 0):
@@ -186,7 +186,7 @@ def gumbel_t12n(loss_or_metric_fn: LossOrMetricFn,
   def _loss_or_metric_fn_with_gumbel_scores(scores,
                                             labels,
                                             *,
-                                            rng_key: jnp.ndarray,
+                                            key: jnp.ndarray,
                                             gumbel_beta: jnp.ndarray = 1.0,
                                             **kwargs):
     # Repeat scores and labels `n` times by adding a new batch dim.
@@ -200,13 +200,13 @@ def gumbel_t12n(loss_or_metric_fn: LossOrMetricFn,
         for name, arg in kwargs.items()
     }
 
-    # Check if `loss_or_metric_fn` accepts an `rng_key` argument. If it does,
-    # split an rng_key for downstream random ops.
-    if _accepts_args(loss_or_metric_fn, rng_key=rng_key):
-      rng_key, kwargs["rng_key"] = jax.random.split(rng_key)
+    # Check if `loss_or_metric_fn` accepts a `key` argument. If it does, split
+    # the key for downstream random ops.
+    if _accepts_args(loss_or_metric_fn, key=key):
+      key, kwargs["key"] = jax.random.split(key)
 
     # Update scores by drawing a sample from the gumbel distribution.
-    gumbel_sample = jax.random.gumbel(rng_key, shape=scores.shape)
+    gumbel_sample = jax.random.gumbel(key, shape=scores.shape)
     gumbel_scores = gumbel_sample * gumbel_beta + scores
 
     return loss_or_metric_fn(gumbel_scores, labels, **kwargs)
