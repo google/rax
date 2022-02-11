@@ -25,20 +25,20 @@ from examples import web30k
 import tensorflow_datasets as tfds
 
 EXPECTED_OUTPUT = """epoch=1
-  loss=3.14508
+  loss=46.48952
   metric/mrr=0.00000
-  metric/ndcg=0.81562
-  metric/ndcg@10=0.62021
+  metric/ndcg=0.80958
+  metric/ndcg@10=0.62020
 epoch=2
-  loss=3.14373
+  loss=46.47362
   metric/mrr=0.00000
-  metric/ndcg=0.82403
-  metric/ndcg@10=0.63671
+  metric/ndcg=0.81584
+  metric/ndcg@10=0.63113
 epoch=3
-  loss=3.14263
+  loss=46.46141
   metric/mrr=0.00000
-  metric/ndcg=0.82581
-  metric/ndcg@10=0.63811
+  metric/ndcg=0.82966
+  metric/ndcg@10=0.65239
 """
 
 
@@ -53,7 +53,7 @@ class Web30kTest(jtu.JaxTestCase):
         web30k.main(argv)
 
     output = mock_stdout.getvalue()
-    self.assertEqual(output, EXPECTED_OUTPUT)
+    self.assertEqual(EXPECTED_OUTPUT, output)
 
 
 if __name__ == "__main__":

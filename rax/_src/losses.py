@@ -55,6 +55,7 @@ def softmax_loss(scores: jnp.ndarray,
                  *,
                  where: Optional[jnp.ndarray] = None,
                  weights: Optional[jnp.ndarray] = None,
+                 label_fn: Callable[..., jnp.ndarray] = lambda a, where: a,
                  reduce_fn: Optional[ReduceFn] = jnp.sum) -> jnp.float_:
   r"""Ranking softmax loss.
 
@@ -95,6 +96,8 @@ def softmax_loss(scores: jnp.ndarray,
       ignored when computing the loss.
     weights: An optional [..., list_size]-jnp.ndarray, indicating the weight for
       each item.
+    label_fn: A label function that maps labels to probabilities. Default keeps
+      labels as-is.
     reduce_fn: An optional Callable that reduces the loss values. The callable
       should accept a loss tensor and an optional `where` tensor indicating
       which elements to include in the reduction. Can be `jnp.sum` or
@@ -113,7 +116,7 @@ def softmax_loss(scores: jnp.ndarray,
     labels *= weights
 
   # Scales labels and scores to match the cross entropy loss.
-  labels_probabilities = utils.normalize_probabilities(labels, where, axis=-1)
+  labels_probabilities = label_fn(labels, where=where)
   scores_log_softmax = jax.nn.log_softmax(scores, axis=-1)
 
   # Computes per-element cross entropy.

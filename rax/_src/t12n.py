@@ -163,9 +163,9 @@ def gumbel_t12n(loss_or_metric_fn: LossOrMetricFn,
   >>> scores = jnp.asarray([0., 1., 3., 2.])
   >>> labels = jnp.asarray([0., 0., 1., 2.])
   >>> loss_fn(scores, labels, key=jax.random.PRNGKey(42))
-  DeviceArray(16.551075, dtype=float32)
+  DeviceArray(49.65323, dtype=float32)
   >>> loss_fn(scores, labels, key=jax.random.PRNGKey(79))
-  DeviceArray(13.367413, dtype=float32)
+  DeviceArray(40.102238, dtype=float32)
 
   Args:
     loss_or_metric_fn: A Rax loss or metric function.

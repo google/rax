@@ -39,8 +39,8 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
       "loss_fn":
           losses.softmax_loss,
       "expected_value":
-          -(0.5 * log(exp(2.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))) +
-            0.5 * log(exp(1.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))))
+          -(log(exp(2.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))) +
+            log(exp(1.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))))
   }, {
       "loss_fn": losses.pairwise_hinge_loss,
       "expected_value": (3. - 1. + 1.) + (3. - 2. + 1.)
@@ -84,7 +84,7 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
       "loss_fn":
           losses.softmax_loss,
       "expected_value":
-          -(0.5 * (-2.1e26 - (0. + -2.1e26 + 3.4e37 + 42.)) + 0.5 *
+          -((-2.1e26 - (0. + -2.1e26 + 3.4e37 + 42.)) +
             (3.4e37 - (0. + -2.1e26 + 3.4e37 + 42.)))
   }, {
       "loss_fn": losses.pairwise_hinge_loss,
@@ -121,11 +121,7 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
   @parameterized.parameters([{
       "loss_fn":
           losses.softmax_loss,
-      "expected_value":
-          -(0.25 * log(exp(0.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))) +
-            0.25 * log(exp(3.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))) +
-            0.25 * log(exp(1.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))) +
-            0.25 * log(exp(2.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))))
+      "expected_value": 0.
   }, {
       "loss_fn": losses.pairwise_hinge_loss,
       "expected_value": 0.
@@ -196,10 +192,10 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
       "loss_fn":
           losses.softmax_loss,
       "expected_value": [
-          -(0.5 * log(exp(2.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))) +
-            0.5 * log(exp(1.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.)))),
-          -((2. / 3.) * log(exp(3.) / (exp(3.) + exp(1.) + exp(4.) + exp(2.))) +
-            (1. / 3.) * log(exp(4.) / (exp(3.) + exp(1.) + exp(4.) + exp(2.))))
+          -(log(exp(2.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))) +
+            log(exp(1.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.)))),
+          -(2. * log(exp(3.) / (exp(3.) + exp(1.) + exp(4.) + exp(2.))) +
+            log(exp(4.) / (exp(3.) + exp(1.) + exp(4.) + exp(2.))))
       ]
   }, {
       "loss_fn": losses.pairwise_hinge_loss,
@@ -352,7 +348,7 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
       losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
       losses.pointwise_mse_loss, losses.pairwise_mse_loss
   ])
-  def test_computes_loss_value_with_all_whereed(self, loss_fn):
+  def test_computes_loss_value_with_all_masked(self, loss_fn):
     scores = jnp.asarray([0., 3., 1., 2.])
     labels = jnp.asarray([0., 0., 1., 1.])
     where = jnp.asarray([False, False, False, False])
@@ -379,7 +375,7 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
       losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
       losses.pointwise_mse_loss, losses.pairwise_mse_loss
   ])
-  def test_grad_does_not_return_nan_with_all_whereed(self, loss_fn):
+  def test_grad_does_not_return_nan_with_all_masked(self, loss_fn):
     scores = jnp.asarray([0., 3., 1., 2.])
     labels = jnp.asarray([0., 0., 1., 1.])
     where = jnp.asarray([False, False, False, False])
