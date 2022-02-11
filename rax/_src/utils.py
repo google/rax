@@ -273,13 +273,36 @@ def cutoff(
     A {0, 1}-tensor (or approximation thereof) of the same shape as `a`, where
     the `n` largest values are set to 1, and the smaller values are set to 0.
   """
-
-  if n is None:
+  # When the shape of `a` is smaller than `n`, there is no cut off.
+  if n is None or n >= a.shape[-1]:
     return jnp.ones_like(a)
-  a_topn = sort_by(a, [a], where=where)[0][..., :n]
-  if a_topn.shape[-1] == 0:
+
+  # When `n` is 0, everything is cut off.
+  if n == 0:
     return jnp.zeros_like(a)
-  return step_fn(a - jnp.expand_dims(a_topn[..., -1], -1))
+
+  # Get the sorted value at `n` and `n+1`, which is where the cutoff is supposed
+  # to happen.
+  a_topn = sort_by(a, [a], where=where)[0][..., :n][..., -1]
+  a_topnp1 = sort_by(a, [a], where=where)[0][..., :n+1][..., -1]
+
+  # Place the cutoff point between a[n] and a[n+1]. For exact `step_fn`, this
+  # does not make a difference. But for approximate step functions (e.g.
+  # sigmoid), this ensures the cutoff value at `n` can be close to 1, and the
+  # cutoff value at `n+1` can be close to 0.
+  a_cutoff = jax.lax.stop_gradient((a_topnp1 + a_topn) / 2)
+  cutoffs = step_fn(a - jnp.expand_dims(a_cutoff, -1))
+
+  if where is not None:
+    # A mask can indicate a different list size for each list in `a`, so this
+    # checks if a valid cutoff exists for each list.
+    valid_cutoffs = n < jnp.sum(where, axis=-1, keepdims=True)
+    cutoffs = jnp.where(valid_cutoffs, cutoffs, jnp.ones_like(cutoffs))
+
+    # Also mask out invalid entries.
+    cutoffs = jnp.where(where, cutoffs, jnp.zeros_like(cutoffs))
+
+  return cutoffs
 
 
 approx_cutoff = jax.util.wraps(cutoff)(

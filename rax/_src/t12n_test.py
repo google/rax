@@ -131,7 +131,7 @@ class BoundT12nTest(jtu.JaxTestCase, parameterized.TestCase):
     bound_fn = t12n.bound_t12n(fn)
     ranks = bound_fn(scores, labels)
 
-    expected = jnp.array([1., -1.5 - 0.9, 0.])
+    expected = jnp.array([1., -1.5 - (-1.5 + 0.9) / 2., 1.])
     self.assertArraysAllClose(ranks, expected)
 
   @parameterized.parameters([
