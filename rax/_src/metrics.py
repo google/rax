@@ -12,27 +12,43 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Ranking metrics in JAX.
+"""Implementations of common ranking metrics in JAX.
 
-A ranking metric function is a callable that accepts a scores tensor, a labels
-tensor, and, optionally a mask tensor. In addition to these arguments, metric
-functions *may* accept additional optional keyword arguments, e.g. for weights
-or topn, however this depends on the specific metric function and is not
-required.
+A ranking metric expresses how well a ranking induced by item scores matches a
+ranking induced from relevance labels. Rax provides a number of ranking metrics
+as JAX functions that are implemented according to the
+:class:`~rax.types.MetricFn` interface.
 
-The metric functions operate on the last dimension of its inputs. The leading
-dimensions are considered batch dimensions. To compute per-list metrics, for
-example to apply per-list weighting or for distributed computing of metrics
-across devices, please use standard JAX transformations such as `jax.vmap` or
-`jax.pmap`.
+Metric functions are designed to operate on the last dimension of its inputs.
+The leading dimensions are considered batch dimensions. To compute per-list
+metrics, for example to apply per-list weighting or for distributed computing of
+metrics across devices, please use standard JAX transformations such as
+:func:`jax.vmap` or :func:`jax.pmap`.
 
-Example usage:
+Standalone usage of a metric:
+
 >>> import jax
 >>> import rax
->>> scores = jnp.asarray([[0., 1., 3.], [1., 2., 0.]])
->>> labels = jnp.asarray([[0., 0., 1.], [1., 0., 0.]])
->>> rax.mrr_metric(scores, labels)
-DeviceArray(0.75, dtype=float32)
+>>> scores = jnp.array([2., 1., 3.])
+>>> labels = jnp.array([2., 0., 1.])
+>>> rax.ndcg_metric(scores, labels)
+DeviceArray(0.79670763, dtype=float32)
+
+Usage with a batch of data and a mask to indicate valid items:
+
+>>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
+>>> labels = jnp.array([[2., 0., 1.], [0., 0., 1.]])
+>>> where = jnp.array([[True, True, False], [True, True, True]])
+>>> rax.ndcg_metric(scores, labels)
+DeviceArray(0.8983538, dtype=float32)
+
+Usage with :func:`jax.vmap` batching and a mask to indicate valid items:
+
+>>> scores = jnp.array([[2., 1., 0.], [1., 0.5, 1.5]])
+>>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
+>>> where = jnp.array([[True, True, False], [True, True, True]])
+>>> jax.vmap(rax.ndcg_metric)(scores, labels, where=where)
+DeviceArray([1., 1.], dtype=float32)
 
 """
 
@@ -41,34 +57,33 @@ from typing import Callable, Optional
 import jax.numpy as jnp
 
 from rax._src import utils
-from rax._src.protocols import CutoffFn
-from rax._src.protocols import RankFn
-from rax._src.protocols import ReduceFn
+from rax._src.types import Array
+from rax._src.types import CutoffFn
+from rax._src.types import RankFn
+from rax._src.types import ReduceFn
 
 
-def _retrieved_items(scores: jnp.ndarray,
-                     ranks: jnp.ndarray,
+def _retrieved_items(scores: Array,
+                     ranks: Array,
                      *,
-                     where: Optional[jnp.ndarray] = None,
+                     where: Optional[Array] = None,
                      topn: Optional[int] = None,
-                     cutoff_fn: CutoffFn = utils.cutoff) -> jnp.ndarray:
+                     cutoff_fn: CutoffFn = utils.cutoff) -> Array:
   """Computes an array that indicates which items are retrieved.
 
   Args:
-    scores: A [..., list_size]-jnp.ndarray, indicating the score of each item.
-    ranks: A [..., list_size]-jnp.ndarray, indicating the 1-based rank of each
-      item.
-    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
-      valid.
+    scores: A [..., list_size]-Array, indicating the score of each item.
+    ranks: A [..., list_size]-Array, indicating the 1-based rank of each item.
+    where: An optional [..., list_size]-Array, indicating which items are valid.
     topn: An optional integer value indicating at which rank items are cut off.
       If None, no cutoff is performed.
     cutoff_fn: A callable that computes a cutoff tensor indicating which
       elements to include and which ones to exclude based on a topn cutoff. The
-      callable should accept a `ranks` jnp.ndarray and an `n` integer and return
-      a cutoffs jnp.ndarray of the same shape as `ranks`.
+      callable should accept a `ranks` Array and an `n` integer and return a
+      cutoffs Array of the same shape as `ranks`.
 
   Returns:
-    A [..., list_size]-jnp.ndarray, indicating for each item whether they are a
+    A [..., list_size]-Array, indicating for each item whether they are a
     retrieved item or not.
   """
   # Items with score > -inf are considered retrieved items.
@@ -84,7 +99,7 @@ def _retrieved_items(scores: jnp.ndarray,
   return retrieved_items
 
 
-def default_gain_fn(label: jnp.ndarray) -> jnp.ndarray:
+def default_gain_fn(label: Array) -> Array:
   r"""Default gain function used for gain-based metrics.
 
   Definition:
@@ -101,7 +116,7 @@ def default_gain_fn(label: jnp.ndarray) -> jnp.ndarray:
   return jnp.power(2., label) - 1.
 
 
-def default_discount_fn(rank: jnp.ndarray) -> jnp.ndarray:
+def default_discount_fn(rank: Array) -> Array:
   r"""Default discount function used for discount-based metrics.
 
   Definition:
@@ -118,38 +133,22 @@ def default_discount_fn(rank: jnp.ndarray) -> jnp.ndarray:
   return 1. / jnp.log2(rank + 1)
 
 
-def mrr_metric(scores: jnp.ndarray,
-               labels: jnp.ndarray,
+def mrr_metric(scores: Array,
+               labels: Array,
                *,
-               where: Optional[jnp.ndarray] = None,
+               where: Optional[Array] = None,
                topn: Optional[int] = None,
-               key: Optional[jnp.ndarray] = None,
+               key: Optional[Array] = None,
                rank_fn: RankFn = utils.ranks,
                cutoff_fn: CutoffFn = utils.cutoff,
-               reduce_fn: Optional[ReduceFn] = jnp.mean) -> jnp.ndarray:
-  r"""Mean reciprocal rank (MRR).
+               reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
+  r"""Mean Reciprocal Rank (MRR).
 
-  Standalone usage:
+  .. note::
 
-  >>> scores = jnp.array([2., 1., 3.])
-  >>> labels = jnp.array([1., 0., 0.])
-  >>> rax.mrr_metric(scores, labels)
-  DeviceArray(0.5, dtype=float32)
-
-  Usage with a batch of data:
-
-  >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> rax.mrr_metric(scores, labels)
-  DeviceArray(0.75, dtype=float32)
-
-  Usage with `jax.vmap` batching and a mask to indicate valid items:
-
-  >>> scores = jnp.array([[2., 1., 0.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> where = jnp.array([[True, True, False], [True, True, True]])
-  >>> jax.vmap(rax.mrr_metric)(scores, labels, where=where)
-  DeviceArray([1., 1.], dtype=float32)
+    This metric converts graded relevance to binary relevance by considering
+    items with ``label >= 1`` as relevant and items with ``label < 1`` as
+    non-relevant.
 
   Definition:
 
@@ -157,33 +156,26 @@ def mrr_metric(scores: jnp.ndarray,
       \operatorname{mrr}(s, y) = \max_i \frac{y_i}{\operatorname{rank}(s_i)}
 
   where :math:`\operatorname{rank}(s_i)` indicates the rank of item :math:`i`
-  after sorting all scores :math:`s` using `rank_fn`.
-
-  This metric converts graded relevance to binary relevance by considering items
-  with `label >= 1` as relevant and items with `label < 1` as non-relevant.
+  after sorting all scores :math:`s` using ``rank_fn``.
 
   Args:
-    scores: A [list_size]-jnp.ndarray, indicating the score of each item. Items
-      for which the score is `-inf` are treated as unranked items.
-    labels: A [list_size]-jnp.ndarray, indicating the relevance label for each
-      item.
-    where: An optional [list_size]-jnp.ndarray, indicating which items are valid
-      for computing the metric.
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score of each item. Items for which the score is :math:`-\inf` are treated
+        as unranked items.
+    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      relevance label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid for computing the metric.
     topn: An optional integer value indicating at which rank the metric cuts
-      off. If None, no cutoff is performed.
-    key: An optional jax rng key. If provided, any random operations in this
-      metric will be based on this key.
-    rank_fn: A callable that maps scores to 1-based ranks. The callable should
-      accept a `scores` argument and optional `where` and `key` keyword
-      arguments and return a `ranks` jnp.ndarray of the same shape as `scores`.
-    cutoff_fn: A callable that computes a cutoff tensor indicating which
-      elements to include and which ones to exclude based on a topn cutoff. The
-      callable should accept a `ranks` jnp.ndarray and an `n` integer and return
-      a cutoffs jnp.ndarray of the same shape as `ranks`.
-    reduce_fn: An optional Callable that reduces the loss values. The callable
-      should accept a loss tensor and an optional `where` tensor indicating
-      which elements to include in the reduction. Can be `jnp.sum` or
-      `jnp.mean`. If `None`, no reduction is performed.
+      off. If ``None``, no cutoff is performed.
+    key: An optional :func:`~jax.random.PRNGKey`. If provided, any random
+      operations in this metric will be based on this key.
+    rank_fn: A function that maps scores to 1-based ranks.
+    cutoff_fn: A function that maps ranks and a cutoff integer to a binary array
+      indicating which items are cutoff.
+    reduce_fn: An optional function that reduces the metric values. Can be
+      :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
+      is performed.
 
   Returns:
     The MRR metric.
@@ -209,74 +201,51 @@ def mrr_metric(scores: jnp.ndarray,
   return utils.safe_reduce(values, reduce_fn=reduce_fn)
 
 
-def recall_metric(scores: jnp.ndarray,
-                  labels: jnp.ndarray,
+def recall_metric(scores: Array,
+                  labels: Array,
                   *,
+                  where: Optional[Array] = None,
                   topn: Optional[int] = None,
-                  where: Optional[jnp.ndarray] = None,
-                  key: Optional[jnp.ndarray] = None,
+                  key: Optional[Array] = None,
                   rank_fn: RankFn = utils.ranks,
                   cutoff_fn: CutoffFn = utils.cutoff,
-                  reduce_fn: Optional[ReduceFn] = jnp.mean) -> jnp.ndarray:
+                  reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
   r"""Recall.
 
-  Standalone usage:
+  .. note::
 
-  >>> scores = jnp.array([2., 1., 3.])
-  >>> labels = jnp.array([1., 1., 0.])
-  >>> rax.recall_metric(scores, labels, topn=2)
-  DeviceArray(0.5, dtype=float32)
-
-  Usage with a batch of data:
-
-  >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 1., 0.], [1., 0., 1.]])
-  >>> rax.recall_metric(scores, labels, topn=2)
-  DeviceArray(0.75, dtype=float32)
-
-  Usage with `jax.vmap` batching and a mask to indicate valid items:
-
-  >>> scores = jnp.array([[2., 1., 0.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 1.], [0., 1., 1.]])
-  >>> where = jnp.array([[True, True, False], [True, True, True]])
-  >>> jax.vmap(functools.partial(rax.recall_metric, topn=2))(
-  ...     scores, labels, where=where)
-  DeviceArray([1. , 0.5], dtype=float32)
+    This metric converts graded relevance to binary relevance by considering
+    items with ``label >= 1`` as relevant and items with ``label < 1`` as
+    non-relevant.
 
   Definition:
 
   .. math::
       \operatorname{recall@n}(s, y) =
-      \frac{1}{\sum_i y_i} \sum_i y_i \operatorname{rank}(s_i) \leq n
+      \frac{1}{\sum_i y_i}
+      \sum_i y_i \cdot \mathbb{I}\left[\operatorname{rank}(s_i) \leq n\right]
 
   where :math:`\operatorname{rank}(s_i)` indicates the rank of item :math:`i`
   after sorting all scores :math:`s` using `rank_fn`.
 
-  This metric converts graded relevance to binary relevance by considering items
-  with `label >= 1` as relevant and items with `label < 1` as non-relevant.
-
   Args:
-    scores: A [list_size]-jnp.ndarray, indicating the score of each item. Items
-      for which the score is `-inf` are treated as unranked items.
-    labels: A [list_size]-jnp.ndarray, indicating the relevance label for each
-      item.
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score of each item. Items for which the score is :math:`-\inf` are treated
+        as unranked items.
+    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      relevance label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid for computing the metric.
     topn: An optional integer value indicating at which rank the metric cuts
-      off. If None, no cutoff is performed.
-    where: An optional [list_size]-jnp.ndarray, indicating which items are valid
-      for computing the metric.
-    key: An optional jax rng key. If provided, any random operations in this
-      metric will be based on this key.
-    rank_fn: A callable that maps scores to 1-based ranks. The callable should
-      accept a `scores` argument and optional `where` and `key` keyword
-      arguments and return a `ranks` jnp.ndarray of the same shape as `scores`.
-    cutoff_fn: A callable that computes a cutoff tensor indicating which
-      elements to include and which ones to exclude based on a topn cutoff. The
-      callable should accept a `ranks` jnp.ndarray and an `n` integer and return
-      a cutoffs jnp.ndarray of the same shape as `ranks`.
-    reduce_fn: An optional Callable that reduces the loss values. The callable
-      should accept a loss tensor and an optional `where` tensor indicating
-      which elements to include in the reduction. Can be `jnp.sum` or
-      `jnp.mean`. If `None`, no reduction is performed.
+      off. If ``None``, no cutoff is performed.
+    key: An optional :func:`~jax.random.PRNGKey`. If provided, any random
+      operations in this metric will be based on this key.
+    rank_fn: A function that maps scores to 1-based ranks.
+    cutoff_fn: A function that maps ranks and a cutoff integer to a binary array
+      indicating which items are cutoff.
+    reduce_fn: An optional function that reduces the metric values. Can be
+      :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
+      is performed.
 
   Returns:
     The recall metric.
@@ -301,74 +270,51 @@ def recall_metric(scores: jnp.ndarray,
   return utils.safe_reduce(values, reduce_fn=reduce_fn)
 
 
-def precision_metric(scores: jnp.ndarray,
-                     labels: jnp.ndarray,
+def precision_metric(scores: Array,
+                     labels: Array,
                      *,
+                     where: Optional[Array] = None,
                      topn: Optional[int] = None,
-                     where: Optional[jnp.ndarray] = None,
-                     key: Optional[jnp.ndarray] = None,
+                     key: Optional[Array] = None,
                      rank_fn: RankFn = utils.ranks,
                      cutoff_fn: CutoffFn = utils.cutoff,
-                     reduce_fn: Optional[ReduceFn] = jnp.mean) -> jnp.ndarray:
+                     reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
   r"""Precision.
 
-  Standalone usage:
+  .. note::
 
-  >>> scores = jnp.array([2., 1., 3.])
-  >>> labels = jnp.array([1., 1., 0.])
-  >>> rax.precision_metric(scores, labels, topn=3)
-  DeviceArray(0.6666667, dtype=float32)
-
-  Usage with a batch of data:
-
-  >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 1., 0.], [1., 0., 1.]])
-  >>> rax.precision_metric(scores, labels, topn=2)
-  DeviceArray(0.75, dtype=float32)
-
-  Usage with `jax.vmap` batching and a mask to indicate valid items:
-
-  >>> scores = jnp.array([[2., 1., 0.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> where = jnp.array([[True, True, False], [True, True, True]])
-  >>> jax.vmap(functools.partial(rax.precision_metric, topn=None))(
-  ...     scores, labels, where=where)
-  DeviceArray([0.5       , 0.33333334], dtype=float32)
+    This metric converts graded relevance to binary relevance by considering
+    items with ``label >= 1`` as relevant and items with ``label < 1`` as
+    non-relevant.
 
   Definition:
 
   .. math::
       \operatorname{precision@n}(s, y) =
-      \frac{1}{n} \sum_i y_i \operatorname{rank}(s_i) \leq n
+      \frac{1}{n}
+      \sum_i y_i \cdot \mathbb{I}\left[\operatorname{rank}(s_i) \leq n\right]
 
   where :math:`\operatorname{rank}(s_i)` indicates the rank of item :math:`i`
-  after sorting all scores :math:`s` using `rank_fn`.
-
-  This metric converts graded relevance to binary relevance by considering items
-  with `label >= 1` as relevant and items with `label < 1` as non-relevant.
+  after sorting all scores :math:`s` using ``rank_fn``.
 
   Args:
-    scores: A [list_size]-jnp.ndarray, indicating the score of each item. Items
-      for which the score is `-inf` are treated as unranked items.
-    labels: A [list_size]-jnp.ndarray, indicating the relevance label for each
-      item.
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score of each item. Items for which the score is :math:`-\inf` are treated
+        as unranked items.
+    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      relevance label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid for computing the metric.
     topn: An optional integer value indicating at which rank the metric cuts
-      off. If not provided, no cutoff is performed.
-    where: An optional [list_size]-jnp.ndarray, indicating which items are valid
-      for computing the metric.
-    key: An optional jax rng key. If provided, any random operations in this
-      metric will be based on this key.
-    rank_fn: A callable that maps scores to 1-based ranks. The callable should
-      accept a `scores` argument and optional `where` and `key` keyword
-      arguments and return a `ranks` jnp.ndarray of the same shape as `scores`.
-    cutoff_fn: A callable that computes a cutoff tensor indicating which
-      elements to include and which ones to exclude based on a topn cutoff. The
-      callable should accept a `ranks` jnp.ndarray and an `n` integer and return
-      a cutoffs jnp.ndarray of the same shape as `ranks`.
-    reduce_fn: An optional Callable that reduces the loss values. The callable
-      should accept a loss tensor and an optional `where` tensor indicating
-      which elements to include in the reduction. Can be `jnp.sum` or
-      `jnp.mean`. If `None`, no reduction is performed.
+      off. If ``None``, no cutoff is performed.
+    key: An optional :func:`~jax.random.PRNGKey`. If provided, any random
+      operations in this metric will be based on this key.
+    rank_fn: A function that maps scores to 1-based ranks.
+    cutoff_fn: A function that maps ranks and a cutoff integer to a binary array
+      indicating which items are cutoff.
+    reduce_fn: An optional function that reduces the metric values. Can be
+      :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
+      is performed.
 
   Returns:
     The precision metric.
@@ -393,73 +339,51 @@ def precision_metric(scores: jnp.ndarray,
   return utils.safe_reduce(values, reduce_fn=reduce_fn)
 
 
-def ap_metric(scores: jnp.ndarray,
-              labels: jnp.ndarray,
+def ap_metric(scores: Array,
+              labels: Array,
               *,
+              where: Optional[Array] = None,
               topn: Optional[int] = None,
-              where: Optional[jnp.ndarray] = None,
-              key: Optional[jnp.ndarray] = None,
+              key: Optional[Array] = None,
               rank_fn: RankFn = utils.ranks,
               cutoff_fn: CutoffFn = utils.cutoff,
-              reduce_fn: Optional[ReduceFn] = jnp.mean) -> jnp.ndarray:
+              reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
   r"""Average Precision.
 
-  Standalone usage:
+  .. note::
 
-  >>> scores = jnp.array([2., 1., 3.])
-  >>> labels = jnp.array([1., 1., 0.])
-  >>> rax.ap_metric(scores, labels)
-  DeviceArray(0.5833334, dtype=float32)
-
-  Usage with `jax.vmap` batching:
-
-  >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 1., 0.], [1., 0., 1.]])
-  >>> rax.ap_metric(scores, labels)
-  DeviceArray(0.7916667, dtype=float32)
-
-  Usage with `jax.vmap` batching and a mask to indicate valid items:
-
-  >>> scores = jnp.array([[2., 1., 0.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> where = jnp.array([[True, True, False], [True, True, True]])
-  >>> jax.vmap(rax.ap_metric)(scores, labels, where=where)
-  DeviceArray([1., 1.], dtype=float32)
+    This metric converts graded relevance to binary relevance by considering
+    items with ``label >= 1`` as relevant and items with ``label < 1`` as
+    non-relevant.
 
   Definition:
 
   .. math::
       \operatorname{ap}(s, y) =
-      \frac{1}{y_i} \sum_i y_i \operatorname{precision@i}(s, y)
+      \frac{1}{\sum_i y_i}
+      \sum_i y_i \operatorname{precision@rank}_{s_i}(s, y)
 
-  where :math:`\operatorname{precision@i}(s, y)` indicates the precision at
-  :math:`i`.
-
-  This metric converts graded relevance to binary relevance by considering items
-  with `label >= 1` as relevant and items with `label < 1` as non-relevant.
+  where :math:`\operatorname{precision@rank}_{s_i}(s, y)` indicates the
+  precision at the rank of item :math:`i`.
 
   Args:
-    scores: A [list_size]-jnp.ndarray, indicating the score of each item. Items
-      for which the score is `-inf` are treated as unranked items.
-    labels: A [list_size]-jnp.ndarray, indicating the relevance label for each
-      item.
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score of each item. Items for which the score is :math:`-\inf` are treated
+        as unranked items.
+    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      relevance label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid for computing the metric.
     topn: An optional integer value indicating at which rank the metric cuts
-      off. If not provided, no cutoff is performed.
-    where: An optional [list_size]-jnp.ndarray, indicating which items are valid
-      for computing the metric.
-    key: An optional jax rng key. If provided, any random operations in this
-      metric will be based on this key.
-    rank_fn: A callable that maps scores to 1-based ranks. The callable should
-      accept a `scores` argument and optional `where` and `key` keyword
-      arguments and return a `ranks` jnp.ndarray of the same shape as `scores`.
-    cutoff_fn: A callable that computes a cutoff tensor indicating which
-      elements to include and which ones to exclude based on a topn cutoff. The
-      callable should accept a `ranks` jnp.ndarray and an `n` integer and return
-      a cutoffs jnp.ndarray of the same shape as `ranks`.
-    reduce_fn: An optional Callable that reduces the loss values. The callable
-      should accept a loss tensor and an optional `where` tensor indicating
-      which elements to include in the reduction. Can be `jnp.sum` or
-      `jnp.mean`. If `None`, no reduction is performed.
+      off. If ``None``, no cutoff is performed.
+    key: An optional :func:`~jax.random.PRNGKey`. If provided, any random
+      operations in this metric will be based on this key.
+    rank_fn: A function that maps scores to 1-based ranks.
+    cutoff_fn: A function that maps ranks and a cutoff integer to a binary array
+      indicating which items are cutoff.
+    reduce_fn: An optional function that reduces the metric values. Can be
+      :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
+      is performed.
 
   Returns:
     The average precision metric.
@@ -496,80 +420,55 @@ def ap_metric(scores: jnp.ndarray,
   return utils.safe_reduce(values, reduce_fn=reduce_fn)
 
 
-def dcg_metric(scores: jnp.ndarray,
-               labels: jnp.ndarray,
+def dcg_metric(scores: Array,
+               labels: Array,
                *,
-               where: Optional[jnp.ndarray] = None,
+               where: Optional[Array] = None,
                topn: Optional[int] = None,
-               weights: Optional[jnp.ndarray] = None,
-               key: Optional[jnp.ndarray] = None,
-               gain_fn: Callable[[jnp.ndarray], jnp.ndarray] = default_gain_fn,
-               discount_fn: Callable[[jnp.ndarray],
-                                     jnp.ndarray] = default_discount_fn,
+               weights: Optional[Array] = None,
+               key: Optional[Array] = None,
+               gain_fn: Callable[[Array], Array] = default_gain_fn,
+               discount_fn: Callable[[Array], Array] = default_discount_fn,
                rank_fn: RankFn = utils.ranks,
                cutoff_fn: CutoffFn = utils.cutoff,
-               reduce_fn: Optional[ReduceFn] = jnp.mean) -> jnp.ndarray:
+               reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
   r"""Discounted cumulative gain (DCG).
 
-  Standalone usage:
-
-  >>> scores = jnp.array([2., 1., 3.])
-  >>> labels = jnp.array([1., 0., 0.])
-  >>> rax.dcg_metric(scores, labels)
-  DeviceArray(0.63092977, dtype=float32)
-
-  Usage with `vmap` batching:
-
-  >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> jax.vmap(rax.dcg_metric)(scores, labels)
-  DeviceArray([0.63092977, 1.        ], dtype=float32)
-
-  Usage with `vmap` batching and a mask to indicate valid items:
-
-  >>> scores = jnp.array([[2., 1., 0.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> where = jnp.array([[True, True, False], [True, True, True]])
-  >>> jax.vmap(rax.dcg_metric)(scores, labels, where=where)
-  DeviceArray([1., 1.], dtype=float32)
-
-  Definition:
+  Definition :cite:p:`jarvelin2002cumulated`:
 
   .. math::
       \operatorname{dcg}(s, y) =
       \sum_i \operatorname{gain}(y_i)
       \cdot \operatorname{discount}(\operatorname{rank}(s_i))
 
-  where :math:`\operatorname{rank}(s_i)` indicates the rank of item :math:`i`
-  after sorting all scores :math:`s` using `rank_fn`.
+  where :math:`\operatorname{rank}(s_i)` indicates the 1-based rank of item
+  :math:`i` as computed by ``rank_fn``, :math:`\operatorname{gain}(y)` indicates
+  the per-item gains as computed by ``gain_fn``, and,
+  :math:`\operatorname{discount}(r)` indicates the per-item rank discounts as
+  computed by ``discount_fn``.
 
   Args:
-    scores: A [list_size]-jnp.ndarray, indicating the score of each item. Items
-      for which the score is `-inf` are treated as unranked items.
-    labels: A [list_size]-jnp.ndarray, indicating the relevance label for each
-      item. All labels are assumed to be positive when using the default gain
-      function.
-    where: An optional [list_size]-jnp.ndarray, indicating which items are valid
-      for computing the metric.
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score of each item. Items for which the score is :math:`-\inf` are treated
+        as unranked items.
+    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      relevance label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid for computing the metric.
     topn: An optional integer value indicating at which rank the metric cuts
-      off. If not provided, no cutoff is performed.
-    weights: An optional [list_size]-jnp.ndarray indicating the per-example
-      weights.
-    key: An optional jax rng key. If provided, any random operations in this
-      metric will be based on this key.
-    gain_fn: A callable that maps relevance label to gain values.
-    discount_fn: A callable that maps 1-based ranks to discount values.
-    rank_fn: A callable that maps scores to 1-based ranks. The callable should
-      accept a `scores` argument and optional `where` and `key` keyword
-      arguments and return a `ranks` jnp.ndarray of the same shape as `scores`.
-    cutoff_fn: A callable that computes a cutoff tensor indicating which
-      elements to include and which ones to exclude based on a topn cutoff. The
-      callable should accept a `ranks` jnp.ndarray and an `n` integer and return
-      a cutoffs jnp.ndarray of the same shape as `ranks`.
-    reduce_fn: An optional Callable that reduces the loss values. The callable
-      should accept a loss tensor and an optional `where` tensor indicating
-      which elements to include in the reduction. Can be `jnp.sum` or
-      `jnp.mean`. If `None`, no reduction is performed.
+      off. If ``None``, no cutoff is performed.
+    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating the per-item weights.
+    key: An optional :func:`~jax.random.PRNGKey`. If provided, any random
+      operations in this metric will be based on this key.
+    gain_fn: A function that maps relevance label to gain values.
+    discount_fn: A function that maps 1-based ranks to discount values.
+    rank_fn: A function that maps scores to 1-based ranks.
+    cutoff_fn: A function that maps ranks and a cutoff integer to a binary array
+      indicating which items are cutoff.
+    reduce_fn: An optional function that reduces the metric values. Can be
+      :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
+      is performed.
 
   Returns:
     The DCG metric.
@@ -592,44 +491,21 @@ def dcg_metric(scores: jnp.ndarray,
   return utils.safe_reduce(values, reduce_fn=reduce_fn)
 
 
-def ndcg_metric(scores: jnp.ndarray,
-                labels: jnp.ndarray,
+def ndcg_metric(scores: Array,
+                labels: Array,
                 *,
-                where: Optional[jnp.ndarray] = None,
+                where: Optional[Array] = None,
                 topn: Optional[int] = None,
-                weights: Optional[jnp.ndarray] = None,
-                key: Optional[jnp.ndarray] = None,
-                gain_fn: Callable[[jnp.ndarray], jnp.ndarray] = default_gain_fn,
-                discount_fn: Callable[[jnp.ndarray],
-                                      jnp.ndarray] = default_discount_fn,
+                weights: Optional[Array] = None,
+                key: Optional[Array] = None,
+                gain_fn: Callable[[Array], Array] = default_gain_fn,
+                discount_fn: Callable[[Array], Array] = default_discount_fn,
                 rank_fn: RankFn = utils.ranks,
                 cutoff_fn: CutoffFn = utils.cutoff,
-                reduce_fn: Optional[ReduceFn] = jnp.mean) -> jnp.ndarray:
-  r"""Computes normalized discounted cumulative gain (NDCG).
+                reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
+  r"""Normalized discounted cumulative gain (NDCG).
 
-  Standalone usage:
-
-  >>> scores = jnp.array([2., 1., 3.])
-  >>> labels = jnp.array([1., 0., 0.])
-  >>> rax.ndcg_metric(scores, labels)
-  DeviceArray(0.63092977, dtype=float32)
-
-  Usage with `vmap` batching:
-
-  >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> jax.vmap(rax.ndcg_metric)(scores, labels)
-  DeviceArray([0.63092977, 1.        ], dtype=float32)
-
-  Usage with `vmap` batching and a mask to indicate valid items:
-
-  >>> scores = jnp.array([[2., 1., 0.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> where = jnp.array([[True, True, False], [True, True, True]])
-  >>> jax.vmap(rax.ndcg_metric)(scores, labels, where=where)
-  DeviceArray([1., 1.], dtype=float32)
-
-  Definition:
+  Definition :cite:p:`jarvelin2002cumulated`:
 
   .. math::
       \operatorname{ndcg}(s, y) =
@@ -638,32 +514,27 @@ def ndcg_metric(scores: jnp.ndarray,
   where :math:`\operatorname{dcg}` is the discounted cumulative gain metric.
 
   Args:
-    scores: A [list_size]-jnp.ndarray, indicating the score of each item. Items
-      for which the score is `-inf` are treated as unranked items.
-    labels: A [list_size]-jnp.ndarray, indicating the relevance label for each
-      item. All labels are assumed to be positive when using the default gain
-      function.
-    where: An optional [list_size]-jnp.ndarray, indicating which items are valid
-      for computing the metric.
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score of each item. Items for which the score is :math:`-\inf` are treated
+        as unranked items.
+    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      relevance label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid for computing the metric.
     topn: An optional integer value indicating at which rank the metric cuts
-      off. If not provided, no cutoff is performed.
-    weights: An optional [list_size]-jnp.ndarray indicating the per-example
-      weights.
-    key: An optional jax rng key. If provided, any random operations in this
-      metric will be based on this key.
-    gain_fn: A callable that maps relevance label to gain values.
-    discount_fn: A callable that maps 1-based ranks to discount values.
-    rank_fn: A callable that maps scores to 1-based ranks. The callable should
-      accept a `scores` argument and optional `where` and `key` keyword
-      arguments and return a `ranks` jnp.ndarray of the same shape as `scores`.
-    cutoff_fn: A callable that computes a cutoff tensor indicating which
-      elements to include and which ones to exclude based on a topn cutoff. The
-      callable should accept a `ranks` jnp.ndarray and an `n` integer and return
-      a cutoffs jnp.ndarray of the same shape as `ranks`.
-    reduce_fn: An optional Callable that reduces the loss values. The callable
-      should accept a loss tensor and an optional `where` tensor indicating
-      which elements to include in the reduction. Can be `jnp.sum` or
-      `jnp.mean`. If `None`, no reduction is performed.
+      off. If ``None``, no cutoff is performed.
+    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating the per-item weights.
+    key: An optional :func:`~jax.random.PRNGKey`. If provided, any random
+      operations in this metric will be based on this key.
+    gain_fn: A function that maps relevance label to gain values.
+    discount_fn: A function that maps 1-based ranks to discount values.
+    rank_fn: A function that maps scores to 1-based ranks.
+    cutoff_fn: A function that maps ranks and a cutoff integer to a binary array
+      indicating which items are cutoff.
+    reduce_fn: An optional function that reduces the metric values. Can be
+      :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
+      is performed.
 
   Returns:
     The NDCG metric.

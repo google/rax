@@ -21,14 +21,12 @@ from typing import Callable, Optional, Sequence
 import jax
 import jax.numpy as jnp
 
-# Type alias for a tensor shape:
-Shape = Sequence[Optional[int]]
+from rax._src.types import Array
 
 
-def safe_reduce(
-    a: jnp.ndarray,
-    where: Optional[jnp.ndarray] = None,
-    reduce_fn: Optional[Callable[..., jnp.ndarray]] = None) -> jnp.ndarray:
+def safe_reduce(a: Array,
+                where: Optional[Array] = None,
+                reduce_fn: Optional[Callable[..., Array]] = None) -> Array:
   """Reduces the values of given array while preventing NaN in the output.
 
   For `jnp.mean` reduction, this additionally prevents NaN in the output if all
@@ -74,9 +72,9 @@ def safe_reduce(
   return output
 
 
-def normalize_probabilities(unscaled_probabilities: jnp.ndarray,
-                            where: Optional[jnp.ndarray] = None,
-                            axis: int = -1) -> jnp.ndarray:
+def normalize_probabilities(unscaled_probabilities: Array,
+                            where: Optional[Array] = None,
+                            axis: int = -1) -> Array:
   """Normalizes given unscaled probabilities so they sum to one in given axis.
 
   This will scale the given unscaled probabilities such that its valid
@@ -118,30 +116,31 @@ def normalize_probabilities(unscaled_probabilities: jnp.ndarray,
       jnp.ones_like(where, dtype=unscaled_probabilities.dtype) / where_sum)
 
 
-def sort_by(scores: jnp.ndarray,
-            tensors_to_sort: Sequence[jnp.ndarray],
+def sort_by(scores: Array,
+            tensors_to_sort: Sequence[Array],
             axis: int = -1,
-            where: Optional[jnp.ndarray] = None,
-            key: Optional[jnp.ndarray] = None) -> Sequence[jnp.ndarray]:
+            where: Optional[Array] = None,
+            key: Optional[Array] = None) -> Sequence[Array]:
   """Sorts given list of tensors by given scores.
 
   Each of the entries in the `tensors_to_sort` sequence must be a tensor that
   matches the shape of the `scores`.
 
   Args:
-    scores: A tensor, representing scores by which to sort.
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score for each item.
     tensors_to_sort: A sequence of tensors of the same shape as scores. These
       are the tensors that will be sorted in the order of scores.
     axis: The axis to sort on, by default this is the last axis.
-    where: An optional tensor of the same shape as scores, indicating which
-      entries are valid for sorting. Invalid entries are pushed to the end.
-    key: An optional jax rng key. If provided, ties will be broken randomly
-      using this key. If not provided, ties will retain the order of their
-      appearance in the `scores` array.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid. Invalid entries are pushed to the end.
+    key: An optional :func:`jax.random.PRNGKey`. If provided, ties will be
+      broken randomly using this key. If not provided, ties will retain the
+      order of their appearance in the `scores` array.
 
   Returns:
-    A tuple containing the tensors of `tensors_to_sort` sorted in the order of
-    `scores`.
+    A tuple containing the tensors of ``tensors_to_sort`` sorted in the order of
+    ``scores``.
   """
   # Sets up the keys we want to sort on.
   sort_operands = []
@@ -160,24 +159,25 @@ def sort_by(scores: jnp.ndarray,
   return sorted_values[num_keys:]
 
 
-def ranks(scores: jnp.ndarray,
+def ranks(scores: Array,
           *,
+          where: Optional[Array] = None,
           axis: int = -1,
-          where: Optional[jnp.ndarray] = None,
-          key: Optional[jnp.ndarray] = None) -> jnp.ndarray:
+          key: Optional[Array] = None) -> Array:
   """Computes the ranks for given scores.
 
   Note that the ranks returned by this function are not differentiable due to
   the sort operation having no gradients.
 
   Args:
-    scores: A tensor, representing scores to be ranked.
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid.
     axis: The axis to sort on, by default this is the last axis.
-    where: An optional tensor of the same shape as scores, indicating which
-      entries are valid for ranking. Invalid entries are ranked last.
-    key: An optional jax rng key. If provided, ties will be broken randomly
-      using this key. If not provided, ties will retain the order of their
-      appearance in the `scores` array.
+    key: An optional :func:`jax.random.PRNGKey`. If provided, ties will be
+      broken randomly using this key. If not provided, ties will retain the
+      order of their appearance in the `scores` array.
 
   Returns:
     A tensor with the same shape as `scores` that indicates the 1-based rank of
@@ -193,20 +193,17 @@ def ranks(scores: jnp.ndarray,
   # Perform an argsort on the scores along given axis. This returns the indices
   # that would sort the scores. Note that we can not use the `jnp.argsort`
   # method here as it does not support masked arrays or randomized tie-breaking.
-  indices = sort_by(
-      scores, [arange], axis=axis, where=where, key=key)[0]
+  indices = sort_by(scores, [arange], axis=axis, where=where, key=key)[0]
 
   # Perform an argsort on the indices to get the 1-based ranks.
   return jnp.argsort(indices, axis=axis) + 1
 
 
-def approx_ranks(
-    scores: jnp.ndarray,
-    *,
-    where: Optional[jnp.ndarray] = None,
-    key: Optional[jnp.ndarray] = None,
-    step_fn: Callable[[jnp.ndarray],
-                      jnp.ndarray] = jax.nn.sigmoid) -> jnp.ndarray:
+def approx_ranks(scores: Array,
+                 *,
+                 where: Optional[Array] = None,
+                 key: Optional[Array] = None,
+                 step_fn: Callable[[Array], Array] = jax.nn.sigmoid) -> Array:
   """Computes approximate ranks.
 
   This can be used to construct differentiable approximations of metrics. For
@@ -222,15 +219,16 @@ def approx_ranks(
   DeviceArray([-0.03763788, -0.03763788,  0.07527576], dtype=float32)
 
   Args:
-    scores: A [..., list_size]-jnp.ndarray, indicating the score for each item.
-    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
-      valid.
-    key: An optional jax rng key. Unused by approx_ranks.
-    step_fn: A callable that approximates the step function `x >= 0`.
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid.
+    key: An optional :func:`jax.random.PRNGKey`. Unused by ``approx_ranks``.
+    step_fn: A callable that approximates the step function ``x >= 0``.
 
   Returns:
-    A [..., list_size]-jnp.ndarray, indicating the 1-based approximate rank of
-    each item.
+    A :class:`~jax.numpy.ndarray` of the same shape as ``scores``, indicating
+    the 1-based approximate rank of each item.
   """
 
   del key  # unused for approximate ranks.
@@ -248,30 +246,28 @@ def approx_ranks(
   return jnp.sum(score_pairs, axis=-1, where=triangular_mask, initial=1.0)
 
 
-def cutoff(
-    a: jnp.ndarray,
-    n: Optional[int] = None,
-    *,
-    where: Optional[jnp.ndarray] = None,
-    step_fn: Callable[[jnp.ndarray], jnp.ndarray] = lambda x: x >= 0
-) -> jnp.ndarray:
-  """Computes an indicator (or approximation) to select the largest `n` values.
+def cutoff(a: Array,
+           n: Optional[int] = None,
+           *,
+           where: Optional[Array] = None,
+           step_fn: Callable[[Array], Array] = lambda x: x >= 0) -> Array:
+  """Computes a binary array to select the largest ``n`` values of ``a``.
 
-  This function computes an indicator (or approximation) that selects the `n`
-  largest values of `a` across its last dimension.
+  This function computes a binary :class:`jax.numpy.ndarray` that selects the
+  ``n`` largest values of ``a`` across its last dimension.
 
-  Note that the returned indicator may select more than `n` items if `a` has
+  Note that the returned indicator may select more than ``n`` items if ``a`` has
   ties.
 
   Args:
-    a: The array to select the topn from.
+    a: The :class:`jax.numpy.ndarray` to select the topn from.
     n: The cutoff value. If None, no cutoff is performed.
     where: A mask to indicate which values to include in the topn calculation.
-    step_fn: A function that computes `x >= 0` or an approximation.
+    step_fn: A function that computes ``x >= 0`` or an approximation.
 
   Returns:
-    A {0, 1}-tensor (or approximation thereof) of the same shape as `a`, where
-    the `n` largest values are set to 1, and the smaller values are set to 0.
+    A :class:`jax.numpy.ndarray` of the same shape as ``a``, where the
+    ``n`` largest values are set to 1, and the smaller values are set to 0.
   """
   # When the shape of `a` is smaller than `n`, there is no cut off.
   if n is None or n >= a.shape[-1]:
@@ -284,7 +280,7 @@ def cutoff(
   # Get the sorted value at `n` and `n+1`, which is where the cutoff is supposed
   # to happen.
   a_topn = sort_by(a, [a], where=where)[0][..., :n][..., -1]
-  a_topnp1 = sort_by(a, [a], where=where)[0][..., :n+1][..., -1]
+  a_topnp1 = sort_by(a, [a], where=where)[0][..., :n + 1][..., -1]
 
   # Place the cutoff point between a[n] and a[n+1]. For exact `step_fn`, this
   # does not make a difference. But for approximate step functions (e.g.

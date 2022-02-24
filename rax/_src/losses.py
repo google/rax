@@ -12,28 +12,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Ranking losses in JAX.
+"""Implementations of common ranking losses in JAX.
 
-A ranking loss function is a callable that accepts a scores tensor, a labels
-tensor, and, optionally a mask tensor. In addition to these arguments, loss
-functions *may* accept additional optional keyword arguments, e.g. for weights,
-however this depends on the specific loss function and is not required.
+A ranking loss is a differentiable function that expresses the cost of a ranking
+induced by item scores compared to a ranking induced from relevance labels. Rax
+provides a number of ranking losses as JAX functions that are implemented
+according to the :class:`~rax.types.LossFn` interface.
 
-The loss functions operate on the last dimension of its inputs. The leading
-dimensions are considered batch dimensions. To compute per-list losses, for
-example to apply per-list weighting or for distributed computing of losses
-across devices, please use standard JAX transformations such as `jax.vmap` or
-`jax.pmap`.
+Loss functions are designed to operate on the last dimension of its inputs. The
+leading dimensions are considered batch dimensions. To compute per-list losses,
+for example to apply per-list weighting or for distributed computing of losses
+across devices, please use standard JAX transformations such as :func:`jax.vmap`
+or :func:`jax.pmap`.
+
+Standalone usage:
+
+>>> scores = jnp.array([2., 1., 3.])
+>>> labels = jnp.array([1., 0., 0.])
+>>> rax.softmax_loss(scores, labels)
+DeviceArray(1.4076059, dtype=float32)
+
+Usage with a batch of data and a mask to indicate valid items.
+
+>>> scores = jnp.array([[2., 1., 0.], [1., 0.5, 1.5]])
+>>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
+>>> where = jnp.array([[True, True, False], [True, True, True]])
+>>> rax.pairwise_hinge_loss(
+...     scores, labels, where=where, reduce_fn=jnp.mean)
+DeviceArray(0.16666667, dtype=float32)
 
 To compute gradients of each loss function, please use standard JAX
-transformations such as `jax.grad` or `jax.value_and_grad`.
-
-Example usage:
+transformations such as :func:`jax.grad` or :func:`jax.value_and_grad`:
 
 >>> scores = jnp.asarray([[0., 1., 3.], [1., 2., 0.]])
 >>> labels = jnp.asarray([[0., 0., 1.], [1., 0., 0.]])
->>> rax.softmax_loss(scores, labels, reduce_fn=jnp.mean)
-DeviceArray(0.788726, dtype=float32)
 >>> jax.grad(rax.softmax_loss)(scores, labels, reduce_fn=jnp.mean)
 DeviceArray([[ 0.02100503,  0.0570976 , -0.07810265],
              [-0.37763578,  0.33262047,  0.04501529]], dtype=float32)
@@ -47,61 +59,40 @@ import jax
 import jax.numpy as jnp
 
 from rax._src import utils
-from rax._src.protocols import ReduceFn
+from rax._src.types import Array
+from rax._src.types import ReduceFn
 
 
-def softmax_loss(scores: jnp.ndarray,
-                 labels: jnp.ndarray,
+def softmax_loss(scores: Array,
+                 labels: Array,
                  *,
-                 where: Optional[jnp.ndarray] = None,
-                 weights: Optional[jnp.ndarray] = None,
-                 label_fn: Callable[..., jnp.ndarray] = lambda a, where: a,
-                 reduce_fn: Optional[ReduceFn] = jnp.sum) -> jnp.float_:
-  r"""Ranking softmax loss.
-
-  Standalone usage:
-
-  >>> scores = jnp.array([2., 1., 3.])
-  >>> labels = jnp.array([1., 0., 0.])
-  >>> rax.softmax_loss(scores, labels)
-  DeviceArray(1.4076059, dtype=float32)
-
-  Usage with mean reduction across a batch and a mask to indicate valid items:
-
-  >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> where = jnp.array([[True, True, False], [True, True, True]])
-  >>> rax.softmax_loss(scores, labels, where=where, reduce_fn=jnp.mean)
-  DeviceArray(0.49676564, dtype=float32)
-
-  Usage with `vmap` batching:
-
-  >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> jax.vmap(rax.softmax_loss)(scores, labels)
-  DeviceArray([1.4076059 , 0.68026966], dtype=float32)
+                 where: Optional[Array] = None,
+                 weights: Optional[Array] = None,
+                 label_fn: Callable[..., Array] = lambda a, where: a,
+                 reduce_fn: Optional[ReduceFn] = jnp.sum) -> Array:
+  r"""Softmax loss.
 
   Definition:
 
   .. math::
-      \operatorname{softmax_loss}(s, y) =
-      \sum_i \frac{y_i}{\sum_j y_j} \log\operatorname{softmax}(s)_i
+      \ell(s, y) =
+      \sum_i y_i \log \frac{\exp(s_i)}{\sum_j \exp(s_j)}
 
   Args:
-    scores: A [..., list_size]-jnp.ndarray, indicating the score of each item.
-    labels: A [..., list_size]-jnp.ndarray, indicating the relevance label for
-      each item.
-    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
-      valid for computing the loss. Items for which this is False will be
-      ignored when computing the loss.
-    weights: An optional [..., list_size]-jnp.ndarray, indicating the weight for
-      each item.
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score of each item.
+    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      relevance label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid for computing the loss. Items for which
+      this is False will be ignored when computing the loss.
+    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating the weight for each item.
     label_fn: A label function that maps labels to probabilities. Default keeps
       labels as-is.
-    reduce_fn: An optional Callable that reduces the loss values. The callable
-      should accept a loss tensor and an optional `where` tensor indicating
-      which elements to include in the reduction. Can be `jnp.sum` or
-      `jnp.mean`. If `None`, no reduction is performed.
+    reduce_fn: An optional function that reduces the loss values. Can be
+      :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
+      is performed.
 
   Returns:
     The softmax loss.
@@ -127,9 +118,7 @@ def softmax_loss(scores: jnp.ndarray,
   return utils.safe_reduce(loss, reduce_fn=reduce_fn)
 
 
-def compute_pairs(
-    a: jnp.ndarray, op: Callable[[jnp.ndarray, jnp.ndarray],
-                                 jnp.ndarray]) -> jnp.ndarray:
+def compute_pairs(a: Array, op: Callable[[Array, Array], Array]) -> Array:
   """Computes pairs based on values of `a` and the given pairwise `op`.
 
   Args:
@@ -148,56 +137,33 @@ def compute_pairs(
   return jnp.reshape(result, out_shape)
 
 
-def pairwise_hinge_loss(scores: jnp.ndarray,
-                        labels: jnp.ndarray,
+def pairwise_hinge_loss(scores: Array,
+                        labels: Array,
                         *,
-                        where: Optional[jnp.ndarray] = None,
-                        weights: Optional[jnp.ndarray] = None,
-                        reduce_fn: ReduceFn = jnp.sum) -> jnp.ndarray:
-  r"""Ranking pairwise hinge loss.
-
-  Standalone usage:
-
-  >>> scores = jnp.array([2., 1., 3.])
-  >>> labels = jnp.array([1., 0., 0.])
-  >>> rax.pairwise_hinge_loss(scores, labels)
-  DeviceArray(2., dtype=float32)
-
-  Usage with mean reduction across a batch and a mask to indicate valid items:
-
-  >>> scores = jnp.array([[2., 1., 0.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> where = jnp.array([[True, True, False], [True, True, True]])
-  >>> rax.pairwise_hinge_loss(
-  ...     scores, labels, where=where, reduce_fn=jnp.mean)
-  DeviceArray(0.16666667, dtype=float32)
-
-  Usage with `vmap` batching:
-
-  >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> jax.vmap(rax.pairwise_hinge_loss)(scores, labels)
-  DeviceArray([2. , 0.5], dtype=float32)
+                        where: Optional[Array] = None,
+                        weights: Optional[Array] = None,
+                        reduce_fn: ReduceFn = jnp.sum) -> Array:
+  r"""Pairwise hinge loss.
 
   Definition:
 
   .. math::
-      \operatorname{hinge_loss}(s, y) =
-      \sum_i \sum_j I[y_i > y_j] \max(0, 1 - (s_i - s_j)
+      \ell(s, y) =
+      \sum_i \sum_j I[y_i > y_j] \max(0, 1 - (s_i - s_j))
 
   Args:
-    scores: A [..., list_size]-jnp.ndarray, indicating the score of each item.
-    labels: A [..., list_size]-jnp.ndarray, indicating the relevance label for
-      each item.
-    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
-      valid for computing the loss. Items for which this is False will be
-      ignored when computing the loss.
-    weights: An optional [..., list_size]-jnp.ndarray, indicating the weight for
-      each item.
-    reduce_fn: An optional Callable that reduces the loss values. The callable
-      should accept a loss tensor and an optional `where` tensor indicating
-      which elements to include in the reduction. Can be `jnp.sum` or
-      `jnp.mean`. If `None`, no reduction is performed.
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score of each item.
+    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      relevance label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid for computing the loss. Items for which
+      this is False will be ignored when computing the loss.
+    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating the weight for each item.
+    reduce_fn: An optional function that reduces the loss values. Can be
+      :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
+      is performed.
 
   Returns:
     The pairwise hinge loss.
@@ -222,56 +188,33 @@ def pairwise_hinge_loss(scores: jnp.ndarray,
   return utils.safe_reduce(scores, where=labels, reduce_fn=reduce_fn)
 
 
-def pairwise_logistic_loss(scores: jnp.ndarray,
-                           labels: jnp.ndarray,
+def pairwise_logistic_loss(scores: Array,
+                           labels: Array,
                            *,
-                           where: Optional[jnp.ndarray] = None,
-                           weights: Optional[jnp.ndarray] = None,
-                           reduce_fn: ReduceFn = jnp.sum) -> jnp.ndarray:
-  r"""Ranking pairwise logistic loss.
+                           where: Optional[Array] = None,
+                           weights: Optional[Array] = None,
+                           reduce_fn: ReduceFn = jnp.sum) -> Array:
+  r"""Pairwise logistic loss.
 
-  Standalone usage:
-
-  >>> scores = jnp.array([2., 1., 3.])
-  >>> labels = jnp.array([1., 0., 0.])
-  >>> rax.pairwise_logistic_loss(scores, labels)
-  DeviceArray(1.6265235, dtype=float32)
-
-  Usage with mean reduction across a batch and a mask to indicate valid items:
-
-  >>> scores = jnp.array([[2., 1., 0.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> where = jnp.array([[True, True, False], [True, True, True]])
-  >>> rax.pairwise_logistic_loss(
-  ...     scores, labels, where=where, reduce_fn=jnp.mean)
-  DeviceArray(0.3668668, dtype=float32)
-
-  Usage with `vmap` batching:
-
-  >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> jax.vmap(rax.pairwise_logistic_loss)(scores, labels)
-  DeviceArray([1.6265235, 0.7873387], dtype=float32)
-
-  Definition:
+  Definition :cite:p:`burges2005learning`:
 
   .. math::
-      \operatorname{logistic_loss}(s, y) =
+      \ell(s, y) =
       \sum_i \sum_j I[y_i > y_j] \log(1 + \exp(-(s_i - s_j)))
 
   Args:
-    scores: A [..., list_size]-jnp.ndarray, indicating the score of each item.
-    labels: A [..., list_size]-jnp.ndarray, indicating the relevance label for
-      each item.
-    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
-      valid for computing the loss. Items for which this is False will be
-      ignored when computing the loss.
-    weights: An optional [..., list_size]-jnp.ndarray, indicating the weight for
-      each item.
-    reduce_fn: An optional Callable that reduces the loss values. The callable
-      should accept a loss tensor and an optional `where` tensor indicating
-      which elements to include in the reduction. Can be `jnp.sum` or
-      `jnp.mean`. If `None`, no reduction is performed.
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score of each item.
+    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      relevance label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid for computing the loss. Items for which
+      this is False will be ignored when computing the loss.
+    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating the weight for each item.
+    reduce_fn: An optional function that reduces the loss values. Can be
+      :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
+      is performed.
 
   Returns:
     The pairwise logistic loss.
@@ -296,101 +239,36 @@ def pairwise_logistic_loss(scores: jnp.ndarray,
   return utils.safe_reduce(scores, where=labels, reduce_fn=reduce_fn)
 
 
-def compute_pointwise_loss(
-    scores: jnp.ndarray,
-    labels: jnp.ndarray,
-    *,
-    where: Optional[jnp.ndarray] = None,
-    weights: Optional[jnp.ndarray] = None,
-    reduce_fn: ReduceFn = jnp.sum,
-    point_loss_fn: Callable[[jnp.float_, jnp.float_],
-                            jnp.float_]) -> jnp.ndarray:
-  """Computes a pointwise loss.
-
-  Args:
-    scores: A [..., list_size]-jnp.ndarray, indicating the score of each item.
-    labels: A [..., list_size]-jnp.ndarray, indicating the relevance label for
-      each item.
-    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
-      valid for computing the loss. Items for which this is False will be
-      ignored when computing the loss.
-    weights: An optional [..., list_size]-jnp.ndarray, indicating the weight for
-      each item.
-    reduce_fn: An optional Callable that reduces the loss values. The callable
-      should accept a loss tensor and an optional `where` tensor indicating
-      which elements to include in the reduction. Can be `jnp.sum` or
-      `jnp.mean`. If `None`, no reduction is performed.
-    point_loss_fn: A callable that computes the loss on individual items.
-
-  Returns:
-    The reduced result of the given pointwise loss function.
-  """
-  results = jax.vmap(point_loss_fn, in_axes=-1, out_axes=-1)(scores, labels)
-  valid_items = jnp.ones_like(labels, dtype=jnp.int32)
-
-  if where is not None:
-    results *= where
-    valid_items = jnp.int32(where)
-
-  if weights is not None:
-    results *= weights
-
-  return utils.safe_reduce(results, where=valid_items, reduce_fn=reduce_fn)
-
-
-def pointwise_sigmoid_loss(scores: jnp.ndarray,
-                           labels: jnp.ndarray,
+def pointwise_sigmoid_loss(scores: Array,
+                           labels: Array,
                            *,
-                           where: Optional[jnp.ndarray] = None,
-                           weights: Optional[jnp.ndarray] = None,
-                           reduce_fn: ReduceFn = jnp.sum) -> jnp.ndarray:
-  r"""Ranking sigmoid cross entropy loss.
-
-  Standalone usage:
-
-  >>> scores = jnp.array([2., 1., 3.])
-  >>> labels = jnp.array([1., 0., 0.])
-  >>> rax.pointwise_sigmoid_loss(scores, labels)
-  DeviceArray(4.488777, dtype=float32)
-
-  Usage with mean reduction across a batch and a mask to indicate valid items:
-
-  >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> where = jnp.array([[True, True, False], [True, True, True]])
-  >>> rax.pointwise_sigmoid_loss(
-  ...     scores, labels, where=where, reduce_fn=jnp.mean)
-  DeviceArray(0.78578836, dtype=float32)
-
-  Usage with `vmap` batching:
-
-  >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> jax.vmap(rax.pointwise_sigmoid_loss)(scores, labels)
-  DeviceArray([4.488777, 2.488752], dtype=float32)
+                           where: Optional[Array] = None,
+                           weights: Optional[Array] = None,
+                           reduce_fn: ReduceFn = jnp.sum) -> Array:
+  r"""Sigmoid cross entropy loss.
 
   Definition:
 
   .. math::
-      \operatorname{pointwise_sigmoid_loss}(s, y) =
+      \ell(s, y) =
       \sum_i y_i * -log(sigmoid(s_i)) + (1 - y_i) * -log(1 - sigmoid(s_i))
 
   This loss converts graded relevance to binary relevance by considering items
-  with `label >= 1` as relevant and items with `label < 1` as non-relevant.
+  with ``label >= 1`` as relevant and items with ``label < 1`` as non-relevant.
 
   Args:
-    scores: A [..., list_size]-jnp.ndarray, indicating the score of each item.
-    labels: A [..., list_size]-jnp.ndarray, indicating the relevance label for
-      each item.
-    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
-      valid for computing the loss. Items for which this is False will be
-      ignored when computing the loss.
-    weights: An optional [..., list_size]-jnp.ndarray, indicating the weight for
-      each item.
-    reduce_fn: An optional Callable that reduces the loss values. The callable
-      should accept a loss tensor and an optional `where` tensor indicating
-      which elements to include in the reduction. Can be `jnp.sum` or
-      `jnp.mean`. If `None`, no reduction is performed.
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score of each item.
+    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      relevance label for each item.
+    where: An optional [..., list_size]-Array, indicating which items are valid
+      for computing the loss. Items for which this is False will be ignored when
+      computing the loss.
+    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating the weight for each item.
+    reduce_fn: An optional function that reduces the loss values. Can be
+      :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
+      is performed.
 
   Returns:
     The sigmoid cross entropy loss.
@@ -410,54 +288,32 @@ def pointwise_sigmoid_loss(scores: jnp.ndarray,
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def pointwise_mse_loss(scores: jnp.ndarray,
-                       labels: jnp.ndarray,
+def pointwise_mse_loss(scores: Array,
+                       labels: Array,
                        *,
-                       where: Optional[jnp.ndarray] = None,
-                       weights: Optional[jnp.ndarray] = None,
-                       reduce_fn: ReduceFn = jnp.sum) -> jnp.ndarray:
-  r"""Ranking mean squared error loss.
-
-  Standalone usage:
-
-  >>> scores = jnp.array([2., 1., 3.])
-  >>> labels = jnp.array([1., 0., 0.])
-  >>> rax.pointwise_mse_loss(scores, labels)
-  DeviceArray(11., dtype=float32)
-
-  Usage with mean reduction across a batch and a mask to indicate valid items:
-
-  >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> where = jnp.array([[True, True, False], [True, True, True]])
-  >>> rax.pointwise_mse_loss(scores, labels, where=where, reduce_fn=jnp.mean)
-  DeviceArray(0.7, dtype=float32)
-
-  Usage with `vmap` batching:
-
-  >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> jax.vmap(rax.pointwise_mse_loss)(scores, labels)
-  DeviceArray([11. ,  1.5], dtype=float32)
+                       where: Optional[Array] = None,
+                       weights: Optional[Array] = None,
+                       reduce_fn: ReduceFn = jnp.sum) -> Array:
+  r"""Mean squared error loss.
 
   Definition:
 
   .. math::
-      \operatorname{pointwise_mse_loss}(s, y) = \sum_i (y_i - s_i)^2
+      \ell(s, y) = \sum_i (y_i - s_i)^2
 
   Args:
-    scores: A [..., list_size]-jnp.ndarray, indicating the score of each item.
-    labels: A [..., list_size]-jnp.ndarray, indicating the relevance label for
-      each item.
-    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
-      valid for computing the loss. Items for which this is False will be
-      ignored when computing the loss.
-    weights: An optional [..., list_size]-jnp.ndarray, indicating the weight for
-      each item.
-    reduce_fn: An optional Callable that reduces the loss values. The callable
-      should accept a loss tensor and an optional `where` tensor indicating
-      which elements to include in the reduction. Can be `jnp.sum` or
-      `jnp.mean`. If `None`, no reduction is performed.
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score of each item.
+    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      relevance label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid for computing the loss. Items for which
+      this is False will be ignored when computing the loss.
+    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating the weight for each item.
+    reduce_fn: An optional function that reduces the loss values. Can be
+      :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
+      is performed.
 
   Returns:
     The mean squared error loss.
@@ -470,56 +326,33 @@ def pointwise_mse_loss(scores: jnp.ndarray,
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def pairwise_mse_loss(scores: jnp.ndarray,
-                      labels: jnp.ndarray,
+def pairwise_mse_loss(scores: Array,
+                      labels: Array,
                       *,
-                      where: Optional[jnp.ndarray] = None,
-                      weights: Optional[jnp.ndarray] = None,
-                      reduce_fn: ReduceFn = jnp.sum) -> jnp.ndarray:
+                      where: Optional[Array] = None,
+                      weights: Optional[Array] = None,
+                      reduce_fn: ReduceFn = jnp.sum) -> Array:
   r"""Pairwise mean squared error loss.
-
-  Standalone usage:
-
-  >>> scores = jnp.array([2., 1., 3.])
-  >>> labels = jnp.array([1., 0., 0.])
-  >>> rax.pairwise_mse_loss(scores, labels)
-  DeviceArray(16., dtype=float32)
-
-  Usage with mean reduction across a batch and a mask to indicate valid items:
-
-  >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> where = jnp.array([[True, True, False], [True, True, True]])
-  >>> rax.pairwise_mse_loss(
-  ...     scores, labels, where=where, reduce_fn=jnp.mean)
-  DeviceArray(0.07692308, dtype=float32)
-
-  Usage with `vmap` batching:
-
-  >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
-  >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
-  >>> jax.vmap(rax.pairwise_mse_loss)(scores, labels)
-  DeviceArray([16.,  1.], dtype=float32)
 
   Definition:
 
   .. math::
-      \operatorname{pairwise_mse_loss}(s, y) =
+      \ell(s, y) =
       \sum_i \sum_j ((y_i - y_j) - (s_i - s_j))^2
 
   Args:
-    scores: A [..., list_size]-jnp.ndarray, indicating the score of each item.
-    labels: A [..., list_size]-jnp.ndarray, indicating the relevance label for
-      each item.
-    where: An optional [..., list_size]-jnp.ndarray, indicating which items are
-      valid for computing the loss. Items for which this is False will be
-      ignored when computing the loss.
-    weights: An optional [..., list_size]-jnp.ndarray, indicating the weight for
-      each item.
-    reduce_fn: An optional Callable that reduces the loss values. The callable
-      should accept a loss tensor and an optional `where` tensor indicating
-      which elements to include in the reduction. Can be `jnp.sum` or
-      `jnp.mean`. If `None`, no reduction is performed.
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score of each item.
+    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      relevance label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid for computing the loss. Items for which
+      this is False will be ignored when computing the loss.
+    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating the weight for each item.
+    reduce_fn: An optional function that reduces the loss values. Can be
+      :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
+      is performed.
 
   Returns:
     The pairwise mean squared error loss.

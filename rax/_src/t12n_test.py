@@ -239,10 +239,9 @@ class GumbelT12nTest(jtu.JaxTestCase):
     labels = jnp.asarray([0., 1., 0.])
     mock_loss_fn = lambda scores, labels: scores
 
-    new_loss_fn = t12n.gumbel_t12n(mock_loss_fn, samples=1)
+    new_loss_fn = t12n.gumbel_t12n(mock_loss_fn, samples=1, beta=0.00001)
 
-    loss = new_loss_fn(
-        scores, labels, key=jax.random.PRNGKey(42), gumbel_beta=0.00001)
+    loss = new_loss_fn(scores, labels, key=jax.random.PRNGKey(42))
     self.assertArraysAllClose(loss, jnp.expand_dims(scores, 0), atol=1e-3)
 
   def test_handles_extreme_scores(self):
