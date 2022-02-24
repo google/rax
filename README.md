@@ -1,5 +1,9 @@
 # 🦖 **Rax**: Composable Learning to Rank using JAX
 
+[![Docs](https://readthedocs.org/projects/rax/badge/?version=latest)](https://rax.readthedocs.io/en/latest/?badge=latest)
+[![PyPI](https://img.shields.io/pypi/v/rax?color=brightgreen)](https://pypi.org/project/rax/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-brightgreen.svg)](https://github.com/google/rax/blob/main/LICENSE)
+
 **Rax** is a Learning-to-Rank library written in JAX. Rax provides off-the-shelf
 implementations of ranking losses and metrics to be used with JAX. It provides
 the following functionality:
