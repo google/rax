@@ -14,6 +14,8 @@
 
 """Rax: Learning to Rank using JAX."""
 
+from rax import types
+from rax import utils
 from rax._src.losses import pairwise_hinge_loss
 from rax._src.losses import pairwise_logistic_loss
 from rax._src.losses import pairwise_mse_loss
@@ -29,10 +31,6 @@ from rax._src.metrics import recall_metric
 from rax._src.t12n import approx_t12n
 from rax._src.t12n import bound_t12n
 from rax._src.t12n import gumbel_t12n
-from rax._src.utils import approx_cutoff
-from rax._src.utils import approx_ranks
-from rax._src.utils import cutoff
-from rax._src.utils import ranks
 
 __version__ = "0.0.1"
 
@@ -53,10 +51,6 @@ __all__ = [
     "approx_t12n",
     "bound_t12n",
     "gumbel_t12n",
-    "approx_cutoff",
-    "approx_ranks",
-    "cutoff",
-    "ranks",
 ]
 # pyformat: enable
 

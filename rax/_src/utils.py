@@ -210,7 +210,8 @@ def approx_ranks(scores: Array,
   example:
 
   >>> import functools
-  >>> approx_ndcg = functools.partial(rax.ndcg_metric, rank_fn=rax.approx_ranks)
+  >>> approx_ndcg = functools.partial(
+  ...     rax.ndcg_metric, rank_fn=rax.utils.approx_ranks)
   >>> scores = jnp.asarray([-1., 1., 0.])
   >>> labels = jnp.asarray([0., 0., 1.])
   >>> approx_ndcg(scores, labels)
