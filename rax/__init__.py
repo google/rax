@@ -16,6 +16,7 @@
 
 from rax import types
 from rax import utils
+from rax._src.losses import listmle_loss
 from rax._src.losses import pairwise_hinge_loss
 from rax._src.losses import pairwise_logistic_loss
 from rax._src.losses import pairwise_mse_loss
@@ -36,6 +37,7 @@ __version__ = "0.1.0"
 
 # pyformat: disable
 __all__ = [
+    "listmle_loss",
     "pairwise_hinge_loss",
     "pairwise_logistic_loss",
     "pairwise_mse_loss",

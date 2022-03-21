@@ -42,6 +42,16 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
           -(log(exp(2.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))) +
             log(exp(1.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))))
   }, {
+      "loss_fn":
+          losses.listmle_loss,
+      "expected_value":
+          -sum([
+              log(exp(1.) / (exp(1.) + exp(2.) + exp(0.) + exp(3.))),
+              log(exp(2.) / (exp(2.) + exp(0.) + exp(3.))),
+              log(exp(0.) / (exp(0.) + exp(3.))),
+              log(exp(3.) / (exp(3.))),
+          ])
+  }, {
       "loss_fn": losses.pairwise_hinge_loss,
       "expected_value": (3. - 1. + 1.) + (3. - 2. + 1.)
   }, {
@@ -87,6 +97,9 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
           -((-2.1e26 - (0. + -2.1e26 + 3.4e37 + 42.)) +
             (3.4e37 - (0. + -2.1e26 + 3.4e37 + 42.)))
   }, {
+      "loss_fn": losses.listmle_loss,
+      "expected_value": 3.4e37
+  }, {
       "loss_fn": losses.pairwise_hinge_loss,
       "expected_value": (1. - (-2.1e26 - 0.)) + (1. - (-2.1e26 - 42.0))
   }, {
@@ -119,9 +132,18 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
     self.assertArraysAllClose(jnp.asarray(expected_value), loss)
 
   @parameterized.parameters([{
-      "loss_fn":
-          losses.softmax_loss,
+      "loss_fn": losses.softmax_loss,
       "expected_value": 0.
+  }, {
+      "loss_fn":
+          losses.listmle_loss,
+      "expected_value":
+          -sum([
+              log(exp(0.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))),
+              log(exp(3.) / (exp(3.) + exp(1.) + exp(2.))),
+              log(exp(1.) / (exp(1.) + exp(2.))),
+              log(exp(2.) / (exp(2.))),
+          ])
   }, {
       "loss_fn": losses.pairwise_hinge_loss,
       "expected_value": 0.
@@ -198,6 +220,22 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
             log(exp(4.) / (exp(3.) + exp(1.) + exp(4.) + exp(2.))))
       ]
   }, {
+      "loss_fn":
+          losses.listmle_loss,
+      "expected_value": [
+          -sum([
+              log(exp(1.) / (exp(1.) + exp(2.) + exp(0.) + exp(3.))),
+              log(exp(2.) / (exp(2.) + exp(0.) + exp(3.))),
+              log(exp(0.) / (exp(0.) + exp(3.))),
+              log(exp(3.) / (exp(3.))),
+          ]), -sum([
+              log(exp(3.) / (exp(3.) + exp(4.) + exp(1.) + exp(2.))),
+              log(exp(4.) / (exp(4.) + exp(1.) + exp(2.))),
+              log(exp(1.) / (exp(1.) + exp(2.))),
+              log(exp(2.) / (exp(2.))),
+          ])
+      ]
+  }, {
       "loss_fn": losses.pairwise_hinge_loss,
       "expected_value": [(3. - 1. + 1.) + (3. - 2. + 1.), (4. - 3. + 1.)]
   }, {
@@ -256,6 +294,20 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
       ],
       "normalizer": 2.
   }, {
+      "loss_fn": losses.listmle_loss,
+      "expected_value": [
+          -sum([
+              log(exp(2.) / (exp(2.) + exp(1.) + exp(3.))),
+              log(exp(1.) / (exp(1.) + exp(3.))),
+              log(exp(3.) / (exp(3.))),
+          ]), -sum([
+              log(exp(1.5) / (exp(1.5) + exp(1.) + exp(0.5))),
+              log(exp(1.) / (exp(1.) + exp(0.5))),
+              log(exp(0.5) / (exp(0.5))),
+          ])
+      ],
+      "normalizer": 2.
+  }, {
       "loss_fn": losses.pairwise_hinge_loss,
       "expected_value": [2., .5],
       "normalizer": 4.
@@ -301,6 +353,9 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
       "loss_fn": losses.softmax_loss,
       "expected_shape": (2,)
   }, {
+      "loss_fn": losses.listmle_loss,
+      "expected_shape": (2,)
+  }, {
       "loss_fn": losses.pairwise_hinge_loss,
       "expected_shape": (2, 9)
   }, {
@@ -327,7 +382,7 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
     self.assertEqual(jnp.sum(none_loss), sum_loss)
 
   @parameterized.parameters([
-      losses.softmax_loss, losses.pairwise_hinge_loss,
+      losses.softmax_loss, losses.listmle_loss, losses.pairwise_hinge_loss,
       losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
       losses.pointwise_mse_loss, losses.pairwise_mse_loss
   ])
@@ -344,7 +399,7 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
     self.assertArraysAllClose(expected_loss, loss)
 
   @parameterized.parameters([
-      losses.softmax_loss, losses.pairwise_hinge_loss,
+      losses.softmax_loss, losses.listmle_loss, losses.pairwise_hinge_loss,
       losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
       losses.pointwise_mse_loss, losses.pairwise_mse_loss
   ])
@@ -358,7 +413,7 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
     self.assertArraysAllClose(jnp.asarray(0.), loss)
 
   @parameterized.parameters([
-      losses.softmax_loss, losses.pairwise_hinge_loss,
+      losses.softmax_loss, losses.listmle_loss, losses.pairwise_hinge_loss,
       losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
       losses.pointwise_mse_loss, losses.pairwise_mse_loss
   ])
@@ -371,7 +426,7 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
     self.assertArraysEqual(jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
 
   @parameterized.parameters([
-      losses.softmax_loss, losses.pairwise_hinge_loss,
+      losses.softmax_loss, losses.listmle_loss, losses.pairwise_hinge_loss,
       losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
       losses.pointwise_mse_loss, losses.pairwise_mse_loss
   ])

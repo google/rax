@@ -118,6 +118,63 @@ def softmax_loss(scores: Array,
   return utils.safe_reduce(loss, reduce_fn=reduce_fn)
 
 
+def listmle_loss(scores: Array,
+                 labels: Array,
+                 *,
+                 key: Optional[Array] = None,
+                 where: Optional[Array] = None,
+                 reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
+  r"""ListMLE Loss.
+
+  .. note::
+
+    This loss performs sorting using the given labels. If the labels contain
+    multiple identical values, you should provide a :func:`~jax.random.PRNGKey`
+    to the ``key`` argument to make sure ties are broken randomly during the
+    sorting operation.
+
+  Definition :cite:p:`xia2008listwise`:
+
+  .. math::
+      \ell(s, y) =
+      - \sum_i \log
+        \frac{\exp(s_i)}{\sum_j I[rank(y_j) \ge rank(y_i)] \exp(s_j)}
+
+  where :math:`\operatorname{rank}(y_i)` indicates the rank of item :math:`i`
+  after sorting all labels :math:`y`.
+
+  Args:
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score of each item.
+    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      relevance label for each item.
+    key: An optional :func:`~jax.random.PRNGKey` to perform random tie-breaking.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid for computing the loss. Items for which
+      this is False will be ignored when computing the loss.
+    reduce_fn: An optional function that reduces the loss values. Can be
+      :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
+      is performed.
+
+  Returns:
+    The listmle loss.
+  """
+  # Sort scores and mask by labels.
+  if where is None:
+    where = jnp.ones_like(scores, dtype=jnp.bool_)
+
+  scores_sorted, where_sorted = utils.sort_by(
+      labels, [scores, where], where=where, key=key)
+
+  # Compute cumulative logsumexp.
+  lse = utils.logcumsumexp(
+      scores_sorted, axis=-1, where=where_sorted, reverse=True)
+
+  # Reduce list MLE loss.
+  loss = -jnp.sum(scores_sorted - lse, axis=-1, where=where_sorted)
+  return utils.safe_reduce(loss, reduce_fn=reduce_fn)
+
+
 def compute_pairs(a: Array, op: Callable[[Array, Array], Array]) -> Array:
   """Computes pairs based on values of `a` and the given pairwise `op`.
 
