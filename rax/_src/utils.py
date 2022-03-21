@@ -116,6 +116,93 @@ def normalize_probabilities(unscaled_probabilities: Array,
       jnp.ones_like(where, dtype=unscaled_probabilities.dtype) / where_sum)
 
 
+def logcumsumexp(x: Array,
+                 *,
+                 axis: int = -1,
+                 where: Optional[Array] = None,
+                 reverse: bool = False):
+  """Computes the cumulative logsumexp.
+
+  This is a numerically safe and efficient implementation of a cumulative
+  logsumexp operation.
+
+  Args:
+    x: The :class:`~jax.numpy.ndarray` to compute the cumulative logsumexp for.
+    axis: The axis over which the cumulative sum should take place.
+    where: An optional :class:`~jax.numpy.ndarray` of the same shape as ``x``
+      indicating which items are valid for computing the cumulative logsumexp.
+    reverse: Whether to compute the cumulative sum in reverse.
+
+  Returns:
+    An :class:`~jax.numpy.ndarray` of the same shape as ``x`` representing the
+    cumulative logsumexp of the values of ``x``.
+  """
+  if where is None:
+    where = jnp.ones_like(x, dtype=jnp.bool_)
+
+  # Flip the inputs if the cumulative sum needs to be in reverse.
+  if reverse:
+    x = jnp.flip(x, axis=axis)
+    where = jnp.flip(where, axis=axis)
+
+  # Mask out invalid entries so they do not count in the summation.
+  x = jnp.where(where, x, -jnp.inf)
+
+  # Make the axis on which to perform the operation the leading axis which is
+  # necessary for `jax.lax.scan` used below.
+  x = jnp.swapaxes(x, axis, 0)
+  where = jnp.swapaxes(where, axis, 0)
+
+  # Compute cumulative maximum.
+  m = jax.lax.cummax(x, axis=0)
+
+  # Compute `exp(x_i - m_i)` for each i.
+  x_shifted = jnp.exp(x - m)
+  x_shifted = jnp.where(where, x_shifted, 0.)
+
+  # Compute `exp(m_{i-1} - m_i)` for each i. This is used to perform an
+  # efficient version of the internal cumulative sumation (see below).
+  # Note that `m_{i-1} <= m_i` for all i because m_i is a cumulative maximum, so
+  # this is numerically safe.
+  m_diffs = jnp.exp(jnp.minimum(0., jnp.roll(m, 1, axis=0) - m))
+  m_diffs = jnp.where(where, m_diffs, 1.)
+
+  # We wish to compute the following output values (for each i):
+  #
+  #   out[i] = sum_{j=1}^{i} exp(x_j - m_i)
+  #
+  # This can be implemented in a vectorized way using a pairwise broadcasted
+  # expansion of x and m and computing all pairs `exp(x_j - m_i)` with
+  # appropriating masking. This approach would have an O(n^2) complexity.
+  # The O(n^2) can be avoided by using a recursive definition of out[i]:
+  #
+  #   out[1] = exp(x_1 - m_1)
+  #   out[i] = exp(x_i - m_i) + exp(m_{i-1} - m_i) * out[i-1]
+  #
+  # This recursive formulation allows for an o(n) complexity implementation
+  # using `jax.lax.scan` and is used here.
+  #
+  # TODO(jagerman): Investigate using log-space summation instead of product.
+  def f(previous, x):
+    out_i = x[0] + previous * x[1]
+    return out_i, out_i
+
+  initial = jnp.zeros(x.shape[1:], dtype=x.dtype)
+  out = jax.lax.scan(f, initial, (x_shifted, m_diffs))[1]
+
+  # Compute the log of the cumulative sum and correct for the cumulative
+  # maximum shift.
+  tiny = jnp.finfo(x.dtype).tiny
+  out = jnp.log(out + tiny) + m
+
+  # Swap axes back and flip output if the cumulative sum needs to be in reverse.
+  out = jnp.swapaxes(out, 0, axis)
+  if reverse:
+    out = jnp.flip(out, axis=axis)
+
+  return out
+
+
 def sort_by(scores: Array,
             tensors_to_sort: Sequence[Array],
             axis: int = -1,

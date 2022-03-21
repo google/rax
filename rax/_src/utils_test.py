@@ -77,6 +77,64 @@ class NormalizeProbabilitiesTest(jtu.JaxTestCase):
     self.assertArraysEqual(jnp.sum(result2, axis=1), jnp.asarray([1., 1.]))
 
 
+class LogCumsumExp(jtu.JaxTestCase):
+
+  def test_computes_logcumsumexp(self):
+    x = jnp.asarray([-4., 5., 2.3, 0.])
+
+    result = utils.logcumsumexp(x)
+
+    self.assertArraysEqual(
+        result,
+        jnp.asarray([
+            jnp.log(jnp.exp(-4.)),
+            jnp.log(jnp.exp(-4.) + jnp.exp(5.)),
+            jnp.log(jnp.exp(-4.) + jnp.exp(5.) + jnp.exp(2.3)),
+            jnp.log(jnp.exp(-4.) + jnp.exp(5.) + jnp.exp(2.3) + jnp.exp(0.))
+        ]))
+
+  def test_computes_over_specified_axis(self):
+    x = jnp.asarray([[-4., 2.3, 0.], [2.2, -1.2, 1.1]])
+
+    result = utils.logcumsumexp(x, axis=-1)
+    self.assertArraysEqual(result[0, :], utils.logcumsumexp(x[0, :]))
+    self.assertArraysEqual(result[1, :], utils.logcumsumexp(x[1, :]))
+
+    result = utils.logcumsumexp(x, axis=0)
+    self.assertArraysEqual(result[:, 0], utils.logcumsumexp(x[:, 0]))
+    self.assertArraysEqual(result[:, 1], utils.logcumsumexp(x[:, 1]))
+    self.assertArraysEqual(result[:, 2], utils.logcumsumexp(x[:, 2]))
+
+  def test_computes_reversed(self):
+    x = jnp.asarray([-4., 5., 2.3, 0.])
+    x_flipped = jnp.asarray([0., 2.3, 5., -4.])
+
+    result_reverse = utils.logcumsumexp(x, reverse=True)
+    result_flipped = jnp.flip(utils.logcumsumexp(x_flipped))
+
+    self.assertArraysEqual(result_reverse, result_flipped)
+
+  def test_computes_with_where_mask(self):
+    x = jnp.asarray([-4., 5., 2.3, 0.])
+    where = jnp.asarray([True, False, True, True])
+    x_masked = jnp.asarray([-4., 2.3, 0.])
+
+    result_where = utils.logcumsumexp(x, where=where)
+    result_masked = utils.logcumsumexp(x_masked)
+
+    self.assertArraysEqual(result_where[0], result_masked[0])
+    self.assertArraysEqual(result_where[2], result_masked[1])
+    self.assertArraysEqual(result_where[3], result_masked[2])
+
+  def test_handles_extreme_values(self):
+    x = jnp.asarray([-4., -2.1e26, 5., 3.4e38, 10., -2.99e26])
+
+    result = utils.logcumsumexp(x)
+
+    self.assertArraysEqual(
+        result, jnp.asarray([-4., -4., 5.0001235, 3.4e38, 3.4e38, 3.4e38]))
+
+
 class SortByTest(jtu.JaxTestCase):
 
   def test_sorts_by_scores(self):
