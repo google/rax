@@ -16,21 +16,15 @@
 """Tests for rax.examples.approx_metrics."""
 
 import io
+import json
 from unittest import mock
 
 from absl.testing import absltest
 from jax import test_util as jtu
+import numpy as np
 
 from examples import approx_metrics
 import tensorflow_datasets as tfds
-
-# The TFDS mock data generates float labels in [0, 1], which will always be 0
-# for AP and R@50 metrics, so only NDCG is computed correctly in this test.
-EXPECTED_OUTPUT = """             | AP      | NDCG    | R@50
-ApproxAP     | 0.00000 | 0.82563 | 0.00000
-ApproxNDCG   | 0.00000 | 0.83193 | 0.00000
-ApproxR@50   | 0.00000 | 0.82563 | 0.00000
-"""
 
 
 class ApproxMetricsTest(jtu.JaxTestCase):
@@ -43,11 +37,14 @@ class ApproxMetricsTest(jtu.JaxTestCase):
         argv = ()
         approx_metrics.main(argv, epochs=1)
 
-    # Get stdout output and remove trailing spaces:
-    output = mock_stdout.getvalue()
-    output = "\n".join([line.rstrip() for line in output.split("\n")])
+    # Get stdout output and parse json.
+    output = json.loads(mock_stdout.getvalue())
 
-    self.assertEqual(output, EXPECTED_OUTPUT)
+    # The TFDS mock data generates float labels in [0, 1], which will always be
+    # 0 for AP and R@50 metrics, so only NDCG is computed correctly and tested.
+    np.testing.assert_allclose(output["ApproxAP"]["NDCG"], 0.82563, rtol=0.01)
+    np.testing.assert_allclose(output["ApproxNDCG"]["NDCG"], 0.83193, rtol=0.01)
+    np.testing.assert_allclose(output["ApproxR@50"]["NDCG"], 0.82563, rtol=0.01)
 
 
 if __name__ == "__main__":

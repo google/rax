@@ -17,25 +17,34 @@
 Usage with example output:
 
 $ python examples/web30k.py
-epoch=1
-  loss=4.45970
-  metric/mrr=0.82006
-  metric/ndcg=0.67454
-  metric/ndcg@10=0.41723
-epoch=2
-  loss=4.44802
-  metric/mrr=0.82790
-  metric/ndcg=0.68373
-  metric/ndcg@10=0.43320
-epoch=3
-  loss=4.44635
-  metric/mrr=0.83018
-  metric/ndcg=0.68511
-  metric/ndcg@10=0.43604
+[
+  {
+    "epoch": 1,
+    "loss": 371.3304748535156,
+    "metric/mrr": 0.8062829971313477,
+    "metric/ndcg": 0.6677320003509521,
+    "metric/ndcg@10": 0.4055347740650177
+  },
+  {
+    "epoch": 2,
+    "loss": 370.42974853515625,
+    "metric/mrr": 0.8242350220680237,
+    "metric/ndcg": 0.6812514662742615,
+    "metric/ndcg@10": 0.43049752712249756
+  },
+  {
+    "epoch": 3,
+    "loss": 370.25244140625,
+    "metric/mrr": 0.8261540532112122,
+    "metric/ndcg": 0.6834192276000977,
+    "metric/ndcg@10": 0.4342570900917053
+  }
+]
 """
 
 import collections
 import functools
+import json
 from typing import Mapping, Optional, Sequence, Tuple
 
 from absl import app
@@ -158,6 +167,7 @@ def main(argv: Sequence[str]):
   model_state = model.init(jax.random.PRNGKey(0), next(iter(ds_train))[0])
   opt_state = optimizer.init(model_state["params"])
 
+  output = []
   for epoch in range(3):
     metrics = collections.defaultdict(float)
     for batch in ds_train:
@@ -169,9 +179,13 @@ def main(argv: Sequence[str]):
       for name, metric in eval_step(batch, model_state).items():
         metrics[name] += metric
 
-    print(f"epoch={epoch + 1}")
-    for name, metric in metrics.items():
-      print(f"  {name}={metric / len(ds_train):.5f}")
+    metrics = {
+        name: float(metric / len(ds_train)) for name, metric in metrics.items()
+    }
+    metrics["epoch"] = epoch + 1
+    output.append(metrics)
+
+  print(json.dumps(output, indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":

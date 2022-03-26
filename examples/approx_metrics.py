@@ -17,13 +17,27 @@
 Usage with example output:
 
 $ python examples/approx_metrics.py
-             | AP      | NDCG    | R@50
-ApproxAP     | 0.59476 | 0.65876 | 0.58073
-ApproxNDCG   | 0.58769 | 0.67001 | 0.57444
-ApproxR@50   | 0.58459 | 0.64394 | 0.57380
+{
+  "ApproxAP": {
+    "AP": 0.5947682857513428,
+    "NDCG": 0.6587949991226196,
+    "R@50": 0.5807018876075745
+  },
+  "ApproxNDCG": {
+    "AP": 0.587692141532898,
+    "NDCG": 0.6700138449668884,
+    "R@50": 0.5744442939758301
+  },
+  "ApproxR@50": {
+    "AP": 0.5849018096923828,
+    "NDCG": 0.6449851989746094,
+    "R@50": 0.5746314525604248
+  }
+}
 """
 
 import functools
+import json
 from typing import Optional, Sequence
 
 from absl import app
@@ -141,7 +155,7 @@ def eval_metrics(ds, w, metrics):
 
   # Return final metric values.
   return {
-      metric_name: metric.compute()
+      metric_name: float(metric.compute())
       for metric_name, metric in metric_values.items()
   }
 
@@ -172,18 +186,13 @@ def main(argv: Sequence[str], epochs: int = 10):
       "NDCG": rax.ndcg_metric,
       "R@50": functools.partial(rax.recall_metric, topn=50)
   }
-  metric_names = list(metrics.keys())
-  print(f"{'':<12} | " + " | ".join(f"{name:<7}" for name in metric_names))
 
-  def print_results(name, w):
-    results = eval_metrics(ds_train, w, metrics)
-    results = " | ".join(
-        [f"{results[metric]:.5f}" for metric in metric_names])
-    print(f"{name:<12} | {results}")
-
-  print_results("ApproxAP", w_ap)
-  print_results("ApproxNDCG", w_ndcg)
-  print_results("ApproxR@50", w_recall)
+  output = {
+      "ApproxAP": eval_metrics(ds_train, w_ap, metrics),
+      "ApproxNDCG": eval_metrics(ds_train, w_ndcg, metrics),
+      "ApproxR@50": eval_metrics(ds_train, w_recall, metrics)
+  }
+  print(json.dumps(output, sort_keys=True, indent=2))
 
 
 if __name__ == "__main__":
