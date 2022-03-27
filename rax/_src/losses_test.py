@@ -20,8 +20,8 @@ import math
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
-from jax import test_util as jtu
 import jax.numpy as jnp
+import numpy as np
 
 import rax
 from rax._src import losses
@@ -33,7 +33,7 @@ logloss = lambda x: log(1. + exp(-x))
 sigmoid = lambda x: 1. / (1. + exp(-x))
 
 
-class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
+class LossesTest(parameterized.TestCase):
 
   @parameterized.parameters([{
       "loss_fn":
@@ -88,7 +88,7 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
 
     loss = loss_fn(scores, labels)
 
-    self.assertArraysAllClose(jnp.asarray(expected_value), loss)
+    np.testing.assert_allclose(jnp.asarray(expected_value), loss)
 
   @parameterized.parameters([{
       "loss_fn":
@@ -129,7 +129,7 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
 
     loss = loss_fn(scores, labels)
 
-    self.assertArraysAllClose(jnp.asarray(expected_value), loss)
+    np.testing.assert_allclose(jnp.asarray(expected_value), loss)
 
   @parameterized.parameters([{
       "loss_fn": losses.softmax_loss,
@@ -173,7 +173,7 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
 
     loss = loss_fn(scores, labels)
 
-    self.assertArraysAllClose(jnp.asarray(expected_value), loss)
+    np.testing.assert_allclose(jnp.asarray(expected_value), loss)
 
   @parameterized.parameters([{
       "loss_fn": losses.pairwise_hinge_loss,
@@ -208,7 +208,7 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
 
     loss = loss_fn(scores, labels, weights=weights)
 
-    self.assertArraysAllClose(jnp.asarray(expected_value), loss)
+    np.testing.assert_allclose(jnp.asarray(expected_value), loss)
 
   @parameterized.parameters([{
       "loss_fn":
@@ -284,7 +284,7 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
     vmap_loss_fn = jax.vmap(loss_fn, in_axes=(0, 0), out_axes=0)
     loss = vmap_loss_fn(scores, labels)
 
-    self.assertArraysAllClose(jnp.asarray(expected_value), loss)
+    np.testing.assert_allclose(jnp.asarray(expected_value), loss)
 
   @parameterized.parameters([{
       "loss_fn": losses.softmax_loss,
@@ -346,8 +346,9 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
     mean_loss = loss_fn(scores, labels, reduce_fn=jnp.mean)
     sum_loss = loss_fn(scores, labels, reduce_fn=jnp.sum)
 
-    self.assertArraysAllClose(mean_loss, jnp.sum(expected_value) / normalizer)
-    self.assertArraysAllClose(sum_loss, jnp.sum(expected_value))
+    np.testing.assert_allclose(
+        mean_loss, jnp.sum(expected_value) / normalizer, rtol=1E-5)
+    np.testing.assert_allclose(sum_loss, jnp.sum(expected_value))
 
   @parameterized.parameters([{
       "loss_fn": losses.softmax_loss,
@@ -396,7 +397,7 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
     loss = loss_fn(scores, labels, where=where)
     expected_loss = loss_fn(expected_scores, expected_labels)
 
-    self.assertArraysAllClose(expected_loss, loss)
+    np.testing.assert_allclose(expected_loss, loss)
 
   @parameterized.parameters([
       losses.softmax_loss, losses.listmle_loss, losses.pairwise_hinge_loss,
@@ -410,7 +411,7 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
 
     loss = loss_fn(scores, labels, where=where)
 
-    self.assertArraysAllClose(jnp.asarray(0.), loss)
+    np.testing.assert_allclose(jnp.asarray(0.), loss, atol=1E-7)
 
   @parameterized.parameters([
       losses.softmax_loss, losses.listmle_loss, losses.pairwise_hinge_loss,
@@ -423,7 +424,8 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
 
     grads = jax.grad(loss_fn)(scores, labels, reduce_fn=jnp.mean)
 
-    self.assertArraysEqual(jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
+    np.testing.assert_array_equal(
+        jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
 
   @parameterized.parameters([
       losses.softmax_loss, losses.listmle_loss, losses.pairwise_hinge_loss,
@@ -437,7 +439,8 @@ class LossesTest(jtu.JaxTestCase, parameterized.TestCase):
 
     grads = jax.grad(loss_fn)(scores, labels, where=where, reduce_fn=jnp.mean)
 
-    self.assertArraysEqual(jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
+    np.testing.assert_array_equal(
+        jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
 
 
 def load_tests(loader, tests, ignore):
@@ -452,4 +455,4 @@ def load_tests(loader, tests, ignore):
 
 
 if __name__ == "__main__":
-  absltest.main(testLoader=jtu.JaxTestLoader())
+  absltest.main()

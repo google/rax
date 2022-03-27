@@ -20,14 +20,13 @@ import json
 from unittest import mock
 
 from absl.testing import absltest
-from jax import test_util as jtu
 import numpy as np
 
 from examples import approx_metrics
 import tensorflow_datasets as tfds
 
 
-class ApproxMetricsTest(jtu.JaxTestCase):
+class ApproxMetricsTest(absltest.TestCase):
 
   def test_end_to_end(self):
     mock_stdout = io.StringIO()
@@ -48,4 +47,4 @@ class ApproxMetricsTest(jtu.JaxTestCase):
 
 
 if __name__ == "__main__":
-  absltest.main(testLoader=jtu.JaxTestLoader())
+  absltest.main()

@@ -20,14 +20,13 @@ import json
 from unittest import mock
 
 from absl.testing import absltest
-from jax import test_util as jtu
 import numpy as np
 
 from examples import web30k
 import tensorflow_datasets as tfds
 
 
-class Web30kTest(jtu.JaxTestCase):
+class Web30kTest(absltest.TestCase):
 
   def test_end_to_end(self):
     mock_stdout = io.StringIO()
@@ -61,4 +60,4 @@ class Web30kTest(jtu.JaxTestCase):
 
 
 if __name__ == "__main__":
-  absltest.main(testLoader=jtu.JaxTestLoader())
+  absltest.main()

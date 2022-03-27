@@ -18,14 +18,14 @@
 import doctest
 from absl.testing import absltest
 import jax
-from jax import test_util as jtu
 import jax.numpy as jnp
+import numpy as np
 
 import rax
 from rax._src import utils
 
 
-class NormalizeProbabilitiesTest(jtu.JaxTestCase):
+class NormalizeProbabilitiesTest(absltest.TestCase):
 
   def test_sums_to_one_for_given_axis(self):
     arr = jnp.asarray([[0., 1., 2.], [3., 4., 5.]])
@@ -33,9 +33,9 @@ class NormalizeProbabilitiesTest(jtu.JaxTestCase):
     result1 = utils.normalize_probabilities(arr, axis=0)
     result2 = utils.normalize_probabilities(arr, axis=1)
 
-    self.assertArraysEqual(
+    np.testing.assert_array_equal(
         result1, jnp.asarray([[0., 1. / 5., 2. / 7.], [1., 4. / 5., 5. / 7.]]))
-    self.assertArraysEqual(
+    np.testing.assert_array_equal(
         result2,
         jnp.asarray([[0., 1. / 3., 2. / 3.], [3. / 12., 4. / 12., 5. / 12.]]))
 
@@ -44,7 +44,7 @@ class NormalizeProbabilitiesTest(jtu.JaxTestCase):
 
     result = utils.normalize_probabilities(arr)
 
-    self.assertArraysEqual(
+    np.testing.assert_array_equal(
         result,
         jnp.asarray([[0., 1. / 3., 2. / 3.], [3. / 12., 4. / 12., 5. / 12.]]))
 
@@ -54,7 +54,7 @@ class NormalizeProbabilitiesTest(jtu.JaxTestCase):
 
     result = utils.normalize_probabilities(arr, where, axis=1)
 
-    self.assertArraysEqual(
+    np.testing.assert_array_equal(
         jnp.sum(result, axis=1, where=where), jnp.asarray([1., 1.]))
 
   def test_correctly_sets_all_zeros(self):
@@ -63,8 +63,10 @@ class NormalizeProbabilitiesTest(jtu.JaxTestCase):
     result1 = utils.normalize_probabilities(arr, axis=0)
     result2 = utils.normalize_probabilities(arr, axis=1)
 
-    self.assertArraysEqual(jnp.sum(result1, axis=0), jnp.asarray([1., 1., 1.]))
-    self.assertArraysEqual(jnp.sum(result2, axis=1), jnp.asarray([1., 1.]))
+    np.testing.assert_array_equal(
+        jnp.sum(result1, axis=0), jnp.asarray([1., 1., 1.]))
+    np.testing.assert_array_equal(
+        jnp.sum(result2, axis=1), jnp.asarray([1., 1.]))
 
   def test_correctly_handles_all_masked(self):
     arr = jnp.asarray([[2., 1., 3.], [1., 1., 1.]])
@@ -73,18 +75,20 @@ class NormalizeProbabilitiesTest(jtu.JaxTestCase):
     result1 = utils.normalize_probabilities(arr, where, axis=0)
     result2 = utils.normalize_probabilities(arr, where, axis=1)
 
-    self.assertArraysEqual(jnp.sum(result1, axis=0), jnp.asarray([1., 1., 1.]))
-    self.assertArraysEqual(jnp.sum(result2, axis=1), jnp.asarray([1., 1.]))
+    np.testing.assert_array_equal(
+        jnp.sum(result1, axis=0), jnp.asarray([1., 1., 1.]))
+    np.testing.assert_array_equal(
+        jnp.sum(result2, axis=1), jnp.asarray([1., 1.]))
 
 
-class LogCumsumExp(jtu.JaxTestCase):
+class LogCumsumExp(absltest.TestCase):
 
   def test_computes_logcumsumexp(self):
     x = jnp.asarray([-4., 5., 2.3, 0.])
 
     result = utils.logcumsumexp(x)
 
-    self.assertArraysEqual(
+    np.testing.assert_array_equal(
         result,
         jnp.asarray([
             jnp.log(jnp.exp(-4.)),
@@ -97,13 +101,13 @@ class LogCumsumExp(jtu.JaxTestCase):
     x = jnp.asarray([[-4., 2.3, 0.], [2.2, -1.2, 1.1]])
 
     result = utils.logcumsumexp(x, axis=-1)
-    self.assertArraysEqual(result[0, :], utils.logcumsumexp(x[0, :]))
-    self.assertArraysEqual(result[1, :], utils.logcumsumexp(x[1, :]))
+    np.testing.assert_array_equal(result[0, :], utils.logcumsumexp(x[0, :]))
+    np.testing.assert_array_equal(result[1, :], utils.logcumsumexp(x[1, :]))
 
     result = utils.logcumsumexp(x, axis=0)
-    self.assertArraysEqual(result[:, 0], utils.logcumsumexp(x[:, 0]))
-    self.assertArraysEqual(result[:, 1], utils.logcumsumexp(x[:, 1]))
-    self.assertArraysEqual(result[:, 2], utils.logcumsumexp(x[:, 2]))
+    np.testing.assert_array_equal(result[:, 0], utils.logcumsumexp(x[:, 0]))
+    np.testing.assert_array_equal(result[:, 1], utils.logcumsumexp(x[:, 1]))
+    np.testing.assert_array_equal(result[:, 2], utils.logcumsumexp(x[:, 2]))
 
   def test_computes_reversed(self):
     x = jnp.asarray([-4., 5., 2.3, 0.])
@@ -112,7 +116,7 @@ class LogCumsumExp(jtu.JaxTestCase):
     result_reverse = utils.logcumsumexp(x, reverse=True)
     result_flipped = jnp.flip(utils.logcumsumexp(x_flipped))
 
-    self.assertArraysEqual(result_reverse, result_flipped)
+    np.testing.assert_array_equal(result_reverse, result_flipped)
 
   def test_computes_with_where_mask(self):
     x = jnp.asarray([-4., 5., 2.3, 0.])
@@ -122,20 +126,20 @@ class LogCumsumExp(jtu.JaxTestCase):
     result_where = utils.logcumsumexp(x, where=where)
     result_masked = utils.logcumsumexp(x_masked)
 
-    self.assertArraysEqual(result_where[0], result_masked[0])
-    self.assertArraysEqual(result_where[2], result_masked[1])
-    self.assertArraysEqual(result_where[3], result_masked[2])
+    np.testing.assert_array_equal(result_where[0], result_masked[0])
+    np.testing.assert_array_equal(result_where[2], result_masked[1])
+    np.testing.assert_array_equal(result_where[3], result_masked[2])
 
   def test_handles_extreme_values(self):
     x = jnp.asarray([-4., -2.1e26, 5., 3.4e38, 10., -2.99e26])
 
     result = utils.logcumsumexp(x)
 
-    self.assertArraysEqual(
+    np.testing.assert_array_equal(
         result, jnp.asarray([-4., -4., 5.0001235, 3.4e38, 3.4e38, 3.4e38]))
 
 
-class SortByTest(jtu.JaxTestCase):
+class SortByTest(absltest.TestCase):
 
   def test_sorts_by_scores(self):
     scores = jnp.asarray([0., 3., 1., 2.])
@@ -143,7 +147,7 @@ class SortByTest(jtu.JaxTestCase):
 
     result = utils.sort_by(scores, tensors_to_sort)[0]
 
-    self.assertArraysEqual(result, jnp.asarray([13., 12., 11., 10.]))
+    np.testing.assert_array_equal(result, jnp.asarray([13., 12., 11., 10.]))
 
   def test_sorts_by_given_axis(self):
     scores = jnp.asarray([[3., 1., 2.], [1., 5., 3.]])
@@ -152,8 +156,10 @@ class SortByTest(jtu.JaxTestCase):
     result_0 = utils.sort_by(scores, tensors_to_sort, axis=0)[0]
     result_1 = utils.sort_by(scores, tensors_to_sort, axis=1)[0]
 
-    self.assertArraysEqual(result_0, jnp.asarray([[0., 4., 5.], [3., 1., 2.]]))
-    self.assertArraysEqual(result_1, jnp.asarray([[0., 2., 1.], [4., 5., 3.]]))
+    np.testing.assert_array_equal(result_0,
+                                  jnp.asarray([[0., 4., 5.], [3., 1., 2.]]))
+    np.testing.assert_array_equal(result_1,
+                                  jnp.asarray([[0., 2., 1.], [4., 5., 3.]]))
 
   def test_sorts_multiple_tensors(self):
     scores = jnp.asarray([0., 3., 1., 2.])
@@ -165,9 +171,9 @@ class SortByTest(jtu.JaxTestCase):
 
     result = utils.sort_by(scores, tensors_to_sort)
 
-    self.assertArraysEqual(result[0], jnp.asarray([13., 12., 11., 10.]))
-    self.assertArraysEqual(result[1], jnp.asarray([56., 54., 52., 50.]))
-    self.assertArraysEqual(result[2], jnp.asarray([78., 77., 76., 75.]))
+    np.testing.assert_array_equal(result[0], jnp.asarray([13., 12., 11., 10.]))
+    np.testing.assert_array_equal(result[1], jnp.asarray([56., 54., 52., 50.]))
+    np.testing.assert_array_equal(result[2], jnp.asarray([78., 77., 76., 75.]))
 
   def test_places_masked_values_last(self):
     scores = jnp.asarray([0., 3., 1., 2.])
@@ -176,7 +182,7 @@ class SortByTest(jtu.JaxTestCase):
 
     result = utils.sort_by(scores, tensors_to_sort, where=where)[0]
 
-    self.assertArraysEqual(result, jnp.asarray([13., 10., 12., 11.]))
+    np.testing.assert_array_equal(result, jnp.asarray([13., 10., 12., 11.]))
 
   def test_breaks_ties_randomly_when_key_is_provided(self):
     scores = jnp.asarray([0., 1., 1., 2.])
@@ -187,25 +193,25 @@ class SortByTest(jtu.JaxTestCase):
     result1 = utils.sort_by(scores, tensors_to_sort, key=key1)[0]
     result2 = utils.sort_by(scores, tensors_to_sort, key=key2)[0]
 
-    self.assertArraysEqual(result1, jnp.asarray([12., 11.2, 11.1, 10.]))
-    self.assertArraysEqual(result2, jnp.asarray([12., 11.1, 11.2, 10.]))
+    np.testing.assert_array_equal(result1, jnp.asarray([12., 11.2, 11.1, 10.]))
+    np.testing.assert_array_equal(result2, jnp.asarray([12., 11.1, 11.2, 10.]))
 
 
-class RanksTest(jtu.JaxTestCase):
+class RanksTest(absltest.TestCase):
 
   def test_ranks_by_sorting_scores(self):
     scores = jnp.asarray([[0., 1., 2.], [2., 1., 3.]])
 
     ranks = utils.ranks(scores)
 
-    self.assertArraysEqual(ranks, jnp.asarray([[3, 2, 1], [2, 3, 1]]))
+    np.testing.assert_array_equal(ranks, jnp.asarray([[3, 2, 1], [2, 3, 1]]))
 
   def test_ranks_along_given_axis(self):
     scores = jnp.asarray([[0., 1., 2.], [1., 2., 0.]])
 
     ranks = utils.ranks(scores, axis=0)
 
-    self.assertArraysEqual(ranks, jnp.asarray([[2, 2, 1], [1, 1, 2]]))
+    np.testing.assert_array_equal(ranks, jnp.asarray([[2, 2, 1], [1, 1, 2]]))
 
   def test_ranks_with_ties_broken_randomly(self):
     scores = jnp.asarray([2., 1., 1.])
@@ -215,11 +221,11 @@ class RanksTest(jtu.JaxTestCase):
     ranks1 = utils.ranks(scores, key=key1)
     ranks2 = utils.ranks(scores, key=key2)
 
-    self.assertArraysEqual(ranks1, jnp.asarray([1, 2, 3]))
-    self.assertArraysEqual(ranks2, jnp.asarray([1, 3, 2]))
+    np.testing.assert_array_equal(ranks1, jnp.asarray([1, 2, 3]))
+    np.testing.assert_array_equal(ranks2, jnp.asarray([1, 3, 2]))
 
 
-class ApproxRanksTest(jtu.JaxTestCase):
+class ApproxRanksTest(absltest.TestCase):
 
   def test_computes_approx_ranks(self):
     scores = jnp.asarray([-3., 1., 2.])
@@ -227,7 +233,7 @@ class ApproxRanksTest(jtu.JaxTestCase):
     ranks = utils.approx_ranks(scores)
 
     sigmoid = jax.nn.sigmoid
-    self.assertArraysEqual(
+    np.testing.assert_array_equal(
         ranks,
         jnp.asarray([
             sigmoid(3. + 1.) + sigmoid(3. + 2.) + 1.0,
@@ -241,7 +247,7 @@ class ApproxRanksTest(jtu.JaxTestCase):
     ranks = utils.approx_ranks(scores)
     true_ranks = utils.ranks(scores)
 
-    self.assertArraysEqual(jnp.argsort(ranks), jnp.argsort(true_ranks))
+    np.testing.assert_array_equal(jnp.argsort(ranks), jnp.argsort(true_ranks))
 
   def test_computes_approx_ranks_with_where(self):
     scores_without_where = jnp.asarray([3.33, 1.125])
@@ -251,11 +257,11 @@ class ApproxRanksTest(jtu.JaxTestCase):
     ranks = utils.approx_ranks(scores_without_where)
     ranks_with_where = utils.approx_ranks(scores, where=where)
 
-    self.assertArraysEqual(
+    np.testing.assert_array_equal(
         ranks, jnp.asarray([ranks_with_where[0], ranks_with_where[2]]))
 
 
-class SafeReduceTest(jtu.JaxTestCase):
+class SafeReduceTest(absltest.TestCase):
 
   def test_reduces_values_according_to_fn(self):
     a = jnp.array([[3., 2.], [4.5, 1.2]])
@@ -264,9 +270,9 @@ class SafeReduceTest(jtu.JaxTestCase):
     res_sum = utils.safe_reduce(a, reduce_fn=jnp.sum)
     res_none = utils.safe_reduce(a, reduce_fn=None)
 
-    self.assertAllClose(res_mean, jnp.mean(a))
-    self.assertAllClose(res_sum, jnp.sum(a))
-    self.assertAllClose(res_none, a)
+    np.testing.assert_allclose(res_mean, jnp.mean(a))
+    np.testing.assert_allclose(res_sum, jnp.sum(a))
+    np.testing.assert_allclose(res_none, a)
 
   def test_reduces_values_with_mask(self):
     a = jnp.array([[3., 2., 0.01], [4.5, 1.2, 0.9]])
@@ -276,9 +282,9 @@ class SafeReduceTest(jtu.JaxTestCase):
     res_sum = utils.safe_reduce(a, where=where, reduce_fn=jnp.sum)
     res_none = utils.safe_reduce(a, where=where, reduce_fn=None)
 
-    self.assertAllClose(res_mean, jnp.mean(a, where=where))
-    self.assertAllClose(res_sum, jnp.sum(a, where=where))
-    self.assertAllClose(res_none, jnp.where(where, a, 0.))
+    np.testing.assert_allclose(res_mean, jnp.mean(a, where=where))
+    np.testing.assert_allclose(res_sum, jnp.sum(a, where=where))
+    np.testing.assert_allclose(res_none, jnp.where(where, a, 0.))
 
   def test_reduces_mean_with_all_masked(self):
     a = jnp.array([[3., 2., 0.01], [4.5, 1.2, 0.9]])
@@ -286,7 +292,7 @@ class SafeReduceTest(jtu.JaxTestCase):
 
     res_mean = utils.safe_reduce(a, where=where, reduce_fn=jnp.mean)
 
-    self.assertAllClose(res_mean, jnp.array(0.))
+    np.testing.assert_allclose(res_mean, jnp.array(0.))
 
 
 def load_tests(loader, tests, ignore):
@@ -302,4 +308,4 @@ def load_tests(loader, tests, ignore):
 
 
 if __name__ == "__main__":
-  absltest.main(testLoader=jtu.JaxTestLoader())
+  absltest.main()

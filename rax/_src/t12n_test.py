@@ -21,15 +21,15 @@ import functools
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
-from jax import test_util as jtu
 import jax.numpy as jnp
+import numpy as np
 
 import rax
 from rax._src import metrics
 from rax._src import t12n
 
 
-class ApproxT12nTest(jtu.JaxTestCase, parameterized.TestCase):
+class ApproxT12nTest(parameterized.TestCase):
 
   @parameterized.parameters([
       metrics.mrr_metric,
@@ -46,8 +46,10 @@ class ApproxT12nTest(jtu.JaxTestCase, parameterized.TestCase):
     loss_fn = t12n.approx_t12n(metric_fn)
     loss = loss_fn(scores, labels)
 
-    self.assertArraysEqual(jnp.isnan(loss), jnp.zeros_like(jnp.isnan(loss)))
-    self.assertArraysEqual(loss != 0., jnp.ones_like(loss, dtype=jnp.bool_))
+    np.testing.assert_array_equal(
+        jnp.isnan(loss), jnp.zeros_like(jnp.isnan(loss)))
+    np.testing.assert_array_equal(loss != 0.,
+                                  jnp.ones_like(loss, dtype=jnp.bool_))
 
   @parameterized.parameters([
       metrics.mrr_metric,
@@ -64,8 +66,10 @@ class ApproxT12nTest(jtu.JaxTestCase, parameterized.TestCase):
     loss_fn = t12n.approx_t12n(metric_fn)
     grads = jax.grad(loss_fn)(scores, labels)
 
-    self.assertArraysEqual(jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
-    self.assertArraysEqual(grads != 0., jnp.ones_like(grads, dtype=jnp.bool_))
+    np.testing.assert_array_equal(
+        jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
+    np.testing.assert_array_equal(grads != 0.,
+                                  jnp.ones_like(grads, dtype=jnp.bool_))
 
   @parameterized.parameters([
       metrics.mrr_metric,
@@ -83,7 +87,8 @@ class ApproxT12nTest(jtu.JaxTestCase, parameterized.TestCase):
     loss_fn = t12n.approx_t12n(metric_fn)
     grads = jax.grad(loss_fn)(scores, labels, where=where)
 
-    self.assertArraysEqual(jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
+    np.testing.assert_array_equal(
+        jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
 
   @parameterized.parameters([
       metrics.mrr_metric,
@@ -101,10 +106,11 @@ class ApproxT12nTest(jtu.JaxTestCase, parameterized.TestCase):
     loss_fn = t12n.approx_t12n(metric_fn)
     grads = jax.grad(loss_fn)(scores, labels)
 
-    self.assertArraysEqual(jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
+    np.testing.assert_array_equal(
+        jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
 
 
-class BoundT12nTest(jtu.JaxTestCase, parameterized.TestCase):
+class BoundT12nTest(parameterized.TestCase):
 
   def test_computes_upper_bound_on_ranks(self):
     scores = jnp.array([2., -1.5, 0.9])
@@ -118,7 +124,7 @@ class BoundT12nTest(jtu.JaxTestCase, parameterized.TestCase):
     ranks = bound_fn(scores, labels)
 
     expected = jnp.array([(1. + 0. + 0.), (1. + 4.5 + 3.4), (1. + 2.1 + 0.)])
-    self.assertArraysAllClose(ranks, expected)
+    np.testing.assert_allclose(ranks, expected)
 
   def test_computes_lower_bound_on_cutoffs(self):
     scores = jnp.array([2., -1.5, 0.9])
@@ -132,7 +138,7 @@ class BoundT12nTest(jtu.JaxTestCase, parameterized.TestCase):
     ranks = bound_fn(scores, labels)
 
     expected = jnp.array([1., -1.5 - (-1.5 + 0.9) / 2., 1.])
-    self.assertArraysAllClose(ranks, expected)
+    np.testing.assert_allclose(ranks, expected)
 
   @parameterized.parameters([
       metrics.mrr_metric,
@@ -149,8 +155,10 @@ class BoundT12nTest(jtu.JaxTestCase, parameterized.TestCase):
     loss_fn = t12n.bound_t12n(metric_fn)
     loss = loss_fn(scores, labels)
 
-    self.assertArraysEqual(jnp.isnan(loss), jnp.zeros_like(jnp.isnan(loss)))
-    self.assertArraysEqual(loss != 0., jnp.ones_like(loss, dtype=jnp.bool_))
+    np.testing.assert_array_equal(
+        jnp.isnan(loss), jnp.zeros_like(jnp.isnan(loss)))
+    np.testing.assert_array_equal(loss != 0.,
+                                  jnp.ones_like(loss, dtype=jnp.bool_))
 
   @parameterized.parameters([
       metrics.mrr_metric,
@@ -167,7 +175,8 @@ class BoundT12nTest(jtu.JaxTestCase, parameterized.TestCase):
     loss_fn = t12n.bound_t12n(metric_fn)
     grads = jax.grad(loss_fn)(scores, labels)
 
-    self.assertArraysEqual(jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
+    np.testing.assert_array_equal(
+        jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
     self.assertGreater(jnp.sum(jnp.abs(grads)), 0.)
 
   @parameterized.parameters([
@@ -186,7 +195,8 @@ class BoundT12nTest(jtu.JaxTestCase, parameterized.TestCase):
     loss_fn = t12n.bound_t12n(metric_fn)
     grads = jax.grad(loss_fn)(scores, labels, where=where)
 
-    self.assertArraysEqual(jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
+    np.testing.assert_array_equal(
+        jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
 
   @parameterized.parameters([
       metrics.mrr_metric,
@@ -203,10 +213,11 @@ class BoundT12nTest(jtu.JaxTestCase, parameterized.TestCase):
     loss_fn = t12n.bound_t12n(metric_fn)
     grads = jax.grad(loss_fn)(scores, labels)
 
-    self.assertArraysEqual(jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
+    np.testing.assert_array_equal(
+        jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
 
 
-class GumbelT12nTest(jtu.JaxTestCase):
+class GumbelT12nTest(parameterized.TestCase):
 
   def test_samples_scores_using_key(self):
     scores = jnp.asarray([0., 1., 2.])
@@ -216,8 +227,8 @@ class GumbelT12nTest(jtu.JaxTestCase):
     new_loss_fn = t12n.gumbel_t12n(mock_loss_fn, samples=1)
 
     loss = new_loss_fn(scores, labels, key=jax.random.PRNGKey(42))
-    self.assertArraysAllClose(loss, jnp.asarray([[0.589013, 0.166654,
-                                                  0.962401]]))
+    np.testing.assert_allclose(
+        loss, jnp.asarray([[0.589013, 0.166654, 0.962401]]), rtol=1E-5)
 
   def test_repeats_inputs_n_times(self):
     scores = jnp.asarray([0., 1., 2.])
@@ -242,7 +253,7 @@ class GumbelT12nTest(jtu.JaxTestCase):
     new_loss_fn = t12n.gumbel_t12n(mock_loss_fn, samples=1, beta=0.00001)
 
     loss = new_loss_fn(scores, labels, key=jax.random.PRNGKey(42))
-    self.assertArraysAllClose(loss, jnp.expand_dims(scores, 0), atol=1e-3)
+    np.testing.assert_allclose(loss, jnp.expand_dims(scores, 0), atol=1e-3)
 
   def test_handles_extreme_scores(self):
     scores = jnp.asarray([-3e18, 1., 2e22])
@@ -252,7 +263,8 @@ class GumbelT12nTest(jtu.JaxTestCase):
     new_loss_fn = t12n.gumbel_t12n(mock_loss_fn, samples=1)
 
     loss = new_loss_fn(scores, labels, key=jax.random.PRNGKey(42))
-    self.assertArraysAllClose(loss, jnp.asarray([[-3e18, 1.666543e-01, 2e22]]))
+    np.testing.assert_allclose(
+        loss, jnp.asarray([[-3e18, 1.666543e-01, 2e22]]), rtol=1E-5)
 
   def test_raises_an_error_if_no_key_is_provided(self):
     scores = jnp.asarray([-3e18, 1., 2e22])
@@ -277,4 +289,4 @@ def load_tests(loader, tests, ignore):
 
 
 if __name__ == "__main__":
-  absltest.main(testLoader=jtu.JaxTestLoader())
+  absltest.main()
