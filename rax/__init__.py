@@ -22,6 +22,7 @@ from rax._src.losses import pairwise_logistic_loss
 from rax._src.losses import pairwise_mse_loss
 from rax._src.losses import pointwise_mse_loss
 from rax._src.losses import pointwise_sigmoid_loss
+from rax._src.losses import poly1_softmax_loss
 from rax._src.losses import softmax_loss
 from rax._src.metrics import ap_metric
 from rax._src.metrics import dcg_metric
@@ -43,6 +44,7 @@ __all__ = [
     "pairwise_mse_loss",
     "pointwise_mse_loss",
     "pointwise_sigmoid_loss",
+    "poly1_softmax_loss",
     "softmax_loss",
     "ap_metric",
     "dcg_metric",

@@ -97,7 +97,7 @@ def softmax_loss(scores: Array,
   Returns:
     The softmax loss.
   """
-  # Applies where so that whereed elements do not count towards the loss.
+  # Applies mask so that masked elements do not count towards the loss.
   if where is not None:
     labels = jnp.where(where, labels, jnp.zeros_like(labels))
     scores = jnp.where(where, scores, -jnp.ones_like(scores) * jnp.inf)
@@ -115,6 +115,78 @@ def softmax_loss(scores: Array,
 
   # Reduces softmax cross-entropy loss.
   loss = -jnp.sum(softmax_cross_entropy, axis=-1, where=where)
+  return utils.safe_reduce(loss, reduce_fn=reduce_fn)
+
+
+def poly1_softmax_loss(scores: Array,
+                       labels: Array,
+                       *,
+                       epsilon: float = 1.0,
+                       where: Optional[Array] = None,
+                       weights: Optional[Array] = None,
+                       reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
+  r"""Poly1 softmax loss.
+
+  Definition :cite:p:`leng2022polyloss`:
+
+  .. math::
+      \ell(s, y) = softmax(s, y) + \epsilon * (1 - pt)
+
+  where :math:`softmax` is the standard softmax loss as implemented in
+  :func:`~rax.softmax_loss` and :math:`pt` is the target softmax probability
+  defined as:
+
+  .. math::
+      pt = \sum_i \frac{y_i}{\sum_j y_j} \frac{\exp(s_i)}{\sum_j \exp(s_j)}
+
+  Args:
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score of each item.
+    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      relevance label for each item.
+    epsilon: A float hyperparameter indicating the weight of the leading
+      polynomial coefficient in the poly loss.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid for computing the loss. Items for which
+      this is False will be ignored when computing the loss.
+    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating the weight for each item.
+    reduce_fn: An optional function that reduces the loss values. Can be
+      :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
+      is performed.
+
+  Returns:
+    The poly1 softmax loss.
+  """
+  # Compute softmax cross-entropy loss without batch reduction.
+  ce = softmax_loss(
+      scores,
+      labels,
+      where=where,
+      weights=weights,
+      reduce_fn=None)
+
+  # Applies mask so that masked elements do not count towards the loss.
+  if where is not None:
+    labels = jnp.where(where, labels, jnp.zeros_like(labels))
+    scores = jnp.where(where, scores, -jnp.ones_like(scores) * jnp.inf)
+
+  # Apply weights to labels.
+  if weights is not None:
+    labels *= weights
+
+  # Compute target probabilities.
+  scores_softmax = jax.nn.softmax(scores)
+  labels_normalized = utils.normalize_probabilities(labels, where=where)
+  pt = jnp.sum(labels_normalized * scores_softmax, where=where, axis=-1)
+
+  # For lists where all items are masked, this sets pt to 1 so that the term
+  # (1 - pt) is set to 0 for the loss computation.
+  if where is not None:
+    pt = jnp.where(jnp.all(jnp.logical_not(where), axis=-1), 1., pt)
+
+  # Compute and return the poly1 loss.
+  loss = ce + epsilon * (1. - pt)
   return utils.safe_reduce(loss, reduce_fn=reduce_fn)
 
 

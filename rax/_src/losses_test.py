@@ -16,6 +16,7 @@
 """Tests for rax._src.losses."""
 
 import doctest
+import functools
 import math
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -51,6 +52,22 @@ class LossesTest(parameterized.TestCase):
               log(exp(0.) / (exp(0.) + exp(3.))),
               log(exp(3.) / (exp(3.))),
           ])
+  }, {
+      "loss_fn":
+          losses.poly1_softmax_loss,
+      "expected_value":
+          -(log(exp(2.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))) +
+            log(exp(1.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.)))) +
+          (1. - (0.5 * exp(2.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.)) + 0.5 *
+                 (exp(1.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.)))))
+  }, {
+      "loss_fn":
+          functools.partial(losses.poly1_softmax_loss, epsilon=0.1),
+      "expected_value":
+          -(log(exp(2.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))) +
+            log(exp(1.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.)))) + 0.1 *
+          (1. - (0.5 * exp(2.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.)) + 0.5 *
+                 (exp(1.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.)))))
   }, {
       "loss_fn": losses.pairwise_hinge_loss,
       "expected_value": (3. - 1. + 1.) + (3. - 2. + 1.)
@@ -100,6 +117,12 @@ class LossesTest(parameterized.TestCase):
       "loss_fn": losses.listmle_loss,
       "expected_value": 3.4e37
   }, {
+      "loss_fn":
+          losses.poly1_softmax_loss,
+      "expected_value":
+          -((-2.1e26 - (0. + -2.1e26 + 3.4e37 + 42.)) +
+            (3.4e37 - (0. + -2.1e26 + 3.4e37 + 42.)))
+  }, {
       "loss_fn": losses.pairwise_hinge_loss,
       "expected_value": (1. - (-2.1e26 - 0.)) + (1. - (-2.1e26 - 42.0))
   }, {
@@ -145,6 +168,16 @@ class LossesTest(parameterized.TestCase):
               log(exp(2.) / (exp(2.))),
           ])
   }, {
+      "loss_fn":
+          losses.poly1_softmax_loss,
+      "expected_value":
+          1. - sum([
+              0.25 * (exp(0.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))),
+              0.25 * (exp(3.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))),
+              0.25 * (exp(1.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))),
+              0.25 * (exp(2.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))),
+          ])
+  }, {
       "loss_fn": losses.pairwise_hinge_loss,
       "expected_value": 0.
   }, {
@@ -176,6 +209,15 @@ class LossesTest(parameterized.TestCase):
     np.testing.assert_allclose(jnp.asarray(expected_value), loss)
 
   @parameterized.parameters([{
+      "loss_fn":
+          losses.poly1_softmax_loss,
+      "expected_value":
+          -(2. * log(exp(2.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))) +
+            log(exp(1.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.)))) +
+          (1. - (2. / 3. * exp(2.) /
+                 (exp(0.) + exp(3.) + exp(1.) + exp(2.)) + 1. / 3. *
+                 (exp(1.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.)))))
+  }, {
       "loss_fn": losses.pairwise_hinge_loss,
       "expected_value": 7.
   }, {
@@ -234,6 +276,19 @@ class LossesTest(parameterized.TestCase):
               log(exp(1.) / (exp(1.) + exp(2.))),
               log(exp(2.) / (exp(2.))),
           ])
+      ]
+  }, {
+      "loss_fn":
+          losses.poly1_softmax_loss,
+      "expected_value": [
+          -(log(exp(2.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))) +
+            log(exp(1.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.)))) +
+          (1. - (0.5 * (exp(2.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))) +
+                 0.5 * (exp(1.) / (exp(0.) + exp(3.) + exp(1.) + exp(2.))))),
+          -(2. * log(exp(3.) / (exp(3.) + exp(1.) + exp(4.) + exp(2.))) +
+            log(exp(4.) / (exp(3.) + exp(1.) + exp(4.) + exp(2.)))) +
+          (1. - (2. / 3. * (exp(3.) / (exp(3.) + exp(1.) + exp(4.) + exp(2.))) +
+                 1. / 3. * (exp(4.) / (exp(3.) + exp(1.) + exp(4.) + exp(2.)))))
       ]
   }, {
       "loss_fn": losses.pairwise_hinge_loss,
@@ -308,6 +363,15 @@ class LossesTest(parameterized.TestCase):
       ],
       "normalizer": 2.
   }, {
+      "loss_fn": losses.poly1_softmax_loss,
+      "expected_value": [
+          -log(exp(2.) / (exp(2.) + exp(1.) + exp(3.))) +
+          (1. - (exp(2.) / (exp(2.) + exp(1.) + exp(3.)))),
+          -log(exp(1.5) / (exp(1.) + exp(0.5) + exp(1.5))) +
+          (1. - (exp(1.5) / (exp(1.) + exp(0.5) + exp(1.5))))
+      ],
+      "normalizer": 2.
+  }, {
       "loss_fn": losses.pairwise_hinge_loss,
       "expected_value": [2., .5],
       "normalizer": 4.
@@ -357,6 +421,9 @@ class LossesTest(parameterized.TestCase):
       "loss_fn": losses.listmle_loss,
       "expected_shape": (2,)
   }, {
+      "loss_fn": losses.poly1_softmax_loss,
+      "expected_shape": (2,)
+  }, {
       "loss_fn": losses.pairwise_hinge_loss,
       "expected_shape": (2, 9)
   }, {
@@ -385,7 +452,8 @@ class LossesTest(parameterized.TestCase):
   @parameterized.parameters([
       losses.softmax_loss, losses.listmle_loss, losses.pairwise_hinge_loss,
       losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
-      losses.pointwise_mse_loss, losses.pairwise_mse_loss
+      losses.pointwise_mse_loss, losses.pairwise_mse_loss,
+      losses.poly1_softmax_loss
   ])
   def test_computes_loss_value_with_where(self, loss_fn):
     scores = jnp.asarray([0., 3., 1., 2.])
@@ -402,7 +470,8 @@ class LossesTest(parameterized.TestCase):
   @parameterized.parameters([
       losses.softmax_loss, losses.listmle_loss, losses.pairwise_hinge_loss,
       losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
-      losses.pointwise_mse_loss, losses.pairwise_mse_loss
+      losses.pointwise_mse_loss, losses.pairwise_mse_loss,
+      losses.poly1_softmax_loss
   ])
   def test_computes_loss_value_with_all_masked(self, loss_fn):
     scores = jnp.asarray([0., 3., 1., 2.])
@@ -416,7 +485,8 @@ class LossesTest(parameterized.TestCase):
   @parameterized.parameters([
       losses.softmax_loss, losses.listmle_loss, losses.pairwise_hinge_loss,
       losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
-      losses.pointwise_mse_loss, losses.pairwise_mse_loss
+      losses.pointwise_mse_loss, losses.pairwise_mse_loss,
+      losses.poly1_softmax_loss
   ])
   def test_grad_does_not_return_nan_for_zero_labels(self, loss_fn):
     scores = jnp.asarray([0., 3., 1., 2.])
@@ -430,7 +500,8 @@ class LossesTest(parameterized.TestCase):
   @parameterized.parameters([
       losses.softmax_loss, losses.listmle_loss, losses.pairwise_hinge_loss,
       losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
-      losses.pointwise_mse_loss, losses.pairwise_mse_loss
+      losses.pointwise_mse_loss, losses.pairwise_mse_loss,
+      losses.poly1_softmax_loss
   ])
   def test_grad_does_not_return_nan_with_all_masked(self, loss_fn):
     scores = jnp.asarray([0., 3., 1., 2.])
