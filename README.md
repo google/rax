@@ -58,3 +58,19 @@ jax.grad(loss_fn)(scores, labels)  # computes gradients w.r.t. scores.
 ## Examples
 
 See the `examples/` directory for complete examples on how to use Rax.
+
+## Citing Rax
+
+If you use Rax, please consider citing our
+[paper](https://research.google/pubs/pub51453/):
+
+```
+@inproceedings{jagerman2022rax,
+  title = {Rax: Composable Learning-to-Rank using JAX},
+  author  = {Rolf Jagerman and Xuanhui Wang and Honglei Zhuang and Zhen Qin and
+  Mike Bendersky and Marc Najork},
+  year  = {2022},
+  booktitle = {Proceedings of the 28th ACM SIGKDD International Conference on Knowledge Discovery \& Data Mining}
+}
+```
+
