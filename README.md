@@ -8,10 +8,10 @@
 implementations of ranking losses and metrics to be used with JAX. It provides
 the following functionality:
 
-*   Ranking losses (`rax.*_loss`): `rax.softmax_loss`,
-    `rax.pairwise_logistic_loss`, ...
-*   Ranking metrics (`rax.*_metric`): `rax.mrr_metric`, `rax.ndcg_metric`, ...
-*   Transformations (`rax.*_t12n`): `rax.approx_t12n`, `rax.gumbel_t12n`, ...
+- Ranking losses (`rax.*_loss`): `rax.softmax_loss`,
+  `rax.pairwise_logistic_loss`, ...
+- Ranking metrics (`rax.*_metric`): `rax.mrr_metric`, `rax.ndcg_metric`, ...
+- Transformations (`rax.*_t12n`): `rax.approx_t12n`, `rax.gumbel_t12n`, ...
 
 ## Ranking
 
@@ -22,10 +22,10 @@ context (e.g., a query). **Rax** provides support for ranking problems within
 the JAX ecosystem. It can be used in, but is not limited to, the following
 applications:
 
-*   **Search**: ranking a list of documents with respect to a query.
-*   **Recommendation**: ranking a list of items given a user as context.
-*   **Question Answering**: finding the best answer from a list of candidates.
-*   **Dialogue System**: finding the best response from a list of responses.
+- **Search**: ranking a list of documents with respect to a query.
+- **Recommendation**: ranking a list of items given a user as context.
+- **Question Answering**: finding the best answer from a list of candidates.
+- **Dialogue System**: finding the best response from a list of responses.
 
 ## Synopsis
 
@@ -55,6 +55,14 @@ loss_fn(scores, labels)            # differentiable approx ndcg loss.
 jax.grad(loss_fn)(scores, labels)  # computes gradients w.r.t. scores.
 ```
 
+## Installation
+
+See https://github.com/google/jax#installation for instructions on installing JAX.
+
+We suggest installing the latest stable version of Rax by running:
+
+`$ pip install rax`
+
 ## Examples
 
 See the `examples/` directory for complete examples on how to use Rax.
@@ -73,4 +81,3 @@ If you use Rax, please consider citing our
   booktitle = {Proceedings of the 28th ACM SIGKDD International Conference on Knowledge Discovery \& Data Mining}
 }
 ```
-
