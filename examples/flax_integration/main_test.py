@@ -22,7 +22,7 @@ from unittest import mock
 from absl.testing import absltest
 import numpy as np
 
-from examples import web30k
+from examples.flax_integration import main
 import tensorflow_datasets as tfds
 
 
@@ -34,7 +34,7 @@ class Web30kTest(absltest.TestCase):
       with tfds.testing.mock_data(
           num_examples=256, policy=tfds.testing.MockPolicy.USE_CODE):
         argv = ()
-        web30k.main(argv)
+        main.main(argv)
 
     # Get stdout output and parse json.
     output = json.loads(mock_stdout.getvalue())

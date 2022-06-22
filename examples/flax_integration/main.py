@@ -16,7 +16,7 @@
 
 Usage with example output:
 
-$ python examples/web30k.py
+$ python examples/flax_integration/web30k.py
 [
   {
     "epoch": 1,

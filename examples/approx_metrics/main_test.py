@@ -22,7 +22,7 @@ from unittest import mock
 from absl.testing import absltest
 import numpy as np
 
-from examples import approx_metrics
+from examples.approx_metrics import main
 import tensorflow_datasets as tfds
 
 
@@ -34,7 +34,7 @@ class ApproxMetricsTest(absltest.TestCase):
       with tfds.testing.mock_data(
           num_examples=16, policy=tfds.testing.MockPolicy.USE_CODE):
         argv = ()
-        approx_metrics.main(argv, epochs=1)
+        main.main(argv, epochs=1)
 
     # Get stdout output and parse json.
     output = json.loads(mock_stdout.getvalue())

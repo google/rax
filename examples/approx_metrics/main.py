@@ -16,7 +16,7 @@
 
 Usage with example output:
 
-$ python examples/approx_metrics.py
+$ python examples/approx_metrics/main.py
 {
   "ApproxAP": {
     "AP": 0.5947682857513428,
