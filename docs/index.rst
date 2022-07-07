@@ -40,6 +40,13 @@ We suggest installing the latest stable version of Rax by running::
 
    api
 
+.. toctree::
+   :caption: Examples
+   :maxdepth: 1
+   :glob:
+
+   examples/*
+
 Contribute
 ----------
 

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # pytype: skip-file
-"""Tests for rax.examples.web30k."""
+"""Tests for rax.examples.flax_integration."""
 
 import io
 import json
