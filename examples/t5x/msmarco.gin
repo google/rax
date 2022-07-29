@@ -1,0 +1,57 @@
+from __gin__ import dynamic_registration
+
+import __main__ as train_script
+import rax
+import t5x.examples.rax.tasks  # Registers the MS-Marco task.
+import t5x.examples.rax.models as ranking_models
+import seqio
+from t5x import utils
+from t5x.examples.t5 import network
+
+
+include 't5x/examples/t5/t5_1_1/small.gin'
+include 't5x/configs/runs/finetune.gin'
+
+# Ranking-specific config.
+BATCH_SIZE = 128
+LIST_SIZE = 10
+LOSS_FN = @rax.softmax_loss
+
+# General config for the task.
+MIXTURE_OR_TASK_NAME = "msmarco_qna21_ranking"
+TASK_FEATURE_LENGTHS = {
+  "inputs": (%LIST_SIZE, 256),
+  "targets": (%LIST_SIZE, 1),
+  "label": (%LIST_SIZE,),
+  "mask": (%LIST_SIZE,),
+}
+TRAIN_STEPS = 1_040_000
+DROPOUT_RATE = 0.0
+LOSS_NORMALIZING_FACTOR = 233472
+INITIAL_CHECKPOINT_PATH = 'gs://t5-data/pretrained_models/t5x/t5_1_1_small/checkpoint_1000000'
+LEARNING_RATE=0.0001
+
+train_script.train:
+  eval_period = 1000
+
+train/utils.DatasetConfig:
+  batch_size = %BATCH_SIZE
+  pack = False
+
+train_eval/utils.DatasetConfig:
+  batch_size = %BATCH_SIZE
+  pack = False
+
+# Config for the ranking model and feature converter.
+MODEL = @ranking_models.RankingEncDecModel()
+ranking_models.RankingEncDecModel:
+  module = @network.Transformer()
+  input_vocabulary = %VOCABULARY
+  output_vocabulary = %VOCABULARY
+  optimizer_def = %OPTIMIZER
+  rax_loss_fn = %LOSS_FN
+  loss_normalizing_factor = %LOSS_NORMALIZING_FACTOR
+
+ranking_models.RankingEncDecFeatureConverter:
+  apply_length_check = False
+
