@@ -69,7 +69,7 @@ def softmax_loss(scores: Array,
                  where: Optional[Array] = None,
                  weights: Optional[Array] = None,
                  label_fn: Callable[..., Array] = lambda a, where: a,
-                 reduce_fn: Optional[ReduceFn] = jnp.sum) -> Array:
+                 reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
   r"""Softmax loss.
 
   Definition:
@@ -271,7 +271,7 @@ def pairwise_hinge_loss(scores: Array,
                         *,
                         where: Optional[Array] = None,
                         weights: Optional[Array] = None,
-                        reduce_fn: ReduceFn = jnp.sum) -> Array:
+                        reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
   r"""Pairwise hinge loss.
 
   Definition:
@@ -322,7 +322,7 @@ def pairwise_logistic_loss(scores: Array,
                            *,
                            where: Optional[Array] = None,
                            weights: Optional[Array] = None,
-                           reduce_fn: ReduceFn = jnp.sum) -> Array:
+                           reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
   r"""Pairwise logistic loss.
 
   Definition :cite:p:`burges2005learning`:
@@ -373,7 +373,7 @@ def pointwise_sigmoid_loss(scores: Array,
                            *,
                            where: Optional[Array] = None,
                            weights: Optional[Array] = None,
-                           reduce_fn: ReduceFn = jnp.sum) -> Array:
+                           reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
   r"""Sigmoid cross entropy loss.
 
   Definition:
@@ -422,7 +422,7 @@ def pointwise_mse_loss(scores: Array,
                        *,
                        where: Optional[Array] = None,
                        weights: Optional[Array] = None,
-                       reduce_fn: ReduceFn = jnp.sum) -> Array:
+                       reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
   r"""Mean squared error loss.
 
   Definition:
@@ -460,7 +460,7 @@ def pairwise_mse_loss(scores: Array,
                       *,
                       where: Optional[Array] = None,
                       weights: Optional[Array] = None,
-                      reduce_fn: ReduceFn = jnp.sum) -> Array:
+                      reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
   r"""Pairwise mean squared error loss.
 
   Definition:

@@ -103,7 +103,7 @@ class LossesTest(parameterized.TestCase):
     scores = jnp.asarray([0., 3., 1., 2.])
     labels = jnp.asarray([0., 0., 1., 1.])
 
-    loss = loss_fn(scores, labels)
+    loss = loss_fn(scores, labels, reduce_fn=jnp.sum)
 
     np.testing.assert_allclose(jnp.asarray(expected_value), loss)
 
@@ -150,7 +150,7 @@ class LossesTest(parameterized.TestCase):
     scores = jnp.asarray([0., -2.1e26, 3.4e37, 42.0])
     labels = jnp.asarray([0., 1., 1., 0.])
 
-    loss = loss_fn(scores, labels)
+    loss = loss_fn(scores, labels, reduce_fn=jnp.sum)
 
     np.testing.assert_allclose(jnp.asarray(expected_value), loss)
 
@@ -204,7 +204,7 @@ class LossesTest(parameterized.TestCase):
     scores = jnp.asarray([0., 3., 1., 2.])
     labels = jnp.asarray([0., 0., 0., 0.])
 
-    loss = loss_fn(scores, labels)
+    loss = loss_fn(scores, labels, reduce_fn=jnp.sum)
 
     np.testing.assert_allclose(jnp.asarray(expected_value), loss)
 
@@ -248,7 +248,7 @@ class LossesTest(parameterized.TestCase):
     labels = jnp.asarray([0., 0., 1., 1.])
     weights = jnp.asarray([1., 1., 2., 1.])
 
-    loss = loss_fn(scores, labels, weights=weights)
+    loss = loss_fn(scores, labels, weights=weights, reduce_fn=jnp.sum)
 
     np.testing.assert_allclose(jnp.asarray(expected_value), loss)
 
@@ -336,6 +336,7 @@ class LossesTest(parameterized.TestCase):
     scores = jnp.asarray([[0., 3., 1., 2.], [3., 1., 4., 2.]])
     labels = jnp.asarray([[0., 0., 1., 1.], [2., 0., 1., 0.]])
 
+    loss_fn = functools.partial(loss_fn, reduce_fn=jnp.sum)
     vmap_loss_fn = jax.vmap(loss_fn, in_axes=(0, 0), out_axes=0)
     loss = vmap_loss_fn(scores, labels)
 

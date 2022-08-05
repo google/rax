@@ -291,7 +291,7 @@ class RankingEncDecModel(models.EncoderDecoderModel):
     mask = batch["mask"]
 
     # Compute ranking loss with Rax.
-    loss = self._rax_loss_fn(scores, labels, where=mask)
+    loss = self._rax_loss_fn(scores, labels, where=mask, reduce_fn=jnp.sum)
     if self._loss_normalizing_factor is not None:
       loss = loss / self._loss_normalizing_factor
 
