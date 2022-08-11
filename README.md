@@ -76,7 +76,7 @@ If you use Rax, please consider citing our
 @inproceedings{jagerman2022rax,
   title = {Rax: Composable Learning-to-Rank using JAX},
   author  = {Rolf Jagerman and Xuanhui Wang and Honglei Zhuang and Zhen Qin and
-  Mike Bendersky and Marc Najork},
+  Michael Bendersky and Marc Najork},
   year  = {2022},
   booktitle = {Proceedings of the 28th ACM SIGKDD International Conference on Knowledge Discovery \& Data Mining}
 }
