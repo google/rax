@@ -35,7 +35,7 @@ from rax._src.t12n import approx_t12n
 from rax._src.t12n import bound_t12n
 from rax._src.t12n import gumbel_t12n
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # pyformat: disable
 __all__ = [
