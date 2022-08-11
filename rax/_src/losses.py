@@ -58,6 +58,7 @@ from typing import Callable, Optional
 import jax
 import jax.numpy as jnp
 
+from rax._src import metrics
 from rax._src import utils
 from rax._src.types import Array
 from rax._src.types import ReduceFn
@@ -160,11 +161,7 @@ def poly1_softmax_loss(scores: Array,
   """
   # Compute softmax cross-entropy loss without batch reduction.
   ce = softmax_loss(
-      scores,
-      labels,
-      where=where,
-      weights=weights,
-      reduce_fn=None)
+      scores, labels, where=where, weights=weights, reduce_fn=None)
 
   # Applies mask so that masked elements do not count towards the loss.
   if where is not None:
@@ -187,6 +184,84 @@ def poly1_softmax_loss(scores: Array,
 
   # Compute and return the poly1 loss.
   loss = ce + epsilon * (1. - pt)
+  return utils.safe_reduce(loss, reduce_fn=reduce_fn)
+
+
+def unique_softmax_loss(scores: Array,
+                        labels: Array,
+                        *,
+                        where: Optional[Array] = None,
+                        weights: Optional[Array] = None,
+                        gain_fn: Optional[Callable[
+                            [Array], Array]] = metrics.default_gain_fn,
+                        reduce_fn: ReduceFn = jnp.mean) -> Array:
+  r"""Unique softmax loss.
+
+  Definition :cite:p:`zhu2020listwise`:
+
+  .. math::
+      \ell(s, y) =
+      - \sum_i \operatorname{gain}(y_i)
+      \log \frac{\exp(s_i)}{\exp(s_i) + \sum_{j : y_j < y_i} \exp(s_j)}
+
+  where :math:`\operatorname{gain}(y_i)` is a user-specified gain function
+  applied to label :math:`y_i` to boost items with higher relevance.
+
+  Args:
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score of each item.
+    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      relevance label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid for computing the loss. Items for which
+      this is False will be ignored when computing the loss.
+    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating the weight for each item.
+    gain_fn: An optional function that maps relevance labels to gain values. If
+      provided, the per-item losses are multiplied by ``gain_fn(label)`` to
+      boost the importance of relevant items.
+    reduce_fn: An optional function that reduces the loss values. Can be
+      :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
+      is performed.
+
+  Returns:
+    The unqiue softmax loss.
+  """
+  # Construct pairwise matrices for scores and labels. The labels matrix will
+  # indicate, for each item, which other items have a smaller label.
+  labels_lt = jnp.expand_dims(labels, -2) < jnp.expand_dims(labels, -1)
+  scores_repeated = jnp.repeat(
+      jnp.expand_dims(scores, -2), scores.shape[-1], axis=-2)
+
+  # Build an identity mask to select items during softmax computation.
+  identity_mask = jnp.identity(scores.shape[-1], dtype=jnp.bool_)
+
+  # Apply mask to ignore invalid items.
+  if where is not None:
+    labels_lt &= jnp.expand_dims(where, -2)
+    identity_mask &= jnp.expand_dims(where, -2)
+
+  # Compute log-softmax for each of the items' unique softmax distribution. This
+  # effectively computes the log_softmax for each item using only itself and
+  # items with a smaller relevance label in the denominator. The computed
+  # log_softmax distribution is reduced by selecting its diagonal elements.
+  log_softmax = jax.nn.log_softmax(
+      scores_repeated,
+      axis=-1,
+      where=(identity_mask | labels_lt),
+      initial=jnp.min(scores))
+  log_softmax = jnp.diagonal(log_softmax, axis1=-2, axis2=-1)
+
+  # Apply per-item weights.
+  if weights is not None:
+    log_softmax *= weights
+
+  # Apply per-item `gain_fn` boost.
+  if gain_fn is not None:
+    log_softmax *= gain_fn(labels)
+
+  # Compute per-list loss and return a reduced loss.
+  loss = -jnp.sum(log_softmax, axis=-1, where=where)
   return utils.safe_reduce(loss, reduce_fn=reduce_fn)
 
 
