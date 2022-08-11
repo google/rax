@@ -225,7 +225,7 @@ def unique_softmax_loss(scores: Array,
       is performed.
 
   Returns:
-    The unqiue softmax loss.
+    The unique softmax loss.
   """
   # Construct pairwise matrices for scores and labels. The labels matrix will
   # indicate, for each item, which other items have a smaller label.
