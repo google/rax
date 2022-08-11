@@ -76,7 +76,7 @@ def softmax_loss(scores: Array,
 
   .. math::
       \ell(s, y) =
-      \sum_i y_i \log \frac{\exp(s_i)}{\sum_j \exp(s_j)}
+      - \sum_i y_i \log \frac{\exp(s_i)}{\sum_j \exp(s_j)}
 
   Args:
     scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
