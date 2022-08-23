@@ -276,6 +276,21 @@ class GumbelT12nTest(parameterized.TestCase):
     with self.assertRaises(TypeError):
       new_loss_fn(scores, labels)
 
+  def test_applies_log_softmax_transformation(self):
+    scores = jnp.asarray([3., -2., 5.5, 1.])
+    labels = jnp.asarray([0., 1., 2., 0.])
+    mock_loss_fn = lambda scores, labels: scores
+
+    gumbel_loss_fn = t12n.gumbel_t12n(mock_loss_fn)
+    logsoftmax_loss_fn = t12n.gumbel_t12n(mock_loss_fn, smoothing_factor=1e-20)
+
+    output_scores = gumbel_loss_fn(scores, labels, key=jax.random.PRNGKey(42))
+    logsoftmax_scores = logsoftmax_loss_fn(
+        scores, labels, key=jax.random.PRNGKey(42))
+
+    np.testing.assert_allclose(
+        jnp.log(jax.nn.softmax(output_scores) + 1e-20), logsoftmax_scores)
+
 
 def load_tests(loader, tests, ignore):
   del loader, ignore  # Unused.

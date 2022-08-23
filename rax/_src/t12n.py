@@ -31,7 +31,7 @@ DeviceArray(-0.71789175, dtype=float32)
 
 import functools
 import inspect
-from typing import TypeVar
+from typing import Optional, TypeVar
 
 import jax
 import jax.numpy as jnp
@@ -163,7 +163,8 @@ def bound_t12n(metric_fn: MetricFn):
 def gumbel_t12n(loss_or_metric_fn: LossOrMetricFn,
                 *,
                 samples: int = 8,
-                beta: float = 1.0) -> LossOrMetricFn:
+                beta: float = 1.0,
+                smoothing_factor: Optional[float] = None) -> LossOrMetricFn:
   """Transforms ``loss_or_metric_fn`` to operate on Gumbel-sampled scores.
 
   This transformation changes given ``loss_or_metric_fn`` so that it samples
@@ -185,6 +186,11 @@ def gumbel_t12n(loss_or_metric_fn: LossOrMetricFn,
     loss_or_metric_fn: A Rax loss or metric function.
     samples: Number of Gumbel samples to create.
     beta: Shape of the Gumbel distribution (default 1.0).
+    smoothing_factor: If supplied, this will apply an extra
+      ``log(softmax(scores) + smoothing_factor)`` transformation to the scores.
+      If set to 1e-20, this effectively makes the loss compatible with the
+      TF-Ranking versions of Gumbel losses. If ``smoothing_factor <= 0``, this
+      may produce ``NaN`` values.
 
   Returns:
     A new function that behaves the same as ``loss_or_metric_fn`` but which
@@ -217,6 +223,16 @@ def gumbel_t12n(loss_or_metric_fn: LossOrMetricFn,
     # Update scores by drawing a sample from the gumbel distribution.
     gumbel_sample = jax.random.gumbel(key, shape=scores.shape)
     gumbel_scores = gumbel_sample * beta + scores
+
+    if smoothing_factor is not None:
+      # We intentionally do `log(softmax(x) + smoothing_factor)` instead of the
+      # more numerically stable `jax.nn.log_softmax` as the former seems to have
+      # a beneficial smoothing effect for ranking use-cases.
+      gumbel_scores = jax.nn.softmax(
+          gumbel_scores,
+          where=kwargs.get("where", None),
+          initial=jnp.min(scores))
+      gumbel_scores = jnp.log(gumbel_scores + smoothing_factor)
 
     return loss_or_metric_fn(gumbel_scores, labels, **kwargs)
 
