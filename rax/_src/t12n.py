@@ -228,10 +228,10 @@ def gumbel_t12n(loss_or_metric_fn: LossOrMetricFn,
       # We intentionally do `log(softmax(x) + smoothing_factor)` instead of the
       # more numerically stable `jax.nn.log_softmax` as the former seems to have
       # a beneficial smoothing effect for ranking use-cases.
-      gumbel_scores = jax.nn.softmax(
-          gumbel_scores,
-          where=kwargs.get("where", None),
-          initial=jnp.min(scores))
+      where = kwargs.get("where", None)
+      if where is not None:
+        gumbel_scores = jnp.where(where, gumbel_scores, -jnp.inf)
+      gumbel_scores = jax.nn.softmax(gumbel_scores)
       gumbel_scores = jnp.log(gumbel_scores + smoothing_factor)
 
     return loss_or_metric_fn(gumbel_scores, labels, **kwargs)

@@ -291,6 +291,23 @@ class GumbelT12nTest(parameterized.TestCase):
     np.testing.assert_allclose(
         jnp.log(jax.nn.softmax(output_scores) + 1e-20), logsoftmax_scores)
 
+  def test_smoothing_factor_should_handle_extreme_values(self):
+    scores = jnp.asarray([-1e34, 1e34])
+    labels = jnp.asarray([1, 0], dtype=jnp.float32)
+    where = jnp.asarray([1, 0], dtype=jnp.bool_)
+
+    def mock_loss_fn(scores, labels, where=None):
+      del labels  # Unused.
+      return jnp.sum(scores, where=where)
+
+    gumbel_loss_fn = rax.gumbel_t12n(mock_loss_fn, smoothing_factor=1e-20)
+    grads = jax.grad(gumbel_loss_fn)(
+        scores, labels, where=where, key=jax.random.PRNGKey(42))
+
+    # Grads should not be NaN.
+    np.testing.assert_array_equal(
+        jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
+
 
 def load_tests(loader, tests, ignore):
   del loader, ignore  # Unused.
