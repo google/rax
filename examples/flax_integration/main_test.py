@@ -32,7 +32,7 @@ class Web30kTest(absltest.TestCase):
     mock_stdout = io.StringIO()
     with mock.patch("sys.stdout", mock_stdout):
       with tfds.testing.mock_data(
-          num_examples=256, policy=tfds.testing.MockPolicy.USE_CODE):
+          num_examples=16, policy=tfds.testing.MockPolicy.USE_CODE):
         argv = ()
         main.main(argv)
 
@@ -55,8 +55,8 @@ class Web30kTest(absltest.TestCase):
     self.assertLess(output[1]["metric/ndcg@10"], output[2]["metric/ndcg@10"])
 
     # Evaluate metric values after training.
-    np.testing.assert_allclose(output[2]["metric/ndcg"], 0.829664, atol=0.02)
-    np.testing.assert_allclose(output[2]["metric/ndcg@10"], 0.652389, atol=0.02)
+    np.testing.assert_allclose(output[2]["metric/ndcg"], 0.829134, atol=0.02)
+    np.testing.assert_allclose(output[2]["metric/ndcg@10"], 0.650672, atol=0.02)
 
 
 if __name__ == "__main__":

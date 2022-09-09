@@ -20,24 +20,24 @@ $ python examples/flax_integration/web30k.py
 [
   {
     "epoch": 1,
-    "loss": 371.3304748535156,
-    "metric/mrr": 0.8062829971313477,
-    "metric/ndcg": 0.6677320003509521,
-    "metric/ndcg@10": 0.4055347740650177
+    "loss": 371.3760681152344,
+    "metric/mrr": 0.8013861179351807,
+    "metric/ndcg": 0.6640667915344238,
+    "metric/ndcg@10": 0.3997730612754822
   },
   {
     "epoch": 2,
-    "loss": 370.42974853515625,
-    "metric/mrr": 0.8242350220680237,
-    "metric/ndcg": 0.6812514662742615,
-    "metric/ndcg@10": 0.43049752712249756
+    "loss": 370.382568359375,
+    "metric/mrr": 0.8243892192840576,
+    "metric/ndcg": 0.6807379722595215,
+    "metric/ndcg@10": 0.4295048117637634
   },
   {
     "epoch": 3,
-    "loss": 370.25244140625,
-    "metric/mrr": 0.8261540532112122,
-    "metric/ndcg": 0.6834192276000977,
-    "metric/ndcg@10": 0.4342570900917053
+    "loss": 370.13616943359375,
+    "metric/mrr": 0.8290443420410156,
+    "metric/ndcg": 0.684340238571167,
+    "metric/ndcg@10": 0.4365743100643158
   }
 ]
 """
@@ -71,9 +71,7 @@ class DNN(nn.Module):
 
   @nn.compact
   def __call__(self, inputs):
-    # Concatenate the features into a feature vector.
-    x = [jnp.expand_dims(x, -1) for x in inputs.values()]
-    x = jnp.concatenate(x, -1)
+    x = inputs["float_features"]
 
     # Perform log1p transformation on the features.
     x = jnp.sign(x) * jnp.log1p(jnp.abs(x))
@@ -101,7 +99,11 @@ def prepare_dataset(ds: tf.data.Dataset,
   ds = ds.cache()
   ds = ds.map(lambda e: {**e, "mask": tf.ones_like(e["label"], dtype=tf.bool)})
   if list_size is not None:
-    pad = lambda t: tf.concat([t, tf.zeros(list_size, dtype=t.dtype)], -1)
+
+    def pad(t):
+      shape = tf.concat([tf.constant([list_size]), tf.shape(t)[1:]], 0)
+      return tf.concat([t, tf.zeros(shape, dtype=t.dtype)], 0)
+
     truncate = lambda t: t[:list_size]
     ds = ds.map(lambda e: tf.nest.map_structure(pad, e))
     ds = ds.map(lambda e: tf.nest.map_structure(truncate, e))
@@ -119,9 +121,10 @@ def main(argv: Sequence[str]):
   # Load datasets.
   ds_train = prepare_dataset(tfds.load("mslr_web/30k_fold1", split="train"))
 
-  # Create model and optimizer.
+  # Create model and optimizer. The learning rate is set to a small value to
+  # ensure convergence and stability during training.
   model = DNN()
-  optimizer = optax.adam(learning_rate=0.01)
+  optimizer = optax.adam(learning_rate=0.001)
 
   # Create Rax loss and metrics.
   loss_fn = rax.softmax_loss

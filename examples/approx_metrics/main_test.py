@@ -41,9 +41,9 @@ class ApproxMetricsTest(absltest.TestCase):
 
     # The TFDS mock data generates float labels in [0, 1], which will always be
     # 0 for AP and R@50 metrics, so only NDCG is computed correctly and tested.
-    np.testing.assert_allclose(output["ApproxAP"]["NDCG"], 0.82563, rtol=0.01)
-    np.testing.assert_allclose(output["ApproxNDCG"]["NDCG"], 0.83193, rtol=0.01)
-    np.testing.assert_allclose(output["ApproxR@50"]["NDCG"], 0.82563, rtol=0.01)
+    np.testing.assert_allclose(output["ApproxAP"]["NDCG"], 0.78776, rtol=0.01)
+    np.testing.assert_allclose(output["ApproxNDCG"]["NDCG"], 0.78861, rtol=0.01)
+    np.testing.assert_allclose(output["ApproxR@50"]["NDCG"], 0.78776, rtol=0.01)
 
 
 if __name__ == "__main__":

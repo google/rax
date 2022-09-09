@@ -19,19 +19,19 @@ Usage with example output:
 $ python examples/approx_metrics/main.py
 {
   "ApproxAP": {
-    "AP": 0.5947682857513428,
-    "NDCG": 0.6587949991226196,
-    "R@50": 0.5807018876075745
+    "AP": 0.5950086116790771,
+    "NDCG": 0.6588592529296875,
+    "R@50": 0.5810613036155701
   },
   "ApproxNDCG": {
-    "AP": 0.587692141532898,
-    "NDCG": 0.6700138449668884,
-    "R@50": 0.5744442939758301
+    "AP": 0.587402880191803,
+    "NDCG": 0.6703540086746216,
+    "R@50": 0.5748950839042664
   },
   "ApproxR@50": {
-    "AP": 0.5849018096923828,
-    "NDCG": 0.6449851989746094,
-    "R@50": 0.5746314525604248
+    "AP": 0.5854976177215576,
+    "NDCG": 0.6438423991203308,
+    "R@50": 0.5757840871810913
   }
 }
 """
@@ -61,7 +61,11 @@ def prepare_dataset(ds: tf.data.Dataset,
   ds = ds.cache()
   ds = ds.map(lambda e: {**e, "mask": tf.ones_like(e["label"], dtype=tf.bool)})
   if list_size is not None:
-    pad = lambda t: tf.concat([t, tf.zeros(list_size, dtype=t.dtype)], -1)
+
+    def pad(t):
+      shape = tf.concat([tf.constant([list_size]), tf.shape(t)[1:]], 0)
+      return tf.concat([t, tf.zeros(shape, dtype=t.dtype)], 0)
+
     truncate = lambda t: t[:list_size]
     ds = ds.map(lambda e: tf.nest.map_structure(pad, e))
     ds = ds.map(lambda e: tf.nest.map_structure(truncate, e))
@@ -85,9 +89,7 @@ def model_fn(w, features):
     The model scores.
   """
   log1p = lambda x: jnp.sign(x) * jnp.log1p(jnp.abs(x))
-  features = jnp.concatenate(
-      [jnp.expand_dims(f, axis=-1) for f in features.values()], axis=-1)
-  return jnp.dot(log1p(features), w)
+  return jnp.dot(log1p(features["float_features"]), w)
 
 
 def train(ds, approx_metric, epochs: int = 10, lr: float = 10.0, seed: int = 7):
@@ -104,7 +106,7 @@ def train(ds, approx_metric, epochs: int = 10, lr: float = 10.0, seed: int = 7):
     The learned weights.
   """
   # Initialize the model weights.
-  number_of_features = len(next(iter(ds))[0])
+  number_of_features = next(iter(ds))[0]["float_features"].shape[-1]
   w = jax.random.uniform(jax.random.PRNGKey(seed), (number_of_features,))
 
   # Define loss and gradient function.
