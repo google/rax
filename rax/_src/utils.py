@@ -301,10 +301,10 @@ def approx_ranks(scores: Array,
   ...     rax.ndcg_metric, rank_fn=rax.utils.approx_ranks)
   >>> scores = jnp.asarray([-1., 1., 0.])
   >>> labels = jnp.asarray([0., 0., 1.])
-  >>> approx_ndcg(scores, labels)
-  DeviceArray(0.63092977, dtype=float32)
-  >>> jax.grad(approx_ndcg)(scores, labels)
-  DeviceArray([-0.03763788, -0.03763788,  0.07527576], dtype=float32)
+  >>> print(approx_ndcg(scores, labels))
+  0.63092977
+  >>> print(jax.grad(approx_ndcg)(scores, labels))
+  [-0.03763788 -0.03763788  0.07527576]
 
   Args:
     scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the

@@ -1,6 +1,5 @@
 tensorflow>=2.9.0
 tensorflow-datasets>=4
-git+https://github.com/tensorflow/datasets.git
 flax>=0.3
 optax>=0.1
 clu>=0.0.6
