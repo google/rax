@@ -49,11 +49,10 @@ transformations such as :func:`jax.grad` or :func:`jax.value_and_grad`:
 >>> print(jax.grad(rax.softmax_loss)(scores, labels, reduce_fn=jnp.mean))
 [[ 0.02100503  0.0570976  -0.07810265]
  [-0.37763578  0.33262047  0.04501529]]
-
 """
 
 import operator
-from typing import Callable, Optional
+from typing import Callable, Optional, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -341,6 +340,57 @@ def compute_pairs(a: Array, op: Callable[[Array, Array], Array]) -> Array:
   return jnp.reshape(result, out_shape)
 
 
+def pairwise_loss(scores: Array,
+                  labels: Array,
+                  *,
+                  pair_loss_fn: Callable[[Array, Array], Tuple[Array, Array]],
+                  where: Optional[Array] = None,
+                  weights: Optional[Array] = None,
+                  reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
+  r"""Generic pairwise loss.
+
+  The ``pair_loss_fn`` takes ``(scores_diff, labels_diff)`` and returns the loss
+  for each pair and also the valid pairs considered in the loss.
+
+  Args:
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score of each item.
+    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      relevance label for each item.
+    pair_loss_fn: A function that outputs ``(pair_losses, valid_pairs)`` given
+      ``scores_diff`` and ``labels_diff``.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid for computing the loss. Items for which
+      this is False will be ignored when computing the loss.
+    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating the weight for each item.
+    reduce_fn: An optional function that reduces the loss values. Can be
+      :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
+      is performed.
+
+  Returns:
+    The pairwise loss.
+  """
+  # Expand scores and labels into pairwise versions.
+  scores_diff = compute_pairs(scores, operator.sub)
+  labels_diff = compute_pairs(labels, operator.sub)
+
+  # Compute losses and validity of all pairs.
+  pair_losses, valid_pairs = pair_loss_fn(scores_diff, labels_diff)
+
+  # Apply mask to valid pairs.
+  if where is not None:
+    where = compute_pairs(where, operator.and_)
+    valid_pairs &= where
+
+  # Apply weights to losses.
+  if weights is not None:
+    weights = compute_pairs(weights, lambda x, y: x)
+    pair_losses *= weights
+
+  return utils.safe_reduce(pair_losses, where=valid_pairs, reduce_fn=reduce_fn)
+
+
 def pairwise_hinge_loss(scores: Array,
                         labels: Array,
                         *,
@@ -372,24 +422,18 @@ def pairwise_hinge_loss(scores: Array,
   Returns:
     The pairwise hinge loss.
   """
-  # Expand scores and labels into pairwise versions.
-  scores = compute_pairs(scores, operator.sub)
-  labels = compute_pairs(labels, operator.gt)
 
-  # Compute hinge function on scores.
-  scores = jax.nn.relu(1. - scores)
+  def _hinge_loss(scores_diff: Array,
+                  labels_diff: Array) -> Tuple[Array, Array]:
+    return jax.nn.relu(1. - scores_diff), labels_diff > 0
 
-  # Apply mask to labels, so only valid items are considered.
-  if where is not None:
-    where = compute_pairs(where, operator.and_)
-    labels &= where
-
-  # Apply weights to scores.
-  if weights is not None:
-    weights = compute_pairs(weights, lambda x, y: x)
-    scores *= weights
-
-  return utils.safe_reduce(scores, where=labels, reduce_fn=reduce_fn)
+  return pairwise_loss(
+      scores,
+      labels,
+      pair_loss_fn=_hinge_loss,
+      where=where,
+      weights=weights,
+      reduce_fn=reduce_fn)
 
 
 def pairwise_logistic_loss(scores: Array,
@@ -423,24 +467,19 @@ def pairwise_logistic_loss(scores: Array,
   Returns:
     The pairwise logistic loss.
   """
-  # Expand scores and labels into pairwise versions.
-  scores = compute_pairs(scores, operator.sub)
-  labels = compute_pairs(labels, operator.gt)
 
-  # Compute numerically stable version of logistic function on scores.
-  scores = jax.nn.relu(-scores) + jnp.log1p(jnp.exp(-jnp.abs(scores)))
+  def _logistic_loss(scores_diff: Array,
+                     labels_diff: Array) -> Tuple[Array, Array]:
+    return (jax.nn.relu(-scores_diff) +
+            jnp.log1p(jnp.exp(-jnp.abs(scores_diff))), labels_diff > 0)
 
-  # Apply mask to labels, so only valid items are considered.
-  if where is not None:
-    where = compute_pairs(where, operator.and_)
-    labels &= where
-
-  # Apply weights to scores.
-  if weights is not None:
-    weights = compute_pairs(weights, lambda x, y: x)
-    scores *= weights
-
-  return utils.safe_reduce(scores, where=labels, reduce_fn=reduce_fn)
+  return pairwise_loss(
+      scores,
+      labels,
+      pair_loss_fn=_logistic_loss,
+      where=where,
+      weights=weights,
+      reduce_fn=reduce_fn)
 
 
 def pointwise_sigmoid_loss(scores: Array,
@@ -561,20 +600,15 @@ def pairwise_mse_loss(scores: Array,
   Returns:
     The pairwise mean squared error loss.
   """
-  # Expand scores and labels into pairwise versions.
-  scores = compute_pairs(scores, operator.sub)
-  labels = compute_pairs(labels, operator.sub)
 
-  # Compute pairwise mask.
-  if where is not None:
-    where = compute_pairs(where, operator.and_)
+  def _mse_loss(scores_diff: Array, labels_diff: Array) -> Tuple[Array, Array]:
+    return (jnp.square(scores_diff - labels_diff),
+            jnp.ones_like(labels_diff > 0))
 
-  # Compute squared error between score pairs and label pairs.
-  loss = jnp.square(scores - labels)
-
-  # Apply weights to scores.
-  if weights is not None:
-    weights = compute_pairs(weights, lambda x, y: x)
-    loss *= weights
-
-  return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
+  return pairwise_loss(
+      scores,
+      labels,
+      pair_loss_fn=_mse_loss,
+      where=where,
+      weights=weights,
+      reduce_fn=reduce_fn)
