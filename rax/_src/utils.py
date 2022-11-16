@@ -391,3 +391,22 @@ def cutoff(a: Array,
 
 approx_cutoff = jax.util.wraps(cutoff)(
     functools.partial(cutoff, step_fn=jax.nn.sigmoid))
+
+
+def compute_pairs(a: Array, op: Callable[[Array, Array], Array]) -> Array:
+  """Computes pairs based on values of `a` and the given pairwise `op`.
+
+  Args:
+    a: The array used to form pairs. The last axis is used to form pairs.
+    op: The binary op to map a pair of values to a single value.
+
+  Returns:
+    A new array with the same leading dimensions as `a`, but with the last
+    dimension expanded so it includes all pairs `op(a[..., i], a[..., j])`
+  """
+  a_i = jnp.expand_dims(a, -1)
+  a_j = jnp.expand_dims(a, -2)
+  result_shape = jnp.broadcast_shapes(a_i.shape, a_j.shape)
+  result = jnp.broadcast_to(op(a_i, a_j), result_shape)
+  out_shape = tuple(result.shape[:-2]) + (result.shape[-2] * result.shape[-1],)
+  return jnp.reshape(result, out_shape)

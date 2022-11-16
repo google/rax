@@ -295,6 +295,33 @@ class SafeReduceTest(absltest.TestCase):
     np.testing.assert_allclose(res_mean, jnp.array(0.))
 
 
+class ComputePairsTest(absltest.TestCase):
+
+  def test_computes_all_pairs(self):
+    a = jnp.array([1., 2., 3.])
+    expected = jnp.array([11.0, 21.0, 31.0, 12.0, 22.0, 32.0, 13.0, 23.0, 33.0])
+
+    result = utils.compute_pairs(a, lambda a, b: a + b * 10.0)
+
+    np.testing.assert_allclose(result, expected)
+
+  def test_computes_all_pairs_on_empty_array(self):
+    a = jnp.array([])
+    expected = jnp.array([])
+
+    result = utils.compute_pairs(a, lambda a, b: a + b * 10.0)
+
+    np.testing.assert_allclose(result, expected)
+
+  def test_computes_all_pairs_with_batch_dimension(self):
+    a = jnp.array([[1., 2.], [3., 4.]])
+    expected = jnp.array([[1.0, 2.0, 2.0, 4.0], [9.0, 12.0, 12.0, 16.0]])
+
+    result = utils.compute_pairs(a, lambda a, b: a * b)
+
+    np.testing.assert_allclose(result, expected)
+
+
 def load_tests(loader, tests, ignore):
   del loader, ignore  # Unused.
   tests.addTests(

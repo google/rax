@@ -321,25 +321,6 @@ def listmle_loss(scores: Array,
   return utils.safe_reduce(loss, reduce_fn=reduce_fn)
 
 
-def compute_pairs(a: Array, op: Callable[[Array, Array], Array]) -> Array:
-  """Computes pairs based on values of `a` and the given pairwise `op`.
-
-  Args:
-    a: The array used to form pairs. The last axis is used to form pairs.
-    op: The binary op to map a pair of values to a single value.
-
-  Returns:
-    A new array with the same leading dimensions as `a`, but with the last
-    dimension expanded so it includes all pairs `op(a[..., i], a[..., j])`
-  """
-  a_i = jnp.expand_dims(a, -1)
-  a_j = jnp.expand_dims(a, -2)
-  result_shape = jnp.broadcast_shapes(a_i.shape, a_j.shape)
-  result = jnp.broadcast_to(op(a_i, a_j), result_shape)
-  out_shape = tuple(result.shape[:-2]) + (result.shape[-2] * result.shape[-1],)
-  return jnp.reshape(result, out_shape)
-
-
 def pairwise_loss(scores: Array,
                   labels: Array,
                   *,
@@ -376,20 +357,20 @@ def pairwise_loss(scores: Array,
     The pairwise loss.
   """
   # Expand scores and labels into pairwise versions.
-  scores_diff = compute_pairs(scores, operator.sub)
-  labels_diff = compute_pairs(labels, operator.sub)
+  scores_diff = utils.compute_pairs(scores, operator.sub)
+  labels_diff = utils.compute_pairs(labels, operator.sub)
 
   # Compute losses and validity of all pairs.
   pair_losses, valid_pairs = pair_loss_fn(scores_diff, labels_diff)
 
   # Apply mask to valid pairs.
   if where is not None:
-    where = compute_pairs(where, operator.and_)
+    where = utils.compute_pairs(where, operator.and_)
     valid_pairs &= where
 
   # Apply weights to losses.
   if weights is not None:
-    weights = compute_pairs(weights, lambda x, y: x)
+    weights = utils.compute_pairs(weights, lambda x, y: x)
     pair_losses *= weights
 
   # Apply lambda weights to losses.
