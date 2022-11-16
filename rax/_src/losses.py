@@ -344,6 +344,8 @@ def pairwise_loss(scores: Array,
                   labels: Array,
                   *,
                   pair_loss_fn: Callable[[Array, Array], Tuple[Array, Array]],
+                  lambda_weight_fn: Optional[Callable[[Array, Array, Array],
+                                                      Array]] = None,
                   where: Optional[Array] = None,
                   weights: Optional[Array] = None,
                   reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
@@ -358,7 +360,9 @@ def pairwise_loss(scores: Array,
     labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
       relevance label for each item.
     pair_loss_fn: A function that outputs ``(pair_losses, valid_pairs)`` given
-      ``scores_diff`` and ``labels_diff``.
+      ``(scores_diff, labels_diff)``.
+    lambda_weight_fn: A function that outputs lambda weights given ``(scores,
+      labels, weights)``.
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid for computing the loss. Items for which
       this is False will be ignored when computing the loss.
@@ -387,6 +391,11 @@ def pairwise_loss(scores: Array,
   if weights is not None:
     weights = compute_pairs(weights, lambda x, y: x)
     pair_losses *= weights
+
+  # Apply lambda weights to losses.
+  if lambda_weight_fn is not None:
+    lambda_weights = lambda_weight_fn(scores, labels, weights)
+    pair_losses *= lambda_weights
 
   return utils.safe_reduce(pair_losses, where=valid_pairs, reduce_fn=reduce_fn)
 
