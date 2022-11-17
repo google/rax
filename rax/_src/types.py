@@ -18,7 +18,6 @@
 
   Types and protocols are provided for **type-checking** convenience only. You
   do **not** need to instantiate, subclass or extend them.
-
 """
 
 from typing import Optional, Tuple, Union
@@ -30,7 +29,6 @@ try:
   from typing import Protocol  # pylint: disable=g-import-not-at-top
 except ImportError:
   from typing_extensions import Protocol  # pylint: disable=g-import-not-at-top
-
 
 # Type alias for a JAX array.
 Array = jax.numpy.ndarray
@@ -98,8 +96,8 @@ class ReduceFn(Protocol):
 class LossFn(Protocol):
   """:class:`typing.Protocol` for loss functions."""
 
-  def __call__(self, scores: Array, labels: Array, *,
-               where: Optional[Array], **kwargs) -> Array:
+  def __call__(self, scores: Array, labels: Array, *, where: Optional[Array],
+               **kwargs) -> Array:
     """Computes a loss.
 
     Args:
@@ -119,8 +117,8 @@ class LossFn(Protocol):
 class MetricFn(Protocol):
   """:class:`typing.Protocol` for metric functions."""
 
-  def __call__(self, scores: Array, labels: Array, *,
-               where: Optional[Array], **kwargs) -> Array:
+  def __call__(self, scores: Array, labels: Array, *, where: Optional[Array],
+               **kwargs) -> Array:
     """Computes a metric.
 
     Args:
@@ -133,5 +131,31 @@ class MetricFn(Protocol):
     Returns:
       A :class:`jax.numpy.ndarray` that represents the metric computed on the
       given ``scores`` and ``labels``.
+    """
+    pass
+
+
+class LambdaweightFn(Protocol):
+  """:class:`typing.Protocol` for lambdaweight functions."""
+
+  def __call__(self, scores: Array, labels: Array, *, where: Optional[Array],
+               weights: Optional[Array], **kwargs) -> Array:
+    """Computes lambdaweights.
+
+    Args:
+      scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+        score of each item.
+      labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+        relevance label for each item.
+      where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+        indicating which items are valid for computing the lambdaweights. Items
+        for which this is False will be ignored when computing the
+        lambdaweights.
+      weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+        indicating the weight for each item.
+      **kwargs: Optional lambdaweight-specific keyword arguments.
+
+    Returns:
+      A :class:`jax.numpy.ndarray` that represents the lambda weights.
     """
     pass

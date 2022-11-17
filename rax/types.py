@@ -15,6 +15,7 @@
 """Rax-specific types."""
 
 from rax._src.types import CutoffFn
+from rax._src.types import LambdaweightFn
 from rax._src.types import LossFn
 from rax._src.types import MetricFn
 from rax._src.types import RankFn
@@ -23,6 +24,7 @@ from rax._src.types import ReduceFn
 # pyformat: disable
 __all__ = [
     "CutoffFn",
+    "LambdaweightFn",
     "LossFn",
     "MetricFn",
     "RankFn",

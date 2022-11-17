@@ -60,6 +60,7 @@ import jax.numpy as jnp
 from rax._src import metrics
 from rax._src import utils
 from rax._src.types import Array
+from rax._src.types import LambdaweightFn
 from rax._src.types import ReduceFn
 
 
@@ -325,8 +326,7 @@ def pairwise_loss(scores: Array,
                   labels: Array,
                   *,
                   pair_loss_fn: Callable[[Array, Array], Tuple[Array, Array]],
-                  lambda_weight_fn: Optional[Callable[[Array, Array, Array],
-                                                      Array]] = None,
+                  lambdaweight_fn: Optional[LambdaweightFn] = None,
                   where: Optional[Array] = None,
                   weights: Optional[Array] = None,
                   reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
@@ -342,8 +342,7 @@ def pairwise_loss(scores: Array,
       relevance label for each item.
     pair_loss_fn: A function that outputs ``(pair_losses, valid_pairs)`` given
       ``(scores_diff, labels_diff)``.
-    lambda_weight_fn: A function that outputs lambda weights given ``(scores,
-      labels, weights)``.
+    lambdaweight_fn: An optional function that outputs lambdaweights.
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid for computing the loss. Items for which
       this is False will be ignored when computing the loss.
@@ -374,8 +373,9 @@ def pairwise_loss(scores: Array,
     pair_losses *= weights
 
   # Apply lambda weights to losses.
-  if lambda_weight_fn is not None:
-    lambda_weights = lambda_weight_fn(scores, labels, weights)
+  if lambdaweight_fn is not None:
+    lambda_weights = lambdaweight_fn(
+        scores, labels, where=where, weights=weights)
     pair_losses *= lambda_weights
 
   return utils.safe_reduce(pair_losses, where=valid_pairs, reduce_fn=reduce_fn)
@@ -386,6 +386,7 @@ def pairwise_hinge_loss(scores: Array,
                         *,
                         where: Optional[Array] = None,
                         weights: Optional[Array] = None,
+                        lambdaweight_fn: Optional[LambdaweightFn] = None,
                         reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
   r"""Pairwise hinge loss.
 
@@ -405,6 +406,7 @@ def pairwise_hinge_loss(scores: Array,
       this is False will be ignored when computing the loss.
     weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating the weight for each item.
+    lambdaweight_fn: An optional function that outputs lambdaweights.
     reduce_fn: An optional function that reduces the loss values. Can be
       :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
       is performed.
@@ -423,6 +425,7 @@ def pairwise_hinge_loss(scores: Array,
       pair_loss_fn=_hinge_loss,
       where=where,
       weights=weights,
+      lambdaweight_fn=lambdaweight_fn,
       reduce_fn=reduce_fn)
 
 
@@ -431,6 +434,7 @@ def pairwise_logistic_loss(scores: Array,
                            *,
                            where: Optional[Array] = None,
                            weights: Optional[Array] = None,
+                           lambdaweight_fn: Optional[LambdaweightFn] = None,
                            reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
   r"""Pairwise logistic loss.
 
@@ -450,6 +454,7 @@ def pairwise_logistic_loss(scores: Array,
       this is False will be ignored when computing the loss.
     weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating the weight for each item.
+    lambdaweight_fn: An optional function that outputs lambdaweights.
     reduce_fn: An optional function that reduces the loss values. Can be
       :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
       is performed.
@@ -469,6 +474,7 @@ def pairwise_logistic_loss(scores: Array,
       pair_loss_fn=_logistic_loss,
       where=where,
       weights=weights,
+      lambdaweight_fn=lambdaweight_fn,
       reduce_fn=reduce_fn)
 
 

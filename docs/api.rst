@@ -66,6 +66,18 @@ Function Transformations (``rax.*_t12n``)
 .. autofunction:: bound_t12n
 .. autofunction:: gumbel_t12n
 
+Lambdaweights (``rax.*_lambdaweight``)
+======================================
+
+.. automodule:: rax._src.lambdaweights
+.. currentmodule:: rax
+
+.. autosummary::
+
+    labeldiff_lambdaweight
+
+.. autofunction:: labeldiff_lambdaweight
+
 Utilities
 =========
 
@@ -92,12 +104,17 @@ Types
 .. autosummary::
 
     CutoffFn
+    LambdaweightFn
     LossFn
     MetricFn
     RankFn
     ReduceFn
+    WeightFn
 
 .. autoclass:: CutoffFn
+   :members: __call__
+
+.. autoclass:: LambdaweightFn
    :members: __call__
 
 .. autoclass:: LossFn
@@ -110,6 +127,9 @@ Types
    :members: __call__
 
 .. autoclass:: ReduceFn
+   :members: __call__
+
+.. autoclass:: WeightFn
    :members: __call__
 
 References
