@@ -30,9 +30,10 @@ Example usage:
 """
 
 import operator
-from typing import Optional
+from typing import Callable, Optional
 
 import jax.numpy as jnp
+from rax._src import metrics
 from rax._src import utils
 from rax._src.types import Array
 
@@ -65,3 +66,57 @@ def labeldiff_lambdaweight(scores: Array,
   """
   del scores, where, weights  # Unused.
   return jnp.abs(utils.compute_pairs(labels, operator.sub))
+
+
+def dcg_lambdaweight(
+    scores: Array,
+    labels: Array,
+    *,
+    where: Optional[Array] = None,
+    weights: Optional[Array] = None,
+    topn: Optional[int] = None,
+    gain_fn: Callable[[Array], Array] = metrics.default_gain_fn,
+    discount_fn: Callable[[Array],
+                          Array] = metrics.default_discount_fn) -> Array:
+  r"""DCG lambdaweights.
+
+  Definition :cite:p:`burges2006learning`:
+
+  .. math::
+      \lambda_{ij}(s, y) = |\operatorname{gain}(y_i) - \operatorname{gain}(y_j)|
+      \cdot |\operatorname{discount}(\operatorname{rank}(s_i)) -
+      \operatorname{discount}(\operatorname{rank}(s_j))|
+
+  Args:
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score of each item.
+    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      relevance label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid for computing the lambdaweights. Items
+      for which this is False will be ignored when computing the lambdaweights.
+    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating the weight for each item.
+    topn: The topn cutoff. If ``None``, no cutoff is performed.
+    gain_fn: A function mapping labels to gain values.
+    discount_fn: A function mapping ranks to discount values.
+
+  Returns:
+    DCG lambdaweights.
+  """
+  ranks = utils.ranks(scores, where=where)
+  gains = gain_fn(labels)
+  if weights is not None:
+    gains *= weights
+  gains_abs_diffs = jnp.abs(utils.compute_pairs(gains, operator.sub))
+
+  if where is not None:
+    valid_pairs = utils.compute_pairs(where, operator.and_)
+  else:
+    valid_pairs = jnp.ones_like(gains_abs_diffs, dtype=jnp.bool_)
+
+  discounts = utils.cutoff(ranks, topn) * discount_fn(ranks)
+  discounts_abs_diffs = jnp.abs(utils.compute_pairs(discounts, operator.sub))
+  discounts_abs_diffs = jnp.where(valid_pairs, discounts_abs_diffs, 0.0)
+  return discounts_abs_diffs * gains_abs_diffs
+

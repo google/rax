@@ -16,6 +16,7 @@
 
 from rax import types
 from rax import utils
+from rax._src.lambdaweights import dcg_lambdaweight
 from rax._src.lambdaweights import labeldiff_lambdaweight
 from rax._src.losses import listmle_loss
 from rax._src.losses import pairwise_hinge_loss
@@ -40,6 +41,7 @@ __version__ = "0.2.0"
 
 # pyformat: disable
 __all__ = [
+    "dcg_lambdaweight",
     "labeldiff_lambdaweight",
     "listmle_loss",
     "pairwise_hinge_loss",

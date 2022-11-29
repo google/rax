@@ -364,19 +364,16 @@ def pairwise_loss(scores: Array,
 
   # Apply mask to valid pairs.
   if where is not None:
-    where = utils.compute_pairs(where, operator.and_)
-    valid_pairs &= where
+    valid_pairs &= utils.compute_pairs(where, operator.and_)
 
   # Apply weights to losses.
   if weights is not None:
-    weights = utils.compute_pairs(weights, lambda x, y: x)
-    pair_losses *= weights
+    pair_losses *= utils.compute_pairs(weights, lambda x, y: x)
 
   # Apply lambda weights to losses.
   if lambdaweight_fn is not None:
-    lambda_weights = lambdaweight_fn(
+    pair_losses *= lambdaweight_fn(
         scores, labels, where=where, weights=weights)
-    pair_losses *= lambda_weights
 
   return utils.safe_reduce(pair_losses, where=valid_pairs, reduce_fn=reduce_fn)
 
