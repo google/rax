@@ -1,2 +1,3 @@
+git+https://github.com/google-research/jestimator.git@78e96ee989a76637ce898172e95adf7491a424e9
 git+https://github.com/google-research/t5x.git
 seqio-nightly
