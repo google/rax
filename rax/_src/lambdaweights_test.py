@@ -173,6 +173,10 @@ class LambdaweightsTest(parameterized.TestCase):
       "loss_fn": losses.pairwise_logistic_loss,
       "lambdaweight_fn": lambdaweights.dcg_lambdaweight,
       "expected": 0.34675273
+  }, {
+      "loss_fn": losses.pairwise_mse_loss,
+      "lambdaweight_fn": lambdaweights.dcg_lambdaweight,
+      "expected": 0.61966689551
   }])
   def test_computes_with_pairwise_loss(self, loss_fn, lambdaweight_fn,
                                        expected):

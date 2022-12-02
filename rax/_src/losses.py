@@ -567,6 +567,7 @@ def pairwise_mse_loss(scores: Array,
                       *,
                       where: Optional[Array] = None,
                       weights: Optional[Array] = None,
+                      lambdaweight_fn: Optional[LambdaweightFn] = None,
                       reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
   r"""Pairwise mean squared error loss.
 
@@ -586,6 +587,7 @@ def pairwise_mse_loss(scores: Array,
       this is False will be ignored when computing the loss.
     weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating the weight for each item.
+    lambdaweight_fn: An optional function that outputs lambdaweights.
     reduce_fn: An optional function that reduces the loss values. Can be
       :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
       is performed.
@@ -604,4 +606,5 @@ def pairwise_mse_loss(scores: Array,
       pair_loss_fn=_mse_loss,
       where=where,
       weights=weights,
+      lambdaweight_fn=lambdaweight_fn,
       reduce_fn=reduce_fn)
