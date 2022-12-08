@@ -49,6 +49,18 @@ class LambdaweightsTest(parameterized.TestCase):
           abs(discount(3) - discount(1)) * abs(gain(0.3) - gain(0.0)),
           abs(discount(2) - discount(1)) * abs(gain(0.3) - gain(1.0)), 0.0
       ]
+  }, {
+      "lambdaweight_fn":
+          lambdaweights.dcg2_lambdaweight,
+      "expected": [
+          0.0,
+          abs(1.0 / 1 - 1.0 / 2) * abs(0.0 - 1.0),
+          abs(1.0 / 2 - 1.0 / 3) * abs(0.0 - 0.3),
+          abs(1.0 / 1 - 1.0 / 2) * abs(1.0 - 0.0), 0.0,
+          abs(1.0 / 1 - 1.0 / 2) * abs(1.0 - 0.3),
+          abs(1.0 / 2 - 1.0 / 3) * abs(0.3 - 0.0),
+          abs(1.0 / 1 - 1.0 / 2) * abs(0.3 - 1.0), 0.0
+      ]
   }])
   def test_computes_lambdaweights(self, lambdaweight_fn, expected):
     scores = jnp.array([0.0, 1.0, 2.0])
@@ -90,6 +102,25 @@ class LambdaweightsTest(parameterized.TestCase):
                    0.0
                ]
            ]
+       }, {
+           "lambdaweight_fn":
+               lambdaweights.dcg2_lambdaweight,
+           "expected": [[
+               0.0,
+               abs(1.0 / 1 - 1.0 / 2) * abs(0.0 - 2.0),
+               abs(1.0 / 2 - 1.0 / 3) * abs(0.0 - 1.0),
+               abs(1.0 / 1 - 1.0 / 2) * abs(2.0 - 0.0), 0.0,
+               abs(1.0 / 1 - 1.0 / 2) * abs(2.0 - 1.0),
+               abs(1.0 / 2 - 1.0 / 3) * abs(1.0 - 0.0),
+               abs(1.0 / 1 - 1.0 / 2) * abs(1.0 - 2.0), 0.0
+           ],
+                        [
+                            0.0, 0.0,
+                            abs(1.0 / 1 - 1.0 / 2) * abs(1.0 - 0.0), 0.0, 0.0,
+                            abs(1.0 / 1 - 1.0 / 2) * abs(0.0 - 1.0),
+                            abs(1.0 / 1 - 1.0 / 2) * abs(1.0 - 0.0),
+                            abs(1.0 / 1 - 1.0 / 2) * abs(1.0 - 0.0), 0.0
+                        ]]
        }])
   def test_lambdaweights_with_batchdim(self, lambdaweight_fn, expected):
     scores = jnp.array([[0.0, 1.0, 2.0], [0.5, 1.5, 1.0]])
@@ -99,8 +130,10 @@ class LambdaweightsTest(parameterized.TestCase):
 
     np.testing.assert_allclose(result, expected, rtol=1e-5)
 
-  @parameterized.parameters(
-      [lambdaweights.labeldiff_lambdaweight, lambdaweights.dcg_lambdaweight])
+  @parameterized.parameters([
+      lambdaweights.labeldiff_lambdaweight, lambdaweights.dcg_lambdaweight,
+      lambdaweights.dcg2_lambdaweight
+  ])
   def test_lambdaweights_with_empty_list(self, lambdaweight_fn):
     scores = jnp.array([])
     labels = jnp.array([])
@@ -121,6 +154,14 @@ class LambdaweightsTest(parameterized.TestCase):
           abs(discount(1) - discount(2)) * abs(gain(0.0) - gain(0.3)), 0.0, 0.0,
           0.0,
           abs(discount(2) - discount(1)) * abs(gain(0.3) - gain(0.0)), 0.0, 0.0
+      ]
+  }, {
+      "lambdaweight_fn":
+          lambdaweights.dcg2_lambdaweight,
+      "expected": [
+          0.0, 0.0,
+          abs(1.0 / 1 - 1.0 / 2) * abs(0.0 - 0.3), 0.0, 0.0, 0.0,
+          abs(1.0 / 1 - 1.0 / 2) * abs(0.3 - 0.0), 0.0, 0.0
       ]
   }])
   def test_lambdaweights_with_where_mask(self, lambdaweight_fn, expected):
@@ -147,6 +188,18 @@ class LambdaweightsTest(parameterized.TestCase):
           abs(discount(3) - discount(1)) * abs(gain(0.3) - 1.5 * gain(0.0)),
           abs(discount(2) - discount(1)) * abs(gain(0.3) - 0.5 * gain(1.0)), 0.0
       ]
+  }, {
+      "lambdaweight_fn":
+          lambdaweights.dcg2_lambdaweight,
+      "expected": [
+          0.0,
+          abs(1.0 / 1 - 1.0 / 2) * abs(0.0 - 0.5 * 1.0),
+          abs(1.0 / 2 - 1.0 / 3) * abs(1.5 * 0.0 - 0.3),
+          abs(1.0 / 1 - 1.0 / 2) * abs(0.5 * 1.0 - 0.0), 0.0,
+          abs(1.0 / 1 - 1.0 / 2) * abs(0.5 * 1.0 - 0.3),
+          abs(1.0 / 2 - 1.0 / 3) * abs(0.3 - 1.5 * 0.0),
+          abs(1.0 / 2 - 1.0 / 1) * abs(0.3 - 0.5 * 1.0), 0.0
+      ]
   }])
   def test_lambdaweights_with_weights(self, lambdaweight_fn, expected):
     scores = jnp.array([0.0, 1.0, 2.0])
@@ -154,6 +207,39 @@ class LambdaweightsTest(parameterized.TestCase):
     weights = jnp.array([1.5, 0.5, 1.0])
 
     result = lambdaweight_fn(scores, labels, weights=weights)
+
+    np.testing.assert_allclose(result, expected, rtol=1e-5)
+
+  @parameterized.parameters([{
+      "lambdaweight_fn":
+          lambdaweights.dcg_lambdaweight,
+      "expected": [
+          0.0, 0.0,
+          abs(discount(1) - 0.0) * abs(gain(0.0) - gain(0.3)), 0.0, 0.0,
+          abs(discount(1) - 0.0) * abs(gain(1.0) - gain(0.3)),
+          abs(0.0 - discount(1)) * abs(gain(0.3) - gain(0.0)),
+          abs(0.0 - discount(1)) * abs(gain(0.3) - gain(1.0)), 0.0
+      ]
+  }, {
+      "lambdaweight_fn":
+          lambdaweights.dcg2_lambdaweight,
+      "expected": [
+          0.0,
+          (1.0 / (1.0 - 1.0 / 3)) * abs(1.0 / 1 - 1.0 / 2) * abs(0.0 - 1.0),
+          (1.0 / (1.0 - 1.0 / 3)) * abs(1.0 / 2 - 1.0 / 3) * abs(0.0 - 0.3),
+          (1.0 / (1.0 - 1.0 / 3)) * abs(1.0 / 1 - 1.0 / 2) * abs(1.0 - 0.0),
+          0.0,
+          (1.0 / (1.0 - 1.0 / 2)) * abs(1.0 / 1 - 1.0 / 2) * abs(1.0 - 0.3),
+          (1.0 / (1.0 - 1.0 / 3)) * abs(1.0 / 2 - 1.0 / 3) * abs(0.3 - 0.0),
+          (1.0 / (1.0 - 1.0 / 2)) * abs(1.0 / 2 - 1.0 / 1) * abs(0.3 - 1.0), 0.0
+      ]
+  }])
+  def test_lambdaweights_with_topn(self, lambdaweight_fn, expected):
+    scores = jnp.array([0.0, 1.0, 2.0])
+    labels = jnp.array([0.0, 1.0, 0.3])
+    topn = 1
+
+    result = lambdaweight_fn(scores, labels, topn=topn)
 
     np.testing.assert_allclose(result, expected, rtol=1e-5)
 
@@ -173,6 +259,14 @@ class LambdaweightsTest(parameterized.TestCase):
       "loss_fn": losses.pairwise_logistic_loss,
       "lambdaweight_fn": lambdaweights.dcg_lambdaweight,
       "expected": 0.34675273
+  }, {
+      "loss_fn": losses.pairwise_hinge_loss,
+      "lambdaweight_fn": lambdaweights.dcg2_lambdaweight,
+      "expected": 0.316667
+  }, {
+      "loss_fn": losses.pairwise_logistic_loss,
+      "lambdaweight_fn": lambdaweights.dcg2_lambdaweight,
+      "expected": 0.307799
   }, {
       "loss_fn": losses.pairwise_mse_loss,
       "lambdaweight_fn": lambdaweights.dcg_lambdaweight,

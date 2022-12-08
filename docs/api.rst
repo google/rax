@@ -76,9 +76,11 @@ Lambdaweights (``rax.*_lambdaweight``)
 
     labeldiff_lambdaweight
     dcg_lambdaweight
+    dcg2_lambdaweight
 
 .. autofunction:: labeldiff_lambdaweight
 .. autofunction:: dcg_lambdaweight
+.. autofunction:: dcg2_lambdaweight
 
 Utilities
 =========

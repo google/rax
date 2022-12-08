@@ -115,8 +115,76 @@ def dcg_lambdaweight(
   else:
     valid_pairs = jnp.ones_like(gains_abs_diffs, dtype=jnp.bool_)
 
-  discounts = utils.cutoff(ranks, topn) * discount_fn(ranks)
+  discounts = discount_fn(ranks)
+
+  if topn is not None:
+    discounts = jnp.where(ranks <= topn, discounts, 0.0)
+
   discounts_abs_diffs = jnp.abs(utils.compute_pairs(discounts, operator.sub))
   discounts_abs_diffs = jnp.where(valid_pairs, discounts_abs_diffs, 0.0)
   return discounts_abs_diffs * gains_abs_diffs
 
+
+def dcg2_lambdaweight(
+    scores: Array,
+    labels: Array,
+    *,
+    where: Optional[Array] = None,
+    weights: Optional[Array] = None,
+    topn: Optional[int] = None,
+    gain_fn: Callable[[Array], Array] = lambda label: label,
+    discount_fn: Callable[[Array], Array] = lambda rank: 1.0 / rank) -> Array:
+  r"""DCG v2 ("lambdaloss") lambdaweights.
+
+  Definition :cite:p:`wang2018lambdaloss`:
+
+  .. math::
+      \lambda_{ij}(s, y) = |\operatorname{gain}(y_i) - \operatorname{gain}(y_j)|
+      \cdot |\operatorname{discount}(
+          |\operatorname{rank}(s_i) - \operatorname{rank}(s_j)|) -
+      \operatorname{discount}(
+          |\operatorname{rank}(s_i) - \operatorname{rank}(s_j)| + 1)|
+
+  Args:
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score of each item.
+    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      relevance label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid for computing the lambdaweights. Items
+      for which this is False will be ignored when computing the lambdaweights.
+    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating the weight for each item.
+    topn: The topn cutoff. If ``None``, no cutoff is performed. Topn cutoff is
+      uses the method described in :cite:p:`jagerman2022optimizing`.
+    gain_fn: A function mapping labels to gain values.
+    discount_fn: A function mapping ranks to discount values.
+
+  Returns:
+    DCG v2 ("lambdaloss") lambdaweights.
+  """
+  ranks = utils.ranks(scores, where=where)
+  gains = gain_fn(labels)
+  if weights is not None:
+    gains *= weights
+  gains_abs_diffs = jnp.abs(utils.compute_pairs(gains, operator.sub))
+
+  if where is not None:
+    valid_pairs = utils.compute_pairs(where, operator.and_)
+  else:
+    valid_pairs = jnp.ones_like(gains_abs_diffs, dtype=jnp.bool_)
+
+  ranks_abs_diffs = jnp.abs(utils.compute_pairs(ranks, operator.sub))
+  ranks_max = utils.compute_pairs(ranks, jnp.maximum)
+
+  discounts = jnp.abs(
+      discount_fn(ranks_abs_diffs) - discount_fn(ranks_abs_diffs + 1))
+  discounts = jnp.where(ranks_abs_diffs != 0, discounts, 0.0)
+
+  if topn is not None:
+    topn_weights = 1.0 / (1.0 - discount_fn(ranks_max))
+    discounts *= jnp.where(ranks_max > topn, topn_weights, 1.0)
+
+  discounts = jnp.where(valid_pairs, discounts, 0.0)
+
+  return discounts * gains_abs_diffs
