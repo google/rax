@@ -75,6 +75,7 @@ def dcg_lambdaweight(
     where: Optional[Array] = None,
     weights: Optional[Array] = None,
     topn: Optional[int] = None,
+    normalize: bool = False,
     gain_fn: Callable[[Array], Array] = metrics.default_gain_fn,
     discount_fn: Callable[[Array],
                           Array] = metrics.default_discount_fn) -> Array:
@@ -98,6 +99,7 @@ def dcg_lambdaweight(
     weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating the weight for each item.
     topn: The topn cutoff. If ``None``, no cutoff is performed.
+    normalize: Whether to use the normalized DCG formulation.
     gain_fn: A function mapping labels to gain values.
     discount_fn: A function mapping ranks to discount values.
 
@@ -108,6 +110,21 @@ def dcg_lambdaweight(
   gains = gain_fn(labels)
   if weights is not None:
     gains *= weights
+
+  if normalize:
+    ideal_dcg = metrics.dcg_metric(
+        gains,
+        labels,
+        where=where,
+        topn=topn,
+        weights=weights,
+        gain_fn=gain_fn,
+        discount_fn=discount_fn,
+        reduce_fn=None)
+    ideal_dcg = jnp.where(ideal_dcg == 0.0, 1.0, ideal_dcg)
+    ideal_dcg = jnp.expand_dims(ideal_dcg, -1)
+    gains /= ideal_dcg
+
   gains_abs_diffs = jnp.abs(utils.compute_pairs(gains, operator.sub))
 
   if where is not None:
@@ -132,6 +149,7 @@ def dcg2_lambdaweight(
     where: Optional[Array] = None,
     weights: Optional[Array] = None,
     topn: Optional[int] = None,
+    normalize: bool = False,
     gain_fn: Callable[[Array], Array] = metrics.default_gain_fn,
     discount_fn: Callable[[Array],
                           Array] = metrics.default_discount_fn) -> Array:
@@ -158,6 +176,7 @@ def dcg2_lambdaweight(
       indicating the weight for each item.
     topn: The topn cutoff. If ``None``, no cutoff is performed. Topn cutoff is
       uses the method described in :cite:p:`jagerman2022optimizing`.
+    normalize: Whether to use the normalized DCG formulation.
     gain_fn: A function mapping labels to gain values.
     discount_fn: A function mapping ranks to discount values.
 
@@ -168,6 +187,21 @@ def dcg2_lambdaweight(
   gains = gain_fn(labels)
   if weights is not None:
     gains *= weights
+
+  if normalize:
+    ideal_dcg = metrics.dcg_metric(
+        gains,
+        labels,
+        where=where,
+        topn=topn,
+        weights=weights,
+        gain_fn=gain_fn,
+        discount_fn=discount_fn,
+        reduce_fn=None)
+    ideal_dcg = jnp.where(ideal_dcg == 0.0, 1.0, ideal_dcg)
+    ideal_dcg = jnp.expand_dims(ideal_dcg, -1)
+    gains /= ideal_dcg
+
   gains_abs_diffs = jnp.abs(utils.compute_pairs(gains, operator.sub))
 
   if where is not None:

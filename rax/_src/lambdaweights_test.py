@@ -70,6 +70,41 @@ class LambdaweightsTest(parameterized.TestCase):
 
     np.testing.assert_allclose(result, expected, rtol=1e-5)
 
+  @parameterized.parameters([{
+      "lambdaweight_fn":
+          lambdaweights.dcg_lambdaweight,
+      "normalizer": [
+          [
+              gain(1.0) * discount(1) + gain(0.3) * discount(2) +
+              gain(0.0) * discount(3)
+          ], [
+              gain(2.0) * discount(1) + gain(1.0) * discount(2) +
+              gain(0.0) * discount(3)
+          ]
+      ]
+  }, {
+      "lambdaweight_fn":
+          lambdaweights.dcg2_lambdaweight,
+      "normalizer": [
+          [
+              gain(1.0) * discount(1) + gain(0.3) * discount(2) +
+              gain(0.0) * discount(3)
+          ], [
+              gain(2.0) * discount(1) + gain(1.0) * discount(2) +
+              gain(0.0) * discount(3)
+          ]
+      ]
+  }])  # pyformat: disable
+  def test_computes_normalized_lambdaweights(self, lambdaweight_fn, normalizer):
+    scores = jnp.array([[0.0, 1.0, 2.0], [2.0, 0.0, 1.0]])
+    labels = jnp.array([[0.0, 1.0, 0.3], [1.0, 0.0, 2.0]])
+
+    result = lambdaweight_fn(scores, labels, normalize=True)
+    result_unnormalized = lambdaweight_fn(scores, labels)
+
+    np.testing.assert_allclose(
+        result, result_unnormalized / jnp.array(normalizer), rtol=1e-5)
+
   @parameterized.parameters(
       [{
           "lambdaweight_fn":
