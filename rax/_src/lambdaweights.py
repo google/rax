@@ -132,8 +132,9 @@ def dcg2_lambdaweight(
     where: Optional[Array] = None,
     weights: Optional[Array] = None,
     topn: Optional[int] = None,
-    gain_fn: Callable[[Array], Array] = lambda label: label,
-    discount_fn: Callable[[Array], Array] = lambda rank: 1.0 / rank) -> Array:
+    gain_fn: Callable[[Array], Array] = metrics.default_gain_fn,
+    discount_fn: Callable[[Array],
+                          Array] = metrics.default_discount_fn) -> Array:
   r"""DCG v2 ("lambdaloss") lambdaweights.
 
   Definition :cite:p:`wang2018lambdaloss`:
