@@ -13,6 +13,7 @@ Ranking Losses (``rax.*_loss``)
     pairwise_hinge_loss
     pairwise_logistic_loss
     pairwise_mse_loss
+    pairwise_qr_loss
     softmax_loss
     listmle_loss
     poly1_softmax_loss
@@ -23,6 +24,7 @@ Ranking Losses (``rax.*_loss``)
 .. autofunction:: pairwise_hinge_loss
 .. autofunction:: pairwise_logistic_loss
 .. autofunction:: pairwise_mse_loss
+.. autofunction:: pairwise_qr_loss
 .. autofunction:: softmax_loss
 .. autofunction:: listmle_loss
 .. autofunction:: poly1_softmax_loss

@@ -23,6 +23,7 @@ from rax._src.losses import listmle_loss
 from rax._src.losses import pairwise_hinge_loss
 from rax._src.losses import pairwise_logistic_loss
 from rax._src.losses import pairwise_mse_loss
+from rax._src.losses import pairwise_qr_loss
 from rax._src.losses import pointwise_mse_loss
 from rax._src.losses import pointwise_sigmoid_loss
 from rax._src.losses import poly1_softmax_loss
@@ -49,6 +50,7 @@ __all__ = [
     "pairwise_hinge_loss",
     "pairwise_logistic_loss",
     "pairwise_mse_loss",
+    "pairwise_qr_loss",
     "pointwise_mse_loss",
     "pointwise_sigmoid_loss",
     "poly1_softmax_loss",
