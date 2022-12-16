@@ -139,7 +139,12 @@ def dcg_lambdaweight(
 
   discounts_abs_diffs = jnp.abs(utils.compute_pairs(discounts, operator.sub))
   discounts_abs_diffs = jnp.where(valid_pairs, discounts_abs_diffs, 0.0)
-  return discounts_abs_diffs * gains_abs_diffs
+
+  # Scale up the lambdaweights by the constant list size to avoid too small
+  # values.
+  weight_scalar = labels.shape[-1]
+
+  return discounts_abs_diffs * gains_abs_diffs * weight_scalar
 
 
 def dcg2_lambdaweight(
@@ -222,4 +227,8 @@ def dcg2_lambdaweight(
 
   discounts = jnp.where(valid_pairs, discounts, 0.0)
 
-  return discounts * gains_abs_diffs
+  # Scale up the lambdaweights by the constant list size to avoid too small
+  # values.
+  weight_scalar = labels.shape[-1]
+
+  return discounts * gains_abs_diffs * weight_scalar
