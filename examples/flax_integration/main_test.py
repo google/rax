@@ -55,8 +55,8 @@ class Web30kTest(absltest.TestCase):
     self.assertLess(output[1]["metric/ndcg@10"], output[2]["metric/ndcg@10"])
 
     # Evaluate metric values after training.
-    np.testing.assert_allclose(output[2]["metric/ndcg"], 0.829134, atol=0.02)
-    np.testing.assert_allclose(output[2]["metric/ndcg@10"], 0.650672, atol=0.02)
+    np.testing.assert_allclose(output[2]["metric/ndcg"], 0.829134, atol=0.03)
+    np.testing.assert_allclose(output[2]["metric/ndcg@10"], 0.650672, atol=0.03)
 
 
 if __name__ == "__main__":

@@ -97,6 +97,8 @@ def prepare_dataset(ds: tf.data.Dataset,
   """Prepares a training dataset by applying padding/truncating/etc."""
   tf.random.set_seed(rng_seed)
   ds = ds.cache()
+  features_to_keep = set(["label", "float_features"])
+  ds = ds.map(lambda e: {k: v for k, v in e.items() if k in features_to_keep})
   ds = ds.map(lambda e: {**e, "mask": tf.ones_like(e["label"], dtype=tf.bool)})
   if list_size is not None:
 
