@@ -262,7 +262,7 @@ class RankingEncDecModel(models.EncoderDecoderModel):
     output = super()._compute_logits(params, flattened_batch, *args, **kwargs)
 
     # Reshape output logits back to (batch_size, list_size, ...)
-    output = jnp.reshape(output, (batch_size, list_size) + output.shape[1:])
+    output = jnp.reshape(output, (batch_size, list_size) + output.shape[1:])  # pytype: disable=attribute-error  # jax-ndarray
 
     # Compute per-item scores. We do three vmaps here for each of the dimensions
     # (batch_size, list_size, sequence_length, ...)
