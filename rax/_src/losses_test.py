@@ -534,6 +534,63 @@ class LossesTest(parameterized.TestCase):
     self.assertEqual(jnp.sum(none_loss), sum_loss)
 
   @parameterized.parameters([
+      losses.pairwise_hinge_loss,
+      losses.pairwise_logistic_loss,
+      losses.pairwise_mse_loss,
+      losses.pairwise_qr_loss,
+  ])
+  def test_computes_loss_value_with_segments(self, loss_fn):
+    scores = jnp.asarray([0.0, 3.0, 1.0, 2.0, 4.0, 3.0, 0.0, 2.0])
+    labels = jnp.asarray([0.0, 1.0, 2.0, 1.0, 0.0, 2.0, 1.0, 0.0])
+    segments = jnp.asarray([0, 0, 1, 1, 1, 2, 3, 3])
+
+    list_scores = jnp.asarray(
+        [[0.0, 3.0, 0.0], [1.0, 2.0, 4.0], [3.0, 0.0, 0.0], [0.0, 2.0, 0.0]]
+    )
+    list_labels = jnp.asarray(
+        [[0.0, 1.0, 0.0], [2.0, 1.0, 0.0], [2.0, 0.0, 0.0], [1.0, 0.0, 0.0]]
+    )
+    list_mask = jnp.asarray(
+        [[1, 1, 0], [1, 1, 1], [1, 0, 0], [1, 1, 0]], dtype=jnp.bool_
+    )
+
+    loss = loss_fn(scores, labels, segments=segments)
+    expected_loss = loss_fn(
+        list_scores, list_labels, where=list_mask
+    )
+
+    np.testing.assert_allclose(expected_loss, loss, rtol=1E-5)
+
+  @parameterized.parameters([
+      losses.pairwise_hinge_loss,
+      losses.pairwise_logistic_loss,
+      losses.pairwise_mse_loss,
+      losses.pairwise_qr_loss,
+  ])
+  def test_computes_loss_value_with_segments_and_mask(self, loss_fn):
+    scores = jnp.asarray([0.0, 3.0, 1.0, 2.0, 4.0, 3.0, 0.0, 2.0, 0.0, 0.0])
+    labels = jnp.asarray([0.0, 1.0, 2.0, 1.0, 0.0, 2.0, 1.0, 0.0, 0.0, 0.0])
+    segments = jnp.asarray([0, 0, 1, 1, 1, 2, 3, 3, 0, 0])
+    where = jnp.asarray([1, 1, 1, 1, 1, 1, 1, 1, 0, 0], dtype=jnp.bool_)
+
+    list_scores = jnp.asarray(
+        [[0.0, 3.0, 0.0], [1.0, 2.0, 4.0], [3.0, 0.0, 0.0], [0.0, 2.0, 0.0]]
+    )
+    list_labels = jnp.asarray(
+        [[0.0, 1.0, 0.0], [2.0, 1.0, 0.0], [2.0, 0.0, 0.0], [1.0, 0.0, 0.0]]
+    )
+    list_mask = jnp.asarray(
+        [[1, 1, 0], [1, 1, 1], [1, 0, 0], [1, 1, 0]], dtype=jnp.bool_
+    )
+
+    loss = loss_fn(scores, labels, segments=segments, where=where)
+    expected_loss = loss_fn(
+        list_scores, list_labels, where=list_mask
+    )
+
+    np.testing.assert_allclose(expected_loss, loss, rtol=1E-5)
+
+  @parameterized.parameters([
       losses.softmax_loss, losses.listmle_loss, losses.pairwise_hinge_loss,
       losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
       losses.pointwise_mse_loss, losses.pairwise_mse_loss,

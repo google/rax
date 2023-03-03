@@ -328,6 +328,7 @@ def pairwise_loss(scores: Array,
                   pair_loss_fn: Callable[[Array, Array], Tuple[Array, Array]],
                   lambdaweight_fn: Optional[LambdaweightFn] = None,
                   where: Optional[Array] = None,
+                  segments: Optional[Array] = None,
                   weights: Optional[Array] = None,
                   reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
   r"""Generic pairwise loss.
@@ -346,6 +347,9 @@ def pairwise_loss(scores: Array,
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid for computing the loss. Items for which
       this is False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating segments within each list. The loss will only be computed on
+      items that share the same segment.
     weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating the weight for each item.
     reduce_fn: An optional function that reduces the loss values. Can be
@@ -366,6 +370,10 @@ def pairwise_loss(scores: Array,
   if where is not None:
     valid_pairs &= utils.compute_pairs(where, operator.and_)
 
+  # Apply segments to valid pairs.
+  if segments is not None:
+    valid_pairs &= utils.compute_pairs(segments, operator.eq)
+
   # Apply weights to losses.
   if weights is not None:
     pair_losses *= utils.compute_pairs(weights, lambda x, y: x)
@@ -381,6 +389,7 @@ def pairwise_hinge_loss(scores: Array,
                         labels: Array,
                         *,
                         where: Optional[Array] = None,
+                        segments: Optional[Array] = None,
                         weights: Optional[Array] = None,
                         lambdaweight_fn: Optional[LambdaweightFn] = None,
                         reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
@@ -400,6 +409,9 @@ def pairwise_hinge_loss(scores: Array,
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid for computing the loss. Items for which
       this is False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating segments within each list. The loss will only be computed on
+      items that share the same segment.
     weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating the weight for each item.
     lambdaweight_fn: An optional function that outputs lambdaweights.
@@ -419,6 +431,7 @@ def pairwise_hinge_loss(scores: Array,
       scores,
       labels,
       pair_loss_fn=_hinge_loss,
+      segments=segments,
       where=where,
       weights=weights,
       lambdaweight_fn=lambdaweight_fn,
@@ -429,6 +442,7 @@ def pairwise_logistic_loss(scores: Array,
                            labels: Array,
                            *,
                            where: Optional[Array] = None,
+                           segments: Optional[Array] = None,
                            weights: Optional[Array] = None,
                            lambdaweight_fn: Optional[LambdaweightFn] = None,
                            reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
@@ -448,6 +462,9 @@ def pairwise_logistic_loss(scores: Array,
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid for computing the loss. Items for which
       this is False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating segments within each list. The loss will only be computed on
+      items that share the same segment.
     weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating the weight for each item.
     lambdaweight_fn: An optional function that outputs lambdaweights.
@@ -469,6 +486,7 @@ def pairwise_logistic_loss(scores: Array,
       labels,
       pair_loss_fn=_logistic_loss,
       where=where,
+      segments=segments,
       weights=weights,
       lambdaweight_fn=lambdaweight_fn,
       reduce_fn=reduce_fn)
@@ -565,6 +583,7 @@ def pairwise_mse_loss(scores: Array,
                       labels: Array,
                       *,
                       where: Optional[Array] = None,
+                      segments: Optional[Array] = None,
                       weights: Optional[Array] = None,
                       lambdaweight_fn: Optional[LambdaweightFn] = None,
                       reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
@@ -584,6 +603,9 @@ def pairwise_mse_loss(scores: Array,
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid for computing the loss. Items for which
       this is False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating segments within each list. The loss will only be computed on
+      items that share the same segment.
     weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating the weight for each item.
     lambdaweight_fn: An optional function that outputs lambdaweights.
@@ -604,6 +626,7 @@ def pairwise_mse_loss(scores: Array,
       labels,
       pair_loss_fn=_mse_loss,
       where=where,
+      segments=segments,
       weights=weights,
       lambdaweight_fn=lambdaweight_fn,
       reduce_fn=reduce_fn)
@@ -613,6 +636,7 @@ def pairwise_qr_loss(scores: Array,
                      labels: Array,
                      *,
                      where: Optional[Array] = None,
+                     segments: Optional[Array] = None,
                      weights: Optional[Array] = None,
                      tau: float = 0.5,
                      squared: bool = False,
@@ -640,6 +664,9 @@ def pairwise_qr_loss(scores: Array,
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid for computing the loss. Items for which
       this is False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating segments within each list. The loss will only be computed on
+      items that share the same segment.
     weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating the weight for each item.
     tau: A float in (0, 1.0] to define the quantile. When tau = 0.5, it becomes
@@ -670,6 +697,7 @@ def pairwise_qr_loss(scores: Array,
       labels,
       pair_loss_fn=_qr_loss,
       where=where,
+      segments=segments,
       weights=weights,
       lambdaweight_fn=lambdaweight_fn,
       reduce_fn=reduce_fn)
