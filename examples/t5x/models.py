@@ -16,7 +16,7 @@
 
 import functools
 import types
-from typing import Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Mapping, Optional, Sequence, Tuple, Union
 
 import flax
 import gin
@@ -30,6 +30,7 @@ from t5x import optimizers
 import tensorflow as tf
 
 FeatureSpec = seqio.FeatureConverter.FeatureSpec
+PyTree = Any
 
 # Set up default loss and metric functions. For this we will use the Rax softmax
 # loss and several of the Rax metric functions. You can update these in the gin
@@ -223,7 +224,7 @@ class RankingEncDecModel(models.EncoderDecoderModel):
     }
     return super().get_initial_variables(rng, input_shapes, input_types)
 
-  def _compute_logits(self, params: models.PyTreeDef,
+  def _compute_logits(self, params: PyTree,
                       batch: Mapping[str, jnp.ndarray], *args, **kwargs):
     """Computes logits on a batch of data.
 
@@ -272,7 +273,7 @@ class RankingEncDecModel(models.EncoderDecoderModel):
     return output
 
   def loss_fn(
-      self, params: models.PyTreeDef, batch: Mapping[str, jnp.ndarray],
+      self, params: PyTree, batch: Mapping[str, jnp.ndarray],
       dropout_rng: Optional[jnp.ndarray]
   ) -> Tuple[jnp.ndarray, metrics_lib.MetricsMap]:
     """Ranking loss function.
