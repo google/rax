@@ -506,8 +506,7 @@ def pointwise_sigmoid_loss(scores: Array,
       \ell(s, y) =
       \sum_i y_i * -log(sigmoid(s_i)) + (1 - y_i) * -log(1 - sigmoid(s_i))
 
-  This loss converts graded relevance to binary relevance by considering items
-  with ``label >= 1`` as relevant and items with ``label < 1`` as non-relevant.
+  This loss clips label values so that ``0 <= label <= 1``.
 
   Args:
     scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
@@ -527,8 +526,8 @@ def pointwise_sigmoid_loss(scores: Array,
     The sigmoid cross entropy loss.
   """
 
-  # Convert to binary relevance labels.
-  labels = jnp.where(labels >= 1, jnp.ones_like(labels), jnp.zeros_like(labels))
+  # Clips labels to be in [0, 1].
+  labels = jnp.clip(labels, 0.0, 1.0)
 
   # A numerically stable version of sigmoid cross entropy.
   loss = (
