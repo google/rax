@@ -63,10 +63,12 @@ Function Transformations (``rax.*_t12n``)
     approx_t12n
     bound_t12n
     gumbel_t12n
+    segment_t12n
 
 .. autofunction:: approx_t12n
 .. autofunction:: bound_t12n
 .. autofunction:: gumbel_t12n
+.. autofunction:: segment_t12n
 
 Lambdaweights (``rax.*_lambdaweight``)
 ======================================

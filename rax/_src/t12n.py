@@ -237,3 +237,77 @@ def gumbel_t12n(loss_or_metric_fn: LossOrMetricFn,
     return loss_or_metric_fn(gumbel_scores, labels, **kwargs)
 
   return _loss_or_metric_fn_with_gumbel_scores
+
+
+def segment_t12n(loss_or_metric_fn: LossOrMetricFn) -> LossOrMetricFn:
+  """Transforms ``loss_or_metric_fn`` to operate on segmented inputs.
+
+  .. warning::
+
+    This transformation incurs an additional :math:`O(n^2)` computational cost
+    (where :math:`n` is the list size) if no specialized segmented
+    implementation is available for the given ``loss_or_metric_fn``.
+
+  This changes the ``loss_or_metric_fn`` to accept an additional keyword
+  argument ``segments`` that is used to indicate segments to group lists
+  together.
+
+  Args:
+    loss_or_metric_fn: A Rax loss or metric function.
+
+  Returns:
+    A new function that behaves the same as ``loss_or_metric_fn`` but which
+    accepts an additional ``segments`` argument that is used to indicate segment
+    identifiers.
+  """
+
+  # Check if `loss_or_metric_fn` has a specialized implementation that accepts
+  # `segments=` as a kwarg. If so, just return the loss/metric function itself.
+  if _accepts_args(loss_or_metric_fn, segments=None):
+    return loss_or_metric_fn
+
+  def _expand_and_replicate_last_dim(a: Array):
+    """Replicates an array to change its shape from [..., n] to [..., n, n]."""
+    return jnp.repeat(jnp.expand_dims(a, axis=-2), repeats=a.shape[-1], axis=-2)
+
+  @jax.util.wraps(
+      loss_or_metric_fn, namestr="segment_{fun}", docstr="Segmented {doc}"
+  )
+  def _segmented_loss_or_metric_fn(
+      scores: Array,
+      labels: Array,
+      *,
+      segments: Optional[Array] = None,
+      **kwargs
+  ):
+    if segments is not None:
+      # Expand all array-style inputs from `[..., list_size]` shape to
+      # `[..., list_size, list_size]` shape, except for RNG keys.
+      scores = _expand_and_replicate_last_dim(scores)
+      labels = _expand_and_replicate_last_dim(labels)
+      for name in kwargs:
+        is_array = isinstance(kwargs[name], jax.Array)
+        is_rng_key = name == "key"
+        if is_array and not is_rng_key:
+          kwargs[name] = _expand_and_replicate_last_dim(kwargs[name])
+
+      # Construct mask based on segments. This will construct a
+      # `[..., list_size, list_size]` array where each row is a mask that
+      # selects a segment. Note that a mask for a segment of length `n` will be
+      # repeated on `n` rows and these duplications will need to be filtered out
+      # (see below).
+      mask = jnp.expand_dims(segments, -1) == jnp.expand_dims(segments, -2)
+
+      # Remove duplicated rows in the mask tensor so each segment only appears
+      # once. Many rows may end up being entirely masked out.
+      mask &= jnp.cumsum(mask, axis=-2) == 1
+
+      # Apply regular `where` mask to remove invalid items as well.
+      if "where" in kwargs:
+        mask &= kwargs.get("where")
+
+      kwargs["where"] = mask
+
+    return loss_or_metric_fn(scores, labels, **kwargs)
+
+  return _segmented_loss_or_metric_fn

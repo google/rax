@@ -25,6 +25,7 @@ import jax.numpy as jnp
 import numpy as np
 
 import rax
+from rax._src import losses
 from rax._src import metrics
 from rax._src import t12n
 
@@ -307,6 +308,208 @@ class GumbelT12nTest(parameterized.TestCase):
     # Grads should not be NaN.
     np.testing.assert_array_equal(
         jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
+
+
+class SegmentT12nTest(parameterized.TestCase):
+
+  @parameterized.parameters([
+      losses.pointwise_mse_loss,
+      losses.pointwise_sigmoid_loss,
+      losses.pairwise_hinge_loss,
+      losses.pairwise_qr_loss,
+      losses.pairwise_logistic_loss,
+      losses.pairwise_mse_loss,
+      losses.softmax_loss,
+      losses.unique_softmax_loss,
+      losses.poly1_softmax_loss,
+      metrics.mrr_metric,
+      functools.partial(metrics.recall_metric, topn=2),
+      functools.partial(metrics.precision_metric, topn=2),
+      metrics.ap_metric,
+      metrics.dcg_metric,
+      metrics.ndcg_metric,
+  ])
+  def test_computes_fn_on_segments(self, fn):
+    scores = jnp.array([[1.0, 2.0, 3.0], [4.0, 6.0, 5.0]])
+    labels = jnp.array([[1.0, 2.0, 0.0], [0.0, 1.0, 1.0]])
+
+    seg_scores = jnp.array([1.0, 2.0, 3.0, 4.0, 6.0, 5.0])
+    seg_labels = jnp.array([1.0, 2.0, 0.0, 0.0, 1.0, 1.0])
+    seg_ids = jnp.array([1, 1, 1, 2, 2, 2])
+
+    expected = fn(scores, labels)
+    output = t12n.segment_t12n(fn)(seg_scores, seg_labels, segments=seg_ids)
+
+    np.testing.assert_allclose(expected, output, rtol=1e-4)
+
+  @parameterized.parameters([
+      losses.pointwise_mse_loss,
+      losses.pointwise_sigmoid_loss,
+      losses.pairwise_hinge_loss,
+      losses.pairwise_qr_loss,
+      losses.pairwise_logistic_loss,
+      losses.pairwise_mse_loss,
+      losses.softmax_loss,
+      losses.unique_softmax_loss,
+      losses.poly1_softmax_loss,
+      metrics.mrr_metric,
+      functools.partial(metrics.recall_metric, topn=2),
+      functools.partial(metrics.precision_metric, topn=2),
+      metrics.ap_metric,
+      metrics.dcg_metric,
+      metrics.ndcg_metric,
+  ])
+  def test_computes_fn_on_segments_with_batch_dims(self, fn):
+    scores = jnp.array(
+        [[[1.0, 2.0, 3.0], [4.0, 6.0, 5.0]], [[7.0, 9.0, 2.0], [7.0, 3.0, 2.0]]]
+    )
+    labels = jnp.array(
+        [[[1.0, 2.0, 0.0], [0.0, 1.0, 1.0]], [[0.0, 1.0, 1.0], [0.0, 0.0, 1.0]]]
+    )
+
+    seg_scores = jnp.array([[1.0, 2.0, 3.0, 4.0, 6.0, 5.0]])
+    seg_labels = jnp.array([[1.0, 2.0, 0.0, 0.0, 1.0, 1.0]])
+    seg_scores = jnp.array(
+        [[1.0, 2.0, 3.0, 4.0, 6.0, 5.0], [7.0, 9.0, 2.0, 7.0, 3.0, 2.0]]
+    )
+    seg_labels = jnp.array(
+        [[1.0, 2.0, 0.0, 0.0, 1.0, 1.0], [0.0, 1.0, 1.0, 0.0, 0.0, 1.0]]
+    )
+    seg_ids = jnp.array([[1, 1, 1, 2, 2, 2], [3, 3, 3, 4, 4, 4]])
+
+    expected = fn(scores, labels)
+    output = t12n.segment_t12n(fn)(seg_scores, seg_labels, segments=seg_ids)
+
+    np.testing.assert_allclose(expected, output, rtol=1e-4)
+
+  @parameterized.parameters([
+      losses.pointwise_mse_loss,
+      losses.pointwise_sigmoid_loss,
+      losses.pairwise_hinge_loss,
+      losses.pairwise_qr_loss,
+      losses.pairwise_logistic_loss,
+      losses.pairwise_mse_loss,
+      losses.softmax_loss,
+      losses.unique_softmax_loss,
+      losses.poly1_softmax_loss,
+      metrics.mrr_metric,
+      functools.partial(metrics.recall_metric, topn=2),
+      functools.partial(metrics.precision_metric, topn=2),
+      metrics.ap_metric,
+      metrics.dcg_metric,
+      metrics.ndcg_metric,
+  ])
+  def test_computes_fn_on_non_consecutive_segments(self, fn):
+    scores = jnp.array([[1.0, 2.0, 3.0], [4.0, 6.0, 5.0]])
+    labels = jnp.array([[1.0, 2.0, 0.0], [0.0, 1.0, 1.0]])
+
+    seg_scores = jnp.array([1.0, 4.0, 2.0, 6.0, 3.0, 5.0])
+    seg_labels = jnp.array([1.0, 0.0, 2.0, 1.0, 0.0, 1.0])
+    seg_ids = jnp.array([30, 9, 30, 9, 30, 9])
+
+    expected = fn(scores, labels)
+    output = t12n.segment_t12n(fn)(seg_scores, seg_labels, segments=seg_ids)
+
+    np.testing.assert_allclose(expected, output, rtol=1e-4)
+
+  @parameterized.parameters([
+      losses.pointwise_mse_loss,
+      losses.pointwise_sigmoid_loss,
+      losses.pairwise_hinge_loss,
+      losses.pairwise_qr_loss,
+      losses.pairwise_logistic_loss,
+      losses.pairwise_mse_loss,
+      losses.softmax_loss,
+      losses.unique_softmax_loss,
+      losses.poly1_softmax_loss,
+      metrics.mrr_metric,
+      functools.partial(metrics.recall_metric, topn=2),
+      functools.partial(metrics.precision_metric, topn=2),
+      metrics.ap_metric,
+      metrics.dcg_metric,
+      metrics.ndcg_metric,
+  ])
+  def test_computes_fn_with_mask(self, fn):
+    scores = jnp.array([[1.0, 2.0, 3.0], [4.0, 6.0, 5.0]])
+    labels = jnp.array([[1.0, 2.0, 0.0], [0.0, 1.0, 1.0]])
+    mask = jnp.array([[1, 1, 1], [0, 1, 1]], dtype=jnp.bool_)
+
+    seg_scores = jnp.array([1.0, 2.0, 3.0, 4.0, 6.0, 5.0])
+    seg_labels = jnp.array([1.0, 2.0, 0.0, 0.0, 1.0, 1.0])
+    seg_ids = jnp.array([1, 1, 1, 2, 2, 2])
+    seg_mask = jnp.array([1, 1, 1, 0, 1, 1], dtype=jnp.bool_)
+
+    expected = fn(scores, labels, where=mask)
+    output = t12n.segment_t12n(fn)(
+        seg_scores, seg_labels, segments=seg_ids, where=seg_mask
+    )
+
+    np.testing.assert_allclose(expected, output, rtol=1e-4)
+
+  @parameterized.parameters([
+      losses.pointwise_mse_loss,
+      losses.pointwise_sigmoid_loss,
+      losses.pairwise_hinge_loss,
+      losses.pairwise_qr_loss,
+      losses.pairwise_logistic_loss,
+      losses.pairwise_mse_loss,
+      losses.softmax_loss,
+      losses.unique_softmax_loss,
+      losses.poly1_softmax_loss,
+      metrics.dcg_metric,
+      metrics.ndcg_metric,
+  ])
+  def test_computes_fn_with_weights(self, fn):
+    scores = jnp.array([[1.0, 2.0], [3.0, 0.0], [4.0, 0.0], [6.0, 5.0]])
+    labels = jnp.array([[1.0, 2.0], [0.0, 0.0], [0.0, 0.0], [1.0, 1.0]])
+    weights = jnp.array([[1.0, 2.0], [1.0, 0.0], [1.0, 0.0], [1.5, 0.5]])
+    mask = jnp.array([[1, 1], [1, 0], [1, 0], [1, 1]], dtype=jnp.bool_)
+
+    seg_scores = jnp.array([[1.0, 2.0, 3.0], [4.0, 6.0, 5.0]])
+    seg_labels = jnp.array([[1.0, 2.0, 0.0], [0.0, 1.0, 1.0]])
+    seg_weights = jnp.array([[1.0, 2.0, 1.0], [1.0, 1.5, 0.5]])
+    seg_ids = jnp.array([[1, 1, 2], [2, 3, 3]])
+
+    expected = fn(scores, labels, weights=weights, where=mask)
+    output = t12n.segment_t12n(fn)(
+        seg_scores,
+        seg_labels,
+        segments=seg_ids,
+        weights=seg_weights,
+    )
+
+    np.testing.assert_allclose(expected, output, rtol=1e-4)
+
+  @parameterized.parameters([
+      losses.listmle_loss,
+      metrics.mrr_metric,
+      functools.partial(metrics.recall_metric, topn=2),
+      functools.partial(metrics.precision_metric, topn=2),
+      metrics.ap_metric,
+      metrics.dcg_metric,
+      metrics.ndcg_metric,
+  ])
+  def test_computes_fn_with_random_key(self, fn):
+    seg_scores = jnp.array([1.0, 1.0, 2.0, 2.0, 3.0])
+    seg_labels = jnp.array([1.0, 0.0, 0.0, 1.0, 0.0])
+    seg_ids = jnp.array([1, 1, 2, 2, 2])
+    seg_key = jax.random.PRNGKey(0)
+
+    # Assert output can be computed without broadcasting the RNG key which would
+    # lead to a TypeError due to incompatible shapes.
+    _ = t12n.segment_t12n(fn)(
+        seg_scores, seg_labels, segments=seg_ids, key=seg_key
+    )
+
+  def test_uses_segmented_implementation_when_available(self):
+
+    # Construct a mocked loss fn that accepts `segments` as a kwarg.
+    def loss_fn_that_supports_segments(scores, labels, *, segments=None):
+      del scores, labels, segments  # Unused by mocked function.
+
+    segmented_loss_fn = t12n.segment_t12n(loss_fn_that_supports_segments)
+
+    self.assertEqual(segmented_loss_fn, loss_fn_that_supports_segments)
 
 
 def load_tests(loader, tests, ignore):
