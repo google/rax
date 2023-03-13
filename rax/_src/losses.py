@@ -116,7 +116,12 @@ def softmax_loss(scores: Array,
 
   # Reduces softmax cross-entropy loss.
   loss = -jnp.sum(softmax_cross_entropy, axis=-1, where=where)
-  return utils.safe_reduce(loss, reduce_fn=reduce_fn)
+
+  # Setup mask to ignore lists with only invalid items in reduce_fn.
+  if where is not None:
+    where = jnp.any(where, axis=-1)
+
+  return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
 def poly1_softmax_loss(scores: Array,
@@ -182,9 +187,13 @@ def poly1_softmax_loss(scores: Array,
   if where is not None:
     pt = jnp.where(jnp.all(jnp.logical_not(where), axis=-1), 1., pt)
 
+  # Setup mask to ignore lists with only invalid items in reduce_fn.
+  if where is not None:
+    where = jnp.any(where, axis=-1)
+
   # Compute and return the poly1 loss.
   loss = ce + epsilon * (1. - pt)
-  return utils.safe_reduce(loss, reduce_fn=reduce_fn)
+  return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
 def unique_softmax_loss(scores: Array,
@@ -248,7 +257,7 @@ def unique_softmax_loss(scores: Array,
   log_softmax = jax.nn.log_softmax(
       scores_repeated,
       axis=-1,
-      where=(identity_mask | labels_lt),
+      where=identity_mask | labels_lt,
       initial=jnp.min(scores))
   log_softmax = jnp.diagonal(log_softmax, axis1=-2, axis2=-1)
 
@@ -262,7 +271,12 @@ def unique_softmax_loss(scores: Array,
 
   # Compute per-list loss and return a reduced loss.
   loss = -jnp.sum(log_softmax, axis=-1, where=where)
-  return utils.safe_reduce(loss, reduce_fn=reduce_fn)
+
+  # Setup mask to ignore lists with only invalid items in reduce_fn.
+  if where is not None:
+    where = jnp.any(where, axis=-1)
+
+  return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
 def listmle_loss(scores: Array,
@@ -319,7 +333,12 @@ def listmle_loss(scores: Array,
 
   # Reduce list MLE loss.
   loss = -jnp.sum(scores_sorted - lse, axis=-1, where=where_sorted)
-  return utils.safe_reduce(loss, reduce_fn=reduce_fn)
+
+  # Setup mask to ignore lists with only invalid items in reduce_fn.
+  if where is not None:
+    where = jnp.any(where, axis=-1)
+
+  return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
 def pairwise_loss(scores: Array,

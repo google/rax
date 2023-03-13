@@ -678,6 +678,28 @@ class LossesTest(parameterized.TestCase):
     np.testing.assert_array_equal(
         jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
 
+  @parameterized.parameters([
+      losses.softmax_loss,
+      losses.listmle_loss,
+      losses.pairwise_hinge_loss,
+      losses.pairwise_logistic_loss,
+      losses.pointwise_sigmoid_loss,
+      losses.pointwise_mse_loss,
+      losses.pairwise_mse_loss,
+      losses.pairwise_qr_loss,
+      losses.poly1_softmax_loss,
+      losses.unique_softmax_loss,
+  ])
+  def test_ignores_lists_containing_only_invalid_items(self, loss_fn):
+    scores = jnp.asarray([[0.0, 3.0, 1.0, 2.0], [3.0, 1.0, 4.0, 2.0]])
+    labels = jnp.asarray([[0.0, 0.0, 1.0, 1.0], [2.0, 0.0, 1.0, 0.0]])
+    mask = jnp.asarray([[1, 1, 1, 1], [0, 0, 0, 0]], dtype=jnp.bool_)
+
+    output = loss_fn(scores, labels, where=mask)
+    expected = loss_fn(scores[0, :], labels[0, :])
+
+    np.testing.assert_allclose(output, expected)
+
 
 def load_tests(loader, tests, ignore):
   del loader, ignore  # Unused.

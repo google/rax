@@ -198,7 +198,12 @@ def mrr_metric(scores: Array,
       axis=-1,
       where=where,
       initial=0.)
-  return utils.safe_reduce(values, reduce_fn=reduce_fn)
+
+  # Setup mask to ignore lists with only invalid items in reduce_fn.
+  if where is not None:
+    where = jnp.any(where, axis=-1)
+
+  return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
 
 
 def recall_metric(scores: Array,
@@ -267,7 +272,12 @@ def recall_metric(scores: Array,
   # Compute recall but prevent division by zero.
   n_relevant = jnp.where(n_relevant == 0, 1., n_relevant)
   values = n_retrieved_relevant / n_relevant
-  return utils.safe_reduce(values, reduce_fn=reduce_fn)
+
+  # Setup mask to ignore lists with only invalid items in reduce_fn.
+  if where is not None:
+    where = jnp.any(where, axis=-1)
+
+  return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
 
 
 def precision_metric(scores: Array,
@@ -336,7 +346,12 @@ def precision_metric(scores: Array,
   # Compute precision but prevent division by zero.
   n_retrieved = jnp.where(n_retrieved == 0, 1., n_retrieved)
   values = n_retrieved_relevant / n_retrieved
-  return utils.safe_reduce(values, reduce_fn=reduce_fn)
+
+  # Setup mask to ignore lists with only invalid items in reduce_fn.
+  if where is not None:
+    where = jnp.any(where, axis=-1)
+
+  return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
 
 
 def ap_metric(scores: Array,
@@ -417,7 +432,12 @@ def ap_metric(scores: Array,
   # Compute average precision but prevent division by zero.
   n_relevant = jnp.where(n_relevant == 0, 1., n_relevant)
   values = sum_prec_at_k / n_relevant
-  return utils.safe_reduce(values, reduce_fn=reduce_fn)
+
+  # Setup mask to ignore lists with only invalid items in reduce_fn.
+  if where is not None:
+    where = jnp.any(where, axis=-1)
+
+  return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
 
 
 def dcg_metric(scores: Array,
@@ -488,7 +508,12 @@ def dcg_metric(scores: Array,
 
   # Compute DCG.
   values = jnp.sum(retrieved_items * gains * discounts, axis=-1, where=where)
-  return utils.safe_reduce(values, reduce_fn=reduce_fn)
+
+  # Setup mask to ignore lists with only invalid items in reduce_fn.
+  if where is not None:
+    where = jnp.any(where, axis=-1)
+
+  return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
 
 
 def ndcg_metric(scores: Array,
@@ -573,4 +598,9 @@ def ndcg_metric(scores: Array,
   # Compute the result as `dcg / ideal_dcg` while preventing division by zero.
   ideal_dcg = jnp.where(ideal_dcg == 0., 1., ideal_dcg)
   values = regular_dcg / ideal_dcg
-  return utils.safe_reduce(values, reduce_fn=reduce_fn)
+
+  # Setup mask to ignore lists with only invalid items in reduce_fn.
+  if where is not None:
+    where = jnp.any(where, axis=-1)
+
+  return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)

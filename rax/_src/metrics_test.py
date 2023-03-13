@@ -330,6 +330,24 @@ class MetricsTest(parameterized.TestCase):
 
     np.testing.assert_allclose(jnp.array(expected_value), metric)
 
+  @parameterized.parameters([
+      metrics.mrr_metric,
+      functools.partial(metrics.precision_metric, topn=2),
+      functools.partial(metrics.recall_metric, topn=2),
+      metrics.ap_metric,
+      metrics.dcg_metric,
+      metrics.ndcg_metric,
+  ])
+  def test_ignores_lists_containing_only_invalid_items(self, metric_fn):
+    scores = jnp.asarray([[0.0, 3.0, 1.0, 2.0], [3.0, 1.0, 4.0, 2.0]])
+    labels = jnp.asarray([[0.0, 0.0, 1.0, 1.0], [2.0, 0.0, 1.0, 0.0]])
+    mask = jnp.asarray([[1, 1, 1, 1], [0, 0, 0, 0]], dtype=jnp.bool_)
+
+    output = metric_fn(scores, labels, where=mask)
+    expected = metric_fn(scores[0, :], labels[0, :])
+
+    np.testing.assert_allclose(output, expected)
+
 
 class RetrievedItemsTest(parameterized.TestCase):
 
