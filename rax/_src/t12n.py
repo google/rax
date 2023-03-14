@@ -303,7 +303,7 @@ def segment_t12n(loss_or_metric_fn: LossOrMetricFn) -> LossOrMetricFn:
       mask &= jnp.cumsum(mask, axis=-2) == 1
 
       # Apply regular `where` mask to remove invalid items as well.
-      if "where" in kwargs:
+      if kwargs.get("where") is not None:
         mask &= kwargs.get("where")
 
       kwargs["where"] = mask

@@ -511,6 +511,23 @@ class SegmentT12nTest(parameterized.TestCase):
 
     self.assertEqual(segmented_loss_fn, loss_fn_that_supports_segments)
 
+  def test_uses_mask_when_not_none(self):
+    scores = jnp.array([1.0, 1.0, 2.0, 2.0, 3.0])
+    labels = jnp.array([1.0, 0.0, 0.0, 1.0, 0.0])
+    segment_ids = jnp.array([1, 1, 2, 2, 2])
+    mask = jnp.array([1, 1, 1, 0, 1], dtype=jnp.bool_)
+
+    def loss_fn(scores, labels, *, where=None):
+      list_loss = jnp.sum(scores * labels, where=where, axis=-1)
+      return jnp.mean(list_loss, where=jnp.any(where, axis=-1))
+
+    seg_loss_fn = t12n.segment_t12n(loss_fn)
+    output_none = seg_loss_fn(scores, labels, segments=segment_ids, where=None)
+    output_mask = seg_loss_fn(scores, labels, segments=segment_ids, where=mask)
+
+    np.testing.assert_allclose(output_none, 1.5)
+    np.testing.assert_allclose(output_mask, 0.5)
+
 
 def load_tests(loader, tests, ignore):
   del loader, ignore  # Unused.
