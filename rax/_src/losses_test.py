@@ -534,6 +534,8 @@ class LossesTest(parameterized.TestCase):
     self.assertEqual(jnp.sum(none_loss), sum_loss)
 
   @parameterized.parameters([
+      losses.pointwise_mse_loss,
+      losses.pointwise_sigmoid_loss,
       losses.pairwise_hinge_loss,
       losses.pairwise_logistic_loss,
       losses.pairwise_mse_loss,
@@ -562,6 +564,8 @@ class LossesTest(parameterized.TestCase):
     np.testing.assert_allclose(expected_loss, loss, rtol=1E-5)
 
   @parameterized.parameters([
+      losses.pointwise_mse_loss,
+      losses.pointwise_sigmoid_loss,
       losses.pairwise_hinge_loss,
       losses.pairwise_logistic_loss,
       losses.pairwise_mse_loss,

@@ -515,6 +515,7 @@ def pointwise_sigmoid_loss(scores: Array,
                            labels: Array,
                            *,
                            where: Optional[Array] = None,
+                           segments: Optional[Array] = None,
                            weights: Optional[Array] = None,
                            reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
   r"""Sigmoid cross entropy loss.
@@ -535,6 +536,9 @@ def pointwise_sigmoid_loss(scores: Array,
     where: An optional [..., list_size]-Array, indicating which items are valid
       for computing the loss. Items for which this is False will be ignored when
       computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating segments within each list. The loss will only be computed on
+      items that share the same segment.
     weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating the weight for each item.
     reduce_fn: An optional function that reduces the loss values. Can be
@@ -544,6 +548,10 @@ def pointwise_sigmoid_loss(scores: Array,
   Returns:
     The sigmoid cross entropy loss.
   """
+  # Segments can be ignored by pointwise losses, but we wish to keep the kwarg
+  # in the function signature to make sure `rax.segment_t12n` can call into the
+  # implementation directly without overhead.
+  del segments  # Unused by pointwise losses.
 
   # Clips labels to be in [0, 1].
   labels = jnp.clip(labels, 0.0, 1.0)
@@ -563,6 +571,7 @@ def pointwise_mse_loss(scores: Array,
                        labels: Array,
                        *,
                        where: Optional[Array] = None,
+                       segments: Optional[Array] = None,
                        weights: Optional[Array] = None,
                        reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
   r"""Mean squared error loss.
@@ -580,6 +589,9 @@ def pointwise_mse_loss(scores: Array,
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid for computing the loss. Items for which
       this is False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating segments within each list. The loss will only be computed on
+      items that share the same segment.
     weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating the weight for each item.
     reduce_fn: An optional function that reduces the loss values. Can be
@@ -589,6 +601,11 @@ def pointwise_mse_loss(scores: Array,
   Returns:
     The mean squared error loss.
   """
+  # Segments can be ignored by pointwise losses, but we wish to keep the kwarg
+  # in the function signature to make sure `rax.segment_t12n` can call into the
+  # implementation directly without overhead.
+  del segments  # Unused by pointwise losses.
+
   loss = jnp.square(scores - labels)
 
   if weights is not None:
