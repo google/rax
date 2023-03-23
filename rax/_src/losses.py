@@ -511,6 +511,70 @@ def pairwise_logistic_loss(scores: Array,
       reduce_fn=reduce_fn)
 
 
+def pairwise_soft_zero_one_loss(
+    scores: Array,
+    labels: Array,
+    *,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    weights: Optional[Array] = None,
+    lambdaweight_fn: Optional[LambdaweightFn] = None,
+    reduce_fn: Optional[ReduceFn] = jnp.mean,
+) -> Array:
+  r"""Pairwise soft zero-one loss.
+
+  Definition:
+
+  .. math::
+      \ell(s, y) =
+      \sum_i \sum_j I[y_i > y_j] sigmod(-(s_i - s_j))
+
+  Args:
+    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      score of each item.
+    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      relevance label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items are valid for computing the loss. Items for which
+      this is False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating segments within each list. The loss will only be computed on
+      items that share the same segment.
+    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating the weight for each item.
+    lambdaweight_fn: An optional function that outputs lambdaweights.
+    reduce_fn: An optional function that reduces the loss values. Can be
+      :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
+      is performed.
+
+  Returns:
+    The pairwise soft zero-one loss value.
+  """
+
+  def _soft_zero_one_loss(
+      scores_diff: Array, labels_diff: Array
+  ) -> Tuple[Array, Array]:
+    return (
+        jnp.where(
+            scores_diff > 0,
+            1.0 - jax.nn.sigmoid(scores_diff),
+            jax.nn.sigmoid(-scores_diff),
+        ),
+        labels_diff > 0,
+    )
+
+  return pairwise_loss(
+      scores,
+      labels,
+      pair_loss_fn=_soft_zero_one_loss,
+      where=where,
+      segments=segments,
+      weights=weights,
+      lambdaweight_fn=lambdaweight_fn,
+      reduce_fn=reduce_fn,
+  )
+
+
 def pointwise_sigmoid_loss(scores: Array,
                            labels: Array,
                            *,

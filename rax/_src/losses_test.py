@@ -85,6 +85,12 @@ class LossesTest(parameterized.TestCase):
           logloss(2. - 0.)
   }, {
       "loss_fn":
+          losses.pairwise_soft_zero_one_loss,
+      "expected_value":
+          sigmoid(-(1. - 0.)) + sigmoid(-(1. - 3.)) + sigmoid(-(2. - 3.)) +
+          sigmoid(-(2. - 0.))
+  }, {
+      "loss_fn":
           losses.pointwise_sigmoid_loss,
       "expected_value":
           -log(1. - sigmoid(0.)) - log(1. - sigmoid(3.)) - log(sigmoid(1.)) -
@@ -159,6 +165,9 @@ class LossesTest(parameterized.TestCase):
       "loss_fn": losses.pairwise_logistic_loss,
       "expected_value": 2.1e26 + 2.1e26
   }, {
+      "loss_fn": losses.pairwise_soft_zero_one_loss,
+      "expected_value": 1.0 + 1.0
+  }, {
       "loss_fn": losses.pointwise_sigmoid_loss,
       "expected_value": 2.1e26 - log(1. - sigmoid(0.)) + 42.0
   }, {
@@ -223,6 +232,9 @@ class LossesTest(parameterized.TestCase):
       "loss_fn": losses.pairwise_logistic_loss,
       "expected_value": 0.
   }, {
+      "loss_fn": losses.pairwise_soft_zero_one_loss,
+      "expected_value": 0.
+  }, {
       "loss_fn":
           losses.pointwise_sigmoid_loss,
       "expected_value":
@@ -278,6 +290,9 @@ class LossesTest(parameterized.TestCase):
       "loss_fn": losses.pairwise_logistic_loss,
       "expected_value": 5.320569
   }, {
+      "loss_fn": losses.pairwise_soft_zero_one_loss,
+      "expected_value": 2.850261
+  }, {
       "loss_fn":
           losses.pointwise_sigmoid_loss,
       "expected_value":
@@ -304,7 +319,7 @@ class LossesTest(parameterized.TestCase):
 
     loss = loss_fn(scores, labels, weights=weights, reduce_fn=jnp.sum)
 
-    np.testing.assert_allclose(jnp.asarray(expected_value), loss)
+    np.testing.assert_allclose(jnp.asarray(expected_value), loss, rtol=1e-6)
 
   @parameterized.parameters([{
       "loss_fn":
@@ -454,6 +469,13 @@ class LossesTest(parameterized.TestCase):
       ],
       "normalizer": 4.
   }, {
+      "loss_fn": losses.pairwise_soft_zero_one_loss,
+      "expected_value": [
+          sigmoid(-(2. - 1.)) + sigmoid(-(2. - 3.)),
+          sigmoid(-(1.5 - 1.)) + sigmoid(-(1.5 - 0.5))
+      ],
+      "normalizer": 4.
+  }, {
       "loss_fn": losses.pointwise_sigmoid_loss,
       "expected_value": [
           -log(sigmoid(2.)) - log(1. - sigmoid(1.)) - log(1. - sigmoid(3.)),
@@ -511,6 +533,9 @@ class LossesTest(parameterized.TestCase):
       "loss_fn": losses.pairwise_logistic_loss,
       "expected_shape": (2, 9)
   }, {
+      "loss_fn": losses.pairwise_soft_zero_one_loss,
+      "expected_shape": (2, 9)
+  }, {
       "loss_fn": losses.pairwise_mse_loss,
       "expected_shape": (2, 9)
   }, {
@@ -538,6 +563,7 @@ class LossesTest(parameterized.TestCase):
       losses.pointwise_sigmoid_loss,
       losses.pairwise_hinge_loss,
       losses.pairwise_logistic_loss,
+      losses.pairwise_soft_zero_one_loss,
       losses.pairwise_mse_loss,
       losses.pairwise_qr_loss,
   ])
@@ -568,6 +594,7 @@ class LossesTest(parameterized.TestCase):
       losses.pointwise_sigmoid_loss,
       losses.pairwise_hinge_loss,
       losses.pairwise_logistic_loss,
+      losses.pairwise_soft_zero_one_loss,
       losses.pairwise_mse_loss,
       losses.pairwise_qr_loss,
   ])
@@ -595,11 +622,17 @@ class LossesTest(parameterized.TestCase):
     np.testing.assert_allclose(expected_loss, loss, rtol=1E-5)
 
   @parameterized.parameters([
-      losses.softmax_loss, losses.listmle_loss, losses.pairwise_hinge_loss,
-      losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
-      losses.pointwise_mse_loss, losses.pairwise_mse_loss,
-      losses.pairwise_qr_loss, losses.poly1_softmax_loss,
-      losses.unique_softmax_loss
+      losses.softmax_loss,
+      losses.listmle_loss,
+      losses.pairwise_hinge_loss,
+      losses.pairwise_logistic_loss,
+      losses.pairwise_soft_zero_one_loss,
+      losses.pointwise_sigmoid_loss,
+      losses.pointwise_mse_loss,
+      losses.pairwise_mse_loss,
+      losses.pairwise_qr_loss,
+      losses.poly1_softmax_loss,
+      losses.unique_softmax_loss,
   ])
   def test_computes_loss_value_with_where(self, loss_fn):
     scores = jnp.asarray([0., 3., 1., 2.])
@@ -614,11 +647,17 @@ class LossesTest(parameterized.TestCase):
     np.testing.assert_allclose(expected_loss, loss)
 
   @parameterized.parameters([
-      losses.softmax_loss, losses.listmle_loss, losses.pairwise_hinge_loss,
-      losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
-      losses.pointwise_mse_loss, losses.pairwise_mse_loss,
-      losses.pairwise_qr_loss, losses.poly1_softmax_loss,
-      losses.unique_softmax_loss
+      losses.softmax_loss,
+      losses.listmle_loss,
+      losses.pairwise_hinge_loss,
+      losses.pairwise_logistic_loss,
+      losses.pairwise_soft_zero_one_loss,
+      losses.pointwise_sigmoid_loss,
+      losses.pointwise_mse_loss,
+      losses.pairwise_mse_loss,
+      losses.pairwise_qr_loss,
+      losses.poly1_softmax_loss,
+      losses.unique_softmax_loss,
   ])
   def test_computes_loss_value_with_all_masked(self, loss_fn):
     scores = jnp.asarray([0., 3., 1., 2.])
@@ -630,11 +669,17 @@ class LossesTest(parameterized.TestCase):
     np.testing.assert_allclose(jnp.asarray(0.), loss, atol=1E-7)
 
   @parameterized.parameters([
-      losses.softmax_loss, losses.listmle_loss, losses.pairwise_hinge_loss,
-      losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
-      losses.pointwise_mse_loss, losses.pairwise_mse_loss,
-      losses.pairwise_qr_loss, losses.poly1_softmax_loss,
-      losses.unique_softmax_loss
+      losses.softmax_loss,
+      losses.listmle_loss,
+      losses.pairwise_hinge_loss,
+      losses.pairwise_logistic_loss,
+      losses.pairwise_soft_zero_one_loss,
+      losses.pointwise_sigmoid_loss,
+      losses.pointwise_mse_loss,
+      losses.pairwise_mse_loss,
+      losses.pairwise_qr_loss,
+      losses.poly1_softmax_loss,
+      losses.unique_softmax_loss,
   ])
   def test_computes_loss_with_arbitrary_batch_dimensions(self, loss_fn):
     scores = jnp.asarray([2., 3., 1.])
@@ -650,11 +695,17 @@ class LossesTest(parameterized.TestCase):
     np.testing.assert_allclose(original_loss, batched_loss)
 
   @parameterized.parameters([
-      losses.softmax_loss, losses.listmle_loss, losses.pairwise_hinge_loss,
-      losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
-      losses.pointwise_mse_loss, losses.pairwise_mse_loss,
-      losses.pairwise_qr_loss, losses.poly1_softmax_loss,
-      losses.unique_softmax_loss
+      losses.softmax_loss,
+      losses.listmle_loss,
+      losses.pairwise_hinge_loss,
+      losses.pairwise_logistic_loss,
+      losses.pairwise_soft_zero_one_loss,
+      losses.pointwise_sigmoid_loss,
+      losses.pointwise_mse_loss,
+      losses.pairwise_mse_loss,
+      losses.pairwise_qr_loss,
+      losses.poly1_softmax_loss,
+      losses.unique_softmax_loss,
   ])
   def test_grad_does_not_return_nan_for_zero_labels(self, loss_fn):
     scores = jnp.asarray([0., 3., 1., 2.])
@@ -666,11 +717,17 @@ class LossesTest(parameterized.TestCase):
         jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
 
   @parameterized.parameters([
-      losses.softmax_loss, losses.listmle_loss, losses.pairwise_hinge_loss,
-      losses.pairwise_logistic_loss, losses.pointwise_sigmoid_loss,
-      losses.pointwise_mse_loss, losses.pairwise_mse_loss,
-      losses.pairwise_qr_loss, losses.poly1_softmax_loss,
-      losses.unique_softmax_loss
+      losses.softmax_loss,
+      losses.listmle_loss,
+      losses.pairwise_hinge_loss,
+      losses.pairwise_logistic_loss,
+      losses.pairwise_soft_zero_one_loss,
+      losses.pointwise_sigmoid_loss,
+      losses.pointwise_mse_loss,
+      losses.pairwise_mse_loss,
+      losses.pairwise_qr_loss,
+      losses.poly1_softmax_loss,
+      losses.unique_softmax_loss,
   ])
   def test_grad_does_not_return_nan_with_all_masked(self, loss_fn):
     scores = jnp.asarray([0., 3., 1., 2.])
@@ -687,6 +744,7 @@ class LossesTest(parameterized.TestCase):
       losses.listmle_loss,
       losses.pairwise_hinge_loss,
       losses.pairwise_logistic_loss,
+      losses.pairwise_soft_zero_one_loss,
       losses.pointwise_sigmoid_loss,
       losses.pointwise_mse_loss,
       losses.pairwise_mse_loss,
