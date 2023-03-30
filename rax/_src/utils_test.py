@@ -198,6 +198,77 @@ class SortByTest(absltest.TestCase):
     np.testing.assert_array_equal(result2, jnp.asarray([12., 11.1, 11.2, 10.]))
 
 
+class CutoffTest(absltest.TestCase):
+
+  def test_cutoff(self):
+    scores = jnp.asarray([[0.0, 1.0, 2.0], [2.0, 1.0, 3.0]])
+    results = utils.cutoff(scores, n=2)
+    np.testing.assert_array_equal(results, jnp.asarray([[0, 1, 1], [1, 0, 1]]))
+
+  def test_cutoff_with_where(self):
+    scores = jnp.asarray([[0.0, 1.0, 2.0], [2.0, 1.0, 3.0]])
+    where = jnp.asarray([[False, False, True], [True, True, True]])
+    results = utils.cutoff(scores, n=2, where=where)
+    np.testing.assert_array_equal(results, jnp.asarray([[0, 0, 1], [1, 0, 1]]))
+
+  def test_cutoff_no_n(self):
+    scores = jnp.asarray([[0.0, 1.0, 2.0], [1.0, 2.0, 0.0]])
+    results = utils.cutoff(scores, n=None)
+    np.testing.assert_array_equal(results, jnp.asarray([[1, 1, 1], [1, 1, 1]]))
+
+  def test_cutoff_large_n(self):
+    scores = jnp.asarray([[0.0, 1.0, 2.0], [1.0, 2.0, 0.0]])
+    results = utils.cutoff(scores, n=4)
+    np.testing.assert_array_equal(results, jnp.asarray([[1, 1, 1], [1, 1, 1]]))
+
+  def test_cutoff_n_is_zero(self):
+    scores = jnp.asarray([[0.0, 1.0, 2.0], [1.0, 2.0, 0.0]])
+    results = utils.cutoff(scores, n=0)
+    np.testing.assert_array_equal(results, jnp.asarray([[0, 0, 0], [0, 0, 0]]))
+
+
+class ApproxCutoffTest(absltest.TestCase):
+
+  def test_approx_cutoff(self):
+    scores = jnp.asarray([[0.0, 1.0, 2.0], [2.0, 1.0, 3.0]])
+    results = utils.approx_cutoff(scores, n=1)
+    np.testing.assert_allclose(
+        results,
+        jnp.asarray(
+            [[0.182426, 0.377541, 0.622459], [0.377541, 0.182426, 0.622459]]
+        ),
+        rtol=1e-5,
+    )
+
+  def test_approx_cutoff_hard(self):
+    scores = jnp.asarray([[0.0, 1.0, 2.0], [2.0, 1.0, 3.0]])
+    results = utils.approx_cutoff(scores, n=2, step_fn=lambda x: x >= 0)
+    np.testing.assert_array_equal(results, jnp.asarray([[0, 1, 1], [1, 0, 1]]))
+
+  def test_approx_cutoff_with_where(self):
+    scores = jnp.asarray([[0.0, 1.0, 2.0], [2.0, 1.0, 3.0]])
+    where = jnp.asarray([[False, False, True], [True, True, True]])
+    results = utils.approx_cutoff(
+        scores, n=2, where=where, step_fn=lambda x: x >= 0
+    )
+    np.testing.assert_array_equal(results, jnp.asarray([[0, 0, 1], [1, 0, 1]]))
+
+  def test_approx_cutoff_no_n(self):
+    scores = jnp.asarray([[0.0, 1.0, 2.0], [1.0, 2.0, 0.0]])
+    results = utils.approx_cutoff(scores, n=None, step_fn=lambda x: x >= 0)
+    np.testing.assert_array_equal(results, jnp.asarray([[1, 1, 1], [1, 1, 1]]))
+
+  def test_approx_cutoff_large_n(self):
+    scores = jnp.asarray([[0.0, 1.0, 2.0], [1.0, 2.0, 0.0]])
+    results = utils.approx_cutoff(scores, n=4, step_fn=lambda x: x >= 0)
+    np.testing.assert_array_equal(results, jnp.asarray([[1, 1, 1], [1, 1, 1]]))
+
+  def test_approx_cutoff_n_is_zero(self):
+    scores = jnp.asarray([[0.0, 1.0, 2.0], [1.0, 2.0, 0.0]])
+    results = utils.approx_cutoff(scores, n=0, step_fn=lambda x: x >= 0)
+    np.testing.assert_array_equal(results, jnp.asarray([[0, 0, 0], [0, 0, 0]]))
+
+
 class RanksTest(absltest.TestCase):
 
   def test_ranks_by_sorting_scores(self):

@@ -337,28 +337,53 @@ def approx_ranks(scores: Array,
   return jnp.sum(score_pairs, axis=-1, where=triangular_mask, initial=1.0)
 
 
-def cutoff(a: Array,
-           n: Optional[int] = None,
-           *,
-           where: Optional[Array] = None,
-           step_fn: Callable[[Array], Array] = lambda x: x >= 0) -> Array:
+def cutoff(
+    a: Array, n: Optional[int] = None, where: Optional[Array] = None
+) -> Array:
   """Computes a binary array to select the largest ``n`` values of ``a``.
 
   This function computes a binary :class:`jax.numpy.ndarray` that selects the
   ``n`` largest values of ``a`` across its last dimension.
 
-  Note that the returned indicator may select more than ``n`` items if ``a`` has
-  ties.
+  Args:
+    a: The :class:`jax.numpy.ndarray` to select the topn from.
+    n: The cutoff value. If None, no cutoff is performed.
+    where: A mask to indicate which values to include in the topn calculation.
+
+  Returns:
+    A :class:`jax.numpy.ndarray` of the same shape as ``a``, where the
+    ``n`` largest values are set to 1, and the smaller values are set to 0.
+  """
+  # When the shape of `a` is smaller than `n`, there is no cut off.
+  if n is None or n >= a.shape[-1]:
+    return jnp.ones_like(a)
+
+  results = ranks(a, where=where) <= n
+  if where is not None:
+    results &= where
+  return jnp.float32(results)
+
+
+def approx_cutoff(
+    a: Array,
+    n: Optional[int] = None,
+    *,
+    where: Optional[Array] = None,
+    step_fn: Callable[[Array], Array] = jax.nn.sigmoid
+) -> Array:
+  """Approximately select the largest ``n`` values of ``a``.
+
+  This function computes a :class:`jax.numpy.ndarray` that is the probability of
+  an item being in the ``n`` largest values of ``a`` across its last dimension.
 
   Args:
     a: The :class:`jax.numpy.ndarray` to select the topn from.
     n: The cutoff value. If None, no cutoff is performed.
     where: A mask to indicate which values to include in the topn calculation.
-    step_fn: A function that computes ``x >= 0`` or an approximation.
+    step_fn: A function that computes an approximation of ``x >= 0``.
 
   Returns:
-    A :class:`jax.numpy.ndarray` of the same shape as ``a``, where the
-    ``n`` largest values are set to 1, and the smaller values are set to 0.
+    A :class:`jax.numpy.ndarray` of the same shape as ``a``.
   """
   # When the shape of `a` is smaller than `n`, there is no cut off.
   if n is None or n >= a.shape[-1]:
@@ -390,10 +415,6 @@ def cutoff(a: Array,
     cutoffs = jnp.where(where, cutoffs, jnp.zeros_like(cutoffs))
 
   return cutoffs
-
-
-approx_cutoff = jax.util.wraps(cutoff)(
-    functools.partial(cutoff, step_fn=jax.nn.sigmoid))
 
 
 def compute_pairs(a: Array, op: Callable[[Array, Array], Array]) -> Array:
