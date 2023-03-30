@@ -1,4 +1,4 @@
-# Copyright 2022 Google LLC.
+# Copyright 2023 Google LLC.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -202,7 +202,9 @@ def gumbel_t12n(loss_or_metric_fn: LossOrMetricFn,
     return jnp.repeat(jnp.expand_dims(a, axis), samples, axis)
 
   @jax.util.wraps(
-      loss_or_metric_fn, namestr="gumbel_{fun}", docstr="Gumbel {doc}")
+      loss_or_metric_fn, namestr="gumbel_{fun}", docstr="Gumbel {doc}"
+  )
+  @utils.update_signature(loss_or_metric_fn, "key")
   def _loss_or_metric_fn_with_gumbel_scores(scores: Array, labels: Array, *,
                                             key: Array, **kwargs):
     # Repeat scores and labels `n` times by adding a new batch dim.
@@ -273,6 +275,7 @@ def segment_t12n(loss_or_metric_fn: LossOrMetricFn) -> LossOrMetricFn:
   @jax.util.wraps(
       loss_or_metric_fn, namestr="segment_{fun}", docstr="Segmented {doc}"
   )
+  @utils.update_signature(loss_or_metric_fn, "segments")
   def _segmented_loss_or_metric_fn(
       scores: Array,
       labels: Array,

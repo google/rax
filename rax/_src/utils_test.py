@@ -1,4 +1,4 @@
-# Copyright 2022 Google LLC.
+# Copyright 2023 Google LLC.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 """Tests for rax._src.utils."""
 
 import doctest
+import inspect
 from absl.testing import absltest
 import jax
 import jax.numpy as jnp
@@ -322,6 +323,85 @@ class ComputePairsTest(absltest.TestCase):
     np.testing.assert_allclose(result, expected)
 
 
+class UpdateSignatureTest(absltest.TestCase):
+
+  def test_adds_parameter_to_wrapped_fn(self):
+    fn = lambda a, b: a * b
+
+    @utils.update_signature(fn, "key")
+    def wrapper(*args, key=None, **kwargs):
+      del key  # Unused.
+      return fn(*args, **kwargs)
+
+    # The expected signature should be `fn` with `key=None` added to it.
+    expected = inspect.signature(lambda a, b, *, key=None: a * b)
+    self.assertEqual(inspect.signature(wrapper), expected)
+
+  def test_adds_parameter_to_wrapped_fn_2(self):
+    def fn(a, /, b, *, c: int = 0, d: float = 1.0):
+      return (a + b + c) * d
+
+    @utils.update_signature(fn, "e")
+    def wrapper(*args, e=2.0, **kwargs):
+      return e + fn(*args, **kwargs)
+
+    # Expected signature should be the signature of `fn` with an extra kwarg
+    # `e=2.0` added to it, like this:
+    def expected_fn(a, /, b, *, c: int = 0, d: float = 1.0, e=2.0):
+      return e + fn(a, b, c=c, d=d)
+
+    # Check that signatures match.
+    signature = inspect.signature(wrapper)
+    expected_signature = inspect.signature(expected_fn)
+    self.assertEqual(signature, expected_signature)
+
+  def test_does_not_add_parameters_that_already_exist(self):
+    def fn(a, b, c):
+      del a, b, c  # Unused.
+
+    # This should only add `d` (and not `c` since it already exist).
+    @utils.update_signature(fn, "c", "d")
+    def wrapper(a, b, c, d=None):
+      del d  # Unused.
+      return fn(a, b, c)
+
+    def expected(a, b, c, d=None):
+      del a, b, c, d
+
+    self.assertEqual(inspect.signature(wrapper), inspect.signature(expected))
+
+  def test_adds_multiple_parameters(self):
+    def fn(a, b):
+      del a, b  # Unused.
+
+    @utils.update_signature(fn, "c", "d")
+    def fn2(*args, c=1, d=5, **kwargs):
+      del c, d  # Unused.
+      return fn(*args, **kwargs)
+
+    def expected_fn(a, b, *, c=1, d=5):
+      del a, b, c, d  # Unused.
+
+    self.assertEqual(inspect.signature(fn2), inspect.signature(expected_fn))
+
+  def test_keeps_signature_when_extra_parameters_is_empty(self):
+    def fn(a, b):
+      del a, b  # Unused.
+      pass
+
+    expected = inspect.signature(fn)
+
+    # No parameters are provided to be updated. Signature should remain the
+    # same.
+    @utils.update_signature(fn)
+    def new_fn(a, b):
+      return fn(a, b)
+
+    actual = inspect.signature(new_fn)
+
+    self.assertEqual(actual, expected)
+
+
 def load_tests(loader, tests, ignore):
   del loader, ignore  # Unused.
   tests.addTests(
@@ -329,7 +409,8 @@ def load_tests(loader, tests, ignore):
           utils, extraglobs={
               "jax": jax,
               "jnp": jnp,
-              "rax": rax
+              "rax": rax,
+              "utils": utils,
           }))
   return tests
 

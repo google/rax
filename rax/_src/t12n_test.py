@@ -1,4 +1,4 @@
-# Copyright 2022 Google LLC.
+# Copyright 2023 Google LLC.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 
 import doctest
 import functools
+import inspect
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -309,6 +310,14 @@ class GumbelT12nTest(parameterized.TestCase):
     np.testing.assert_array_equal(
         jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads)))
 
+  def test_returns_function_with_key_in_signature(self):
+    def loss_fn(scores, labels, *, where=None):
+      del scores, labels, where  # Unused.
+      return 0.0
+
+    gumbel_loss_fn = t12n.gumbel_t12n(loss_fn)
+    self.assertIn("key", inspect.signature(gumbel_loss_fn).parameters)
+
 
 class SegmentT12nTest(parameterized.TestCase):
 
@@ -527,6 +536,14 @@ class SegmentT12nTest(parameterized.TestCase):
 
     np.testing.assert_allclose(output_none, 1.5)
     np.testing.assert_allclose(output_mask, 0.5)
+
+  def test_returns_function_with_segments_in_signature(self):
+    def loss_fn(scores, labels, *, where=None):
+      del scores, labels, where  # Unused.
+      return 0.0
+
+    segmented_loss_fn = t12n.segment_t12n(loss_fn)
+    self.assertIn("segments", inspect.signature(segmented_loss_fn).parameters)
 
 
 def load_tests(loader, tests, ignore):

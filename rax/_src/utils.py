@@ -1,4 +1,4 @@
-# Copyright 2022 Google LLC.
+# Copyright 2023 Google LLC.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,13 +15,16 @@
 """Utility functions for Rax."""
 
 import functools
+import inspect
 
-from typing import Callable, Optional, Sequence
+from typing import Any, Callable, Optional, Sequence, TypeVar
 
 import jax
 import jax.numpy as jnp
 
 from rax._src.types import Array
+
+T = TypeVar("T")
 
 
 def safe_reduce(a: Array,
@@ -410,3 +413,71 @@ def compute_pairs(a: Array, op: Callable[[Array, Array], Array]) -> Array:
   result = jnp.broadcast_to(op(a_i, a_j), result_shape)
   out_shape = tuple(result.shape[:-2]) + (result.shape[-2] * result.shape[-1],)
   return jnp.reshape(result, out_shape)
+
+
+def update_signature(
+    wrapped: Callable[..., Any],
+    *new_kwarg_names: str,
+) -> Callable[[T], T]:
+  """Function decorator to update a function signature by appending new kwargs.
+
+  This is useful for functions where standard ``functools.wraps`` is not
+  sufficient because the wrapper has new kwargs that are not a part of the
+  signature of the wrapped function and ``inspect.signature`` would fail to
+  expose those kwargs.
+
+  Example usage:
+
+  >>> def f(a, b):
+  ...   return a + b
+  >>> @utils.update_signature(f, "c")
+  ... def g(*args, c=42):
+  ...   return f(*args) + c
+  >>> import inspect
+  >>> inspect.signature(g)
+  <Signature (a, b, *, c=42)>
+
+  Args:
+    wrapped: The function whose signature to apply to the decorated function.
+    *new_kwarg_names: Names of the new kwonly arguments to add to the signature
+      of the decorated function.
+
+  Returns:
+    A wrapper that modifies the signature of the decorated function to be like
+    ``wrapped`` but with new keyword arguments added to it.
+  """
+
+  def wrapper(fun: T) -> T:
+    # Get the signature of the wrapped function and the new function.
+    wrapped_signature = inspect.signature(wrapped)
+    fun_signature = inspect.signature(fun)
+
+    # Get the parameters of both the wrapped function and the new function. To
+    # prevent adding duplicate parameters, the `wrapped_parameters` will not
+    # contain any parameters from `new_kwarg_names`, as those will be provided
+    # by the new function `fun`.
+    wrapped_parameters = [
+        wrapped_signature.parameters[param]
+        for param in wrapped_signature.parameters
+        if param not in new_kwarg_names
+    ]
+    fun_parameters = [
+        fun_signature.parameters[param] for param in new_kwarg_names
+    ]
+
+    # Create a thin wrapper for the function. We will set the `__signature__`
+    # property on this wrapper and return it, leaving the original `fun`
+    # untouched.
+    @functools.wraps(fun)
+    def output_fun(*args, **kwargs):
+      return fun(*args, **kwargs)
+
+    # Construct a new signature by copying the `wrapped_signature`, but
+    # replacing its parameters.
+    output_fun.__signature__ = wrapped_signature.replace(
+        parameters=wrapped_parameters + fun_parameters
+    )
+
+    return output_fun
+
+  return wrapper
