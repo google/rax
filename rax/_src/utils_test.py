@@ -211,6 +211,19 @@ class CutoffTest(absltest.TestCase):
     results = utils.cutoff(scores, n=2, where=where)
     np.testing.assert_array_equal(results, jnp.asarray([[0, 0, 1], [1, 0, 1]]))
 
+  def test_cutoff_with_segments(self):
+    scores = jnp.asarray([[0.0, 1.0, 2.0], [2.0, 1.0, 3.0]])
+    segments = jnp.asarray([[0, 0, 1], [0, 1, 1]])
+    results = utils.cutoff(scores, n=1, segments=segments)
+    np.testing.assert_array_equal(results, jnp.asarray([[0, 1, 1], [1, 0, 1]]))
+
+  def test_cutoff_with_segments_and_where(self):
+    scores = jnp.asarray([[0.0, 1.0, 2.0], [2.0, 1.0, 3.0]])
+    segments = jnp.asarray([[0, 1, 1], [0, 1, 1]])
+    where = jnp.asarray([[False, True, False], [True, True, True]])
+    results = utils.cutoff(scores, n=2, segments=segments, where=where)
+    np.testing.assert_array_equal(results, jnp.asarray([[0, 1, 0], [1, 1, 1]]))
+
   def test_cutoff_no_n(self):
     scores = jnp.asarray([[0.0, 1.0, 2.0], [1.0, 2.0, 0.0]])
     results = utils.cutoff(scores, n=None)
@@ -253,6 +266,23 @@ class ApproxCutoffTest(absltest.TestCase):
     )
     np.testing.assert_array_equal(results, jnp.asarray([[0, 0, 1], [1, 0, 1]]))
 
+  def test_approx_cutoff_with_segments(self):
+    scores = jnp.asarray([[0.0, 1.0, 2.0], [2.0, 1.0, 3.0]])
+    segments = jnp.asarray([[0, 0, 1], [0, 1, 1]])
+    results = utils.approx_cutoff(
+        scores, n=1, segments=segments, step_fn=lambda x: x >= 0
+    )
+    np.testing.assert_array_equal(results, jnp.asarray([[0, 1, 1], [1, 0, 1]]))
+
+  def test_approx_cutoff_with_segments_and_where(self):
+    scores = jnp.asarray([[0.0, 1.0, 2.0], [2.0, 1.0, 3.0]])
+    segments = jnp.asarray([[0, 1, 1], [0, 1, 1]])
+    where = jnp.asarray([[False, True, False], [True, True, True]])
+    results = utils.approx_cutoff(
+        scores, n=2, segments=segments, where=where, step_fn=lambda x: x >= 0
+    )
+    np.testing.assert_array_equal(results, jnp.asarray([[0, 1, 0], [1, 1, 1]]))
+
   def test_approx_cutoff_no_n(self):
     scores = jnp.asarray([[0.0, 1.0, 2.0], [1.0, 2.0, 0.0]])
     results = utils.approx_cutoff(scores, n=None, step_fn=lambda x: x >= 0)
@@ -267,6 +297,34 @@ class ApproxCutoffTest(absltest.TestCase):
     scores = jnp.asarray([[0.0, 1.0, 2.0], [1.0, 2.0, 0.0]])
     results = utils.approx_cutoff(scores, n=0, step_fn=lambda x: x >= 0)
     np.testing.assert_array_equal(results, jnp.asarray([[0, 0, 0], [0, 0, 0]]))
+
+
+class SegmentsTest(absltest.TestCase):
+
+  def test_same_segment_mask(self):
+    segments = jnp.asarray([0, 0, 1])
+    expected = jnp.asarray([[1, 1, 0], [1, 1, 0], [0, 0, 1]])
+    actual = jnp.int32(utils.same_segment_mask(segments))
+    np.testing.assert_array_equal(actual, expected)
+
+  def test_segment_sum(self):
+    scores = jnp.asarray([1.0, 2.0, 4.0])
+    segments = jnp.asarray([0, 0, 1])
+    expected = jnp.asarray([3.0, 3.0, 4.0])
+    actual = utils.segment_sum(scores, segments)
+    np.testing.assert_array_equal(actual, expected)
+
+  def test_in_segment_indices(self):
+    segments = jnp.asarray([0, 0, 0, 1, 2, 2])
+    expected = jnp.asarray([0, 1, 2, 0, 0, 1])
+    actual = utils.in_segment_indices(segments)
+    np.testing.assert_array_equal(actual, expected)
+
+  def test_in_segment_indices_unordered(self):
+    segments = jnp.asarray([0, 0, 1, 0, 2, 2])
+    expected = jnp.asarray([0, 1, 0, 2, 0, 1])
+    actual = utils.in_segment_indices(segments)
+    np.testing.assert_array_equal(actual, expected)
 
 
 class RanksTest(absltest.TestCase):
@@ -295,6 +353,21 @@ class RanksTest(absltest.TestCase):
 
     np.testing.assert_array_equal(ranks1, jnp.asarray([1, 2, 3]))
     np.testing.assert_array_equal(ranks2, jnp.asarray([1, 3, 2]))
+
+  def test_ranks_with_segments(self):
+    scores = jnp.asarray([1.0, 3.0, 2.0, 1.0, 2.0, 3.0])
+    segments = jnp.asarray([0, 0, 0, 1, 2, 2])
+    expected = jnp.asarray([3, 1, 2, 1, 2, 1])
+    ranks = utils.ranks(scores, segments=segments)
+    np.testing.assert_array_equal(ranks, expected)
+
+  def test_ranks_with_segments_and_where(self):
+    scores = jnp.asarray([1.0, 3.0, 2.0, 1.0, 2.0, 3.0])
+    segments = jnp.asarray([0, 0, 0, 1, 2, 2])
+    where = jnp.asarray([False, True, True, True, True, False])
+    expected = jnp.asarray([3, 1, 2, 1, 1, 2])
+    ranks = utils.ranks(scores, segments=segments, where=where)
+    np.testing.assert_array_equal(ranks, expected)
 
 
 class ApproxRanksTest(absltest.TestCase):
@@ -331,6 +404,18 @@ class ApproxRanksTest(absltest.TestCase):
 
     np.testing.assert_array_equal(
         ranks, jnp.asarray([ranks_with_where[0], ranks_with_where[2]]))
+
+  def test_computes_approx_ranks_with_segments(self):
+    scores_segment_0 = jnp.asarray([3.33, 1.125])
+    scores = jnp.asarray([3.33, 2.5, 1.125])
+    segments = jnp.asarray([0, 1, 0])
+
+    ranks = utils.approx_ranks(scores_segment_0)
+    ranks_with_segments = utils.approx_ranks(scores, segments=segments)
+
+    np.testing.assert_array_equal(
+        ranks, jnp.asarray([ranks_with_segments[0], ranks_with_segments[2]])
+    )
 
 
 class SafeReduceTest(absltest.TestCase):

@@ -249,11 +249,52 @@ def sort_by(scores: Array,
   return sorted_values[num_keys:]
 
 
-def ranks(scores: Array,
-          *,
-          where: Optional[Array] = None,
-          axis: int = -1,
-          key: Optional[Array] = None) -> Array:
+def same_segment_mask(segments: Array) -> Array:
+  """Returns an array indicating whether a pair is in the same segment."""
+  return jnp.expand_dims(segments, -1) == jnp.expand_dims(segments, axis=-2)
+
+
+def segment_sum(
+    a: Array, segments: Array, where: Optional[Array] = None
+) -> Array:
+  """Returns segment sum."""
+  if where is not None:
+    where = jnp.expand_dims(where, -1) & jnp.expand_dims(where, -2)
+  return jnp.sum(
+      jnp.expand_dims(a, -2) * jnp.int32(same_segment_mask(segments)),
+      axis=-1,
+      where=where,
+  )
+
+
+def in_segment_indices(segments: Array) -> Array:
+  """Returns 0-based indices per segment.
+
+  For example: segments = [0, 0, 0, 1, 2, 2], then the in-segment indices are
+  [0, 1, 2 | 0 | 0, 1], where we use "|" to mark the boundaries of the segments.
+  Returns [0, 1, 2, 0, 0, 1] for segments [0, 0, 0, 1, 2, 2].
+
+  Args:
+    segments: A :class:`jax.numpy.ndarray` to indicate segments of items that
+      should be grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or
+      may not be sorted.
+
+  Returns:
+    An Array with 0-based indices per segment.
+  """
+  same_segments = jnp.int32(same_segment_mask(segments))
+  lower_triangle = jnp.tril(jnp.ones_like(same_segments))
+  return jnp.sum(same_segments * lower_triangle, axis=-1) - 1
+
+
+def ranks(
+    scores: Array,
+    *,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    axis: int = -1,
+    key: Optional[Array] = None
+) -> Array:
   """Computes the ranks for given scores.
 
   Note that the ranks returned by this function are not differentiable due to
@@ -264,6 +305,9 @@ def ranks(scores: Array,
       score for each item.
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid.
+    segments: A :class:`jax.numpy.ndarray` to indicate segments of items that
+      should be grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or
+      may not be sorted.
     axis: The axis to sort on, by default this is the last axis.
     key: An optional :func:`jax.random.PRNGKey`. If provided, ties will be
       broken randomly using this key. If not provided, ties will retain the
@@ -280,6 +324,24 @@ def ranks(scores: Array,
   arange = jnp.expand_dims(arange, axis=arange_broadcast_dims)
   arange = jnp.broadcast_to(arange, scores.shape)
 
+  # Compute per segment ranks when segments are set.
+  if segments is not None:
+    # TODO(xuanhui): Support any axis as it works only for axis=-1 for now.
+    if axis != -1:
+      raise ValueError(
+          "only axis=-1 is supported when segments are set, but given"
+          f" axis={axis}."
+      )
+    sorted_segments, sorted_indices = sort_by(
+        scores,
+        [segments, arange],
+        where=where,
+        key=key,
+    )
+    sorted_ranks = in_segment_indices(sorted_segments) + 1
+    # Scatter the ranks back to their corresponding entries.
+    return sort_by(-sorted_indices, [sorted_ranks])[0]
+
   # Perform an argsort on the scores along given axis. This returns the indices
   # that would sort the scores. Note that we can not use the `jnp.argsort`
   # method here as it does not support masked arrays or randomized tie-breaking.
@@ -289,11 +351,14 @@ def ranks(scores: Array,
   return jnp.argsort(indices, axis=axis) + 1
 
 
-def approx_ranks(scores: Array,
-                 *,
-                 where: Optional[Array] = None,
-                 key: Optional[Array] = None,
-                 step_fn: Callable[[Array], Array] = jax.nn.sigmoid) -> Array:
+def approx_ranks(
+    scores: Array,
+    *,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    key: Optional[Array] = None,
+    step_fn: Callable[[Array], Array] = jax.nn.sigmoid
+) -> Array:
   """Computes approximate ranks.
 
   This can be used to construct differentiable approximations of metrics. For
@@ -314,6 +379,9 @@ def approx_ranks(scores: Array,
       score for each item.
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid.
+    segments: A :class:`jax.numpy.ndarray` to indicate segments of items that
+      should be grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or
+      may not be sorted.
     key: An optional :func:`jax.random.PRNGKey`. Unused by ``approx_ranks``.
     step_fn: A callable that approximates the step function ``x >= 0``.
 
@@ -329,16 +397,22 @@ def approx_ranks(scores: Array,
   score_pairs = step_fn(score_j - score_i)
 
   # Build mask to prevent counting (i == j) pairs.
-  triangular_mask = (jnp.triu(jnp.tril(jnp.ones_like(score_pairs))) == 0.0)
+  pair_mask = jnp.triu(jnp.tril(jnp.ones_like(score_pairs))) == 0.0
   if where is not None:
     where = jnp.expand_dims(where, axis=-1) & jnp.expand_dims(where, axis=-2)
-    triangular_mask &= where
+    pair_mask &= where
+  # Mask out pairs that are not in the same segment.
+  if segments is not None:
+    pair_mask &= same_segment_mask(segments)
 
-  return jnp.sum(score_pairs, axis=-1, where=triangular_mask, initial=1.0)
+  return jnp.sum(score_pairs, axis=-1, where=pair_mask, initial=1.0)
 
 
 def cutoff(
-    a: Array, n: Optional[int] = None, where: Optional[Array] = None
+    a: Array,
+    n: Optional[int] = None,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
 ) -> Array:
   """Computes a binary array to select the largest ``n`` values of ``a``.
 
@@ -349,16 +423,18 @@ def cutoff(
     a: The :class:`jax.numpy.ndarray` to select the topn from.
     n: The cutoff value. If None, no cutoff is performed.
     where: A mask to indicate which values to include in the topn calculation.
+    segments: A :class:`jax.numpy.ndarray` to indicate segments of items that
+      should be grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or
+      may not be sorted.
 
   Returns:
     A :class:`jax.numpy.ndarray` of the same shape as ``a``, where the
     ``n`` largest values are set to 1, and the smaller values are set to 0.
   """
-  # When the shape of `a` is smaller than `n`, there is no cut off.
-  if n is None or n >= a.shape[-1]:
+  if n is None:
     return jnp.ones_like(a)
 
-  results = ranks(a, where=where) <= n
+  results = ranks(a, where=where, segments=segments) <= n
   if where is not None:
     results &= where
   return jnp.float32(results)
@@ -369,6 +445,7 @@ def approx_cutoff(
     n: Optional[int] = None,
     *,
     where: Optional[Array] = None,
+    segments: Optional[Array] = None,
     step_fn: Callable[[Array], Array] = jax.nn.sigmoid
 ) -> Array:
   """Approximately select the largest ``n`` values of ``a``.
@@ -380,38 +457,64 @@ def approx_cutoff(
     a: The :class:`jax.numpy.ndarray` to select the topn from.
     n: The cutoff value. If None, no cutoff is performed.
     where: A mask to indicate which values to include in the topn calculation.
+    segments: A :class:`jax.numpy.ndarray` to indicate segments of items that
+      should be grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or
+      may not be sorted.
     step_fn: A function that computes an approximation of ``x >= 0``.
 
   Returns:
     A :class:`jax.numpy.ndarray` of the same shape as ``a``.
   """
-  # When the shape of `a` is smaller than `n`, there is no cut off.
-  if n is None or n >= a.shape[-1]:
+  if n is None:
     return jnp.ones_like(a)
 
   # When `n` is 0, everything is cut off.
   if n == 0:
     return jnp.zeros_like(a)
 
-  # Get the sorted value at `n` and `n+1`, which is where the cutoff is supposed
-  # to happen.
-  a_topn = sort_by(a, [a], where=where)[0][..., :n][..., -1]
-  a_topnp1 = sort_by(a, [a], where=where)[0][..., :n + 1][..., -1]
+  a_ranks = ranks(a, where=where, segments=segments)
+  if segments is None:
+    # Place the cutoff point between a[n] and a[n+1]. For exact `step_fn`, this
+    # does not make a difference. But for approximate step functions (e.g.
+    # sigmoid), this ensures the cutoff value at `n` can be close to 1, and the
+    # cutoff value at `n+1` can be close to 0.
+    a_cutoff = (
+        jnp.sum(
+            jnp.where((a_ranks == n) | (a_ranks == n + 1), a, 0),
+            axis=-1,
+            keepdims=True,
+        )
+        / 2.0
+    )
+    num_valid = jnp.sum(
+        jnp.ones_like(a, dtype=jnp.int32), where=where, axis=-1, keepdims=True
+    )
+  else:
+    # Place the cutoff point between a[n] and a[n+1]. For exact `step_fn`, this
+    # does not make a difference. But for approximate step functions (e.g.
+    # sigmoid), this ensures the cutoff value at `n` can be close to 1, and the
+    # cutoff value at `n+1` can be close to 0.
+    a_cutoff = (
+        segment_sum(
+            jnp.where((a_ranks == n) | (a_ranks == n + 1), a, 0), segments
+        )
+        / 2.0
+    )
+    num_valid = segment_sum(
+        jnp.ones_like(a, dtype=jnp.int32), segments, where=where
+    )
 
-  # Place the cutoff point between a[n] and a[n+1]. For exact `step_fn`, this
-  # does not make a difference. But for approximate step functions (e.g.
-  # sigmoid), this ensures the cutoff value at `n` can be close to 1, and the
-  # cutoff value at `n+1` can be close to 0.
-  a_cutoff = jax.lax.stop_gradient((a_topnp1 + a_topn) / 2)
-  cutoffs = step_fn(a - jnp.expand_dims(a_cutoff, -1))
+  # Compute the cutoffs but prevent gradients in the cutoff-point calculation so
+  # only gradients are computed on `a`.
+  a_cutoff = jax.lax.stop_gradient(a_cutoff)
+  cutoffs = step_fn(a - a_cutoff)
+
+  # A mask can indicate a different list size for each list in `a`, so this
+  # checks if a valid cutoff exists for each list.
+  cutoffs = jnp.where(num_valid > n, cutoffs, jnp.ones_like(cutoffs))
 
   if where is not None:
-    # A mask can indicate a different list size for each list in `a`, so this
-    # checks if a valid cutoff exists for each list.
-    valid_cutoffs = n < jnp.sum(where, axis=-1, keepdims=True)
-    cutoffs = jnp.where(valid_cutoffs, cutoffs, jnp.ones_like(cutoffs))
-
-    # Also mask out invalid entries.
+    # Mask out invalid entries.
     cutoffs = jnp.where(where, cutoffs, jnp.zeros_like(cutoffs))
 
   return cutoffs
