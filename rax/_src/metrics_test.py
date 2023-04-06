@@ -350,6 +350,7 @@ class MetricsTest(parameterized.TestCase):
 
   @parameterized.parameters([
       metrics.dcg_metric,
+      metrics.ndcg_metric,
   ])
   def test_computes_metric_with_segments(self, metric_fn):
     scores = jnp.array([0.0, 1.0, 2.0, 3.0, 4.0, 7.0, 5.0, 6.0])
@@ -371,6 +372,7 @@ class MetricsTest(parameterized.TestCase):
 
   @parameterized.parameters([
       metrics.dcg_metric,
+      metrics.ndcg_metric,
   ])
   def test_computes_metric_with_segments_and_mask(self, metric_fn):
     scores = jnp.array([0.0, 1.0, 2.0, 3.0, 4.0, 7.0, 5.0, 6.0])
@@ -393,6 +395,7 @@ class MetricsTest(parameterized.TestCase):
 
   @parameterized.parameters([
       metrics.dcg_metric,
+      metrics.ndcg_metric,
   ])
   def test_computes_metric_with_segments_and_batch_dim(self, metric_fn):
     scores = jnp.array([[0.0, 1.0, 2.0, 3.0], [4.0, 7.0, 5.0, 6.0]])
@@ -414,6 +417,7 @@ class MetricsTest(parameterized.TestCase):
 
   @parameterized.parameters([
       metrics.dcg_metric,
+      metrics.ndcg_metric,
   ])
   def test_computes_metric_with_segments_and_cutoff(self, metric_fn):
     scores = jnp.array([0.0, 1.0, 2.0, 3.0, 4.0, 7.0, 5.0, 6.0])
