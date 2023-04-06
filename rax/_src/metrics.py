@@ -212,15 +212,18 @@ def mrr_metric(scores: Array,
   return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
 
 
-def recall_metric(scores: Array,
-                  labels: Array,
-                  *,
-                  where: Optional[Array] = None,
-                  topn: Optional[int] = None,
-                  key: Optional[Array] = None,
-                  rank_fn: RankFn = utils.ranks,
-                  cutoff_fn: CutoffFn = utils.cutoff,
-                  reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
+def recall_metric(
+    scores: Array,
+    labels: Array,
+    *,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    topn: Optional[int] = None,
+    key: Optional[Array] = None,
+    rank_fn: RankFn = utils.ranks,
+    cutoff_fn: CutoffFn = utils.cutoff,
+    reduce_fn: Optional[ReduceFn] = jnp.mean
+) -> Array:
   r"""Recall.
 
   .. note::
@@ -247,6 +250,9 @@ def recall_metric(scores: Array,
       relevance label for each item.
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid for computing the metric.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating segments within each list. The metric will only be computed on
+      items that share the same segment.
     topn: An optional integer value indicating at which rank the metric cuts
       off. If ``None``, no cutoff is performed.
     key: An optional :func:`~jax.random.PRNGKey`. If provided, any random
@@ -266,21 +272,39 @@ def recall_metric(scores: Array,
                              jnp.zeros_like(labels))
 
   # Get the retrieved items.
-  ranks = rank_fn(scores, where=where, key=key)
+  ranks = rank_fn(scores, where=where, segments=segments, key=key)
   retrieved_items = _retrieved_items(
-      scores, ranks, where=where, topn=topn, cutoff_fn=cutoff_fn)
+      scores,
+      ranks,
+      where=where,
+      segments=segments,
+      topn=topn,
+      cutoff_fn=cutoff_fn,
+  )
 
   # Compute number of retrieved+relevant items and relevant items.
-  n_retrieved_relevant = jnp.sum(
-      retrieved_items * relevant_items, where=where, axis=-1)
-  n_relevant = jnp.sum(relevant_items, where=where, axis=-1)
+  if segments is not None:
+    n_retrieved_relevant = utils.segment_sum(
+        retrieved_items * relevant_items, segments, where=where
+    )
+    n_relevant = utils.segment_sum(relevant_items, segments, where=where)
+  else:
+    n_retrieved_relevant = jnp.sum(
+        retrieved_items * relevant_items, where=where, axis=-1
+    )
+    n_relevant = jnp.sum(relevant_items, where=where, axis=-1)
 
   # Compute recall but prevent division by zero.
   n_relevant = jnp.where(n_relevant == 0, 1., n_relevant)
   values = n_retrieved_relevant / n_relevant
 
+  # In the segmented case, values retain their list dimension. This constructs
+  # a mask so that only the first item per segment is used in reduce_fn.
+  if segments is not None:
+    where = utils.first_item_segment_mask(segments, where=where)
+
   # Setup mask to ignore lists with only invalid items in reduce_fn.
-  if where is not None:
+  elif where is not None:
     where = jnp.any(where, axis=-1)
 
   return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
