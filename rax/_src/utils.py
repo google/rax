@@ -287,6 +287,37 @@ def in_segment_indices(segments: Array) -> Array:
   return jnp.sum(same_segments * lower_triangle, axis=-1) - 1
 
 
+def first_item_segment_mask(
+    segments: Array, where: Optional[Array] = None
+) -> Array:
+  """Constructs a mask that selects the first item per segment.
+
+  Args:
+    segments: A :class:`jax.numpy.ndarray` to indicate segments of items that
+      should be grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or
+      may not be sorted.
+    where: An optional :class:`jax.numpy.ndarray` to indicate invalid items.
+
+  Returns:
+    A :class:`jax.numpy.ndarray` of the same shape as ``segments`` that selects
+    the first valid item in each segment.
+  """
+  # Construct a same-segment mask.
+  mask = same_segment_mask(segments)
+
+  # Mask out invalid items.
+  if where is not None:
+    mask = mask & (jnp.expand_dims(where, -1) & jnp.expand_dims(where, -2))
+
+  # Remove duplicated columns in the mask so only the first item for each
+  # segment appears in the result.
+  mask = mask & (jnp.cumsum(mask, axis=-1) == 1)
+
+  # Collapse mask to original `segments` shape, so we get a mask that selects
+  # exactly the first item per segment.
+  return jnp.any(mask, axis=-2)
+
+
 def ranks(
     scores: Array,
     *,

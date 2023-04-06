@@ -326,6 +326,19 @@ class SegmentsTest(absltest.TestCase):
     actual = utils.in_segment_indices(segments)
     np.testing.assert_array_equal(actual, expected)
 
+  def test_first_item_segment_mask(self):
+    segments = jnp.array([0, 0, 1, 1, 1, 2, 2, 1, 1, 3, 3, 3])
+    expected = jnp.array([1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0], dtype=jnp.bool_)
+    actual = utils.first_item_segment_mask(segments)
+    np.testing.assert_array_equal(actual, expected)
+
+  def test_first_item_segment_mask_with_where(self):
+    segments = jnp.array([0, 0, 1, 1, 1, 2, 2, 1, 1, 3, 3, 3])
+    where = jnp.array([1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0], dtype=jnp.bool_)
+    expected = jnp.array([1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0], dtype=jnp.bool_)
+    actual = utils.first_item_segment_mask(segments, where=where)
+    np.testing.assert_array_equal(actual, expected)
+
 
 class RanksTest(absltest.TestCase):
 
