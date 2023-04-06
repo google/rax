@@ -348,6 +348,91 @@ class MetricsTest(parameterized.TestCase):
 
     np.testing.assert_allclose(output, expected)
 
+  @parameterized.parameters([
+      metrics.dcg_metric,
+  ])
+  def test_computes_metric_with_segments(self, metric_fn):
+    scores = jnp.array([0.0, 1.0, 2.0, 3.0, 4.0, 7.0, 5.0, 6.0])
+    labels = jnp.array([0.0, 1.0, 2.0, 0.0, 0.0, 0.0, 2.0, 1.0])
+    segments = jnp.array([0, 1, 0, 1, 1, 2, 4, 2])
+
+    list_scores = jnp.array(
+        [[0.0, 2.0, 0.0], [1.0, 3.0, 4.0], [7.0, 6.0, 0.0], [5.0, 0.0, 0.0]]
+    )
+    list_labels = jnp.array(
+        [[0.0, 2.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [2.0, 0.0, 0.0]]
+    )
+    list_mask = jnp.array([[1, 1, 0], [1, 1, 1], [1, 1, 0], [1, 0, 0]])
+
+    output = metric_fn(scores, labels, segments=segments)
+    expected = metric_fn(list_scores, list_labels, where=list_mask)
+
+    np.testing.assert_allclose(output, expected, rtol=1e-5)
+
+  @parameterized.parameters([
+      metrics.dcg_metric,
+  ])
+  def test_computes_metric_with_segments_and_mask(self, metric_fn):
+    scores = jnp.array([0.0, 1.0, 2.0, 3.0, 4.0, 7.0, 5.0, 6.0])
+    labels = jnp.array([0.0, 1.0, 2.0, 0.0, 0.0, 0.0, 2.0, 1.0])
+    segments = jnp.array([0, 0, 1, 1, 1, 2, 2, 4])
+    mask = jnp.array([1, 1, 1, 0, 1, 1, 0, 1])
+
+    list_scores = jnp.array(
+        [[0.0, 1.0, 0.0], [2.0, 3.0, 4.0], [7.0, 5.0, 0.0], [6.0, 0.0, 0.0]]
+    )
+    list_labels = jnp.array(
+        [[0.0, 1.0, 0.0], [2.0, 0.0, 0.0], [0.0, 2.0, 0.0], [1.0, 0.0, 0.0]]
+    )
+    list_mask = jnp.array([[1, 1, 0], [1, 0, 1], [1, 0, 0], [1, 0, 0]])
+
+    output = metric_fn(scores, labels, segments=segments, where=mask)
+    expected = metric_fn(list_scores, list_labels, where=list_mask)
+
+    np.testing.assert_allclose(output, expected, rtol=1e-5)
+
+  @parameterized.parameters([
+      metrics.dcg_metric,
+  ])
+  def test_computes_metric_with_segments_and_batch_dim(self, metric_fn):
+    scores = jnp.array([[0.0, 1.0, 2.0, 3.0], [4.0, 7.0, 5.0, 6.0]])
+    labels = jnp.array([[0.0, 1.0, 2.0, 0.0], [0.0, 0.0, 2.0, 1.0]])
+    segments = jnp.array([[0, 0, 1, 1], [2, 3, 3, 4]])
+
+    list_scores = jnp.array(
+        [[0.0, 1.0], [2.0, 3.0], [4.0, 0.0], [7.0, 5.0], [6.0, 0.0]]
+    )
+    list_labels = jnp.array(
+        [[0.0, 1.0], [2.0, 0.0], [0.0, 0.0], [0.0, 2.0], [1.0, 0.0]]
+    )
+    list_mask = jnp.array([[1, 1], [1, 1], [1, 0], [1, 1], [1, 0]])
+
+    output = metric_fn(scores, labels, segments=segments)
+    expected = metric_fn(list_scores, list_labels, where=list_mask)
+
+    np.testing.assert_allclose(output, expected, rtol=1e-5)
+
+  @parameterized.parameters([
+      metrics.dcg_metric,
+  ])
+  def test_computes_metric_with_segments_and_cutoff(self, metric_fn):
+    scores = jnp.array([0.0, 1.0, 2.0, 3.0, 4.0, 7.0, 5.0, 6.0])
+    labels = jnp.array([0.0, 1.0, 2.0, 0.0, 0.0, 0.0, 2.0, 1.0])
+    segments = jnp.array([0, 1, 0, 1, 1, 2, 4, 2])
+
+    list_scores = jnp.array(
+        [[0.0, 2.0, 0.0], [1.0, 3.0, 4.0], [7.0, 6.0, 0.0], [5.0, 0.0, 0.0]]
+    )
+    list_labels = jnp.array(
+        [[0.0, 2.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [2.0, 0.0, 0.0]]
+    )
+    list_mask = jnp.array([[1, 1, 0], [1, 1, 1], [1, 1, 0], [1, 0, 0]])
+
+    output = metric_fn(scores, labels, segments=segments, topn=2)
+    expected = metric_fn(list_scores, list_labels, where=list_mask, topn=2)
+
+    np.testing.assert_allclose(output, expected, rtol=1e-5)
+
 
 class RetrievedItemsTest(parameterized.TestCase):
 

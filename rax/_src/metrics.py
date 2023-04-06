@@ -63,18 +63,24 @@ from rax._src.types import RankFn
 from rax._src.types import ReduceFn
 
 
-def _retrieved_items(scores: Array,
-                     ranks: Array,
-                     *,
-                     where: Optional[Array] = None,
-                     topn: Optional[int] = None,
-                     cutoff_fn: CutoffFn = utils.cutoff) -> Array:
+def _retrieved_items(
+    scores: Array,
+    ranks: Array,
+    *,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    topn: Optional[int] = None,
+    cutoff_fn: CutoffFn = utils.cutoff
+) -> Array:
   """Computes an array that indicates which items are retrieved.
 
   Args:
     scores: A [..., list_size]-Array, indicating the score of each item.
     ranks: A [..., list_size]-Array, indicating the 1-based rank of each item.
     where: An optional [..., list_size]-Array, indicating which items are valid.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating segments within each list. The retrieved items will only be
+      computed on items that share the same segment.
     topn: An optional integer value indicating at which rank items are cut off.
       If None, no cutoff is performed.
     cutoff_fn: A callable that computes a cutoff tensor indicating which
@@ -94,7 +100,7 @@ def _retrieved_items(scores: Array,
     retrieved_items *= jnp.float32(where)
 
   # Only consider items in the topn as retrieved items.
-  retrieved_items *= cutoff_fn(-ranks, n=topn)
+  retrieved_items *= cutoff_fn(-ranks, segments=segments, n=topn)
 
   return retrieved_items
 
@@ -440,18 +446,21 @@ def ap_metric(scores: Array,
   return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
 
 
-def dcg_metric(scores: Array,
-               labels: Array,
-               *,
-               where: Optional[Array] = None,
-               topn: Optional[int] = None,
-               weights: Optional[Array] = None,
-               key: Optional[Array] = None,
-               gain_fn: Callable[[Array], Array] = default_gain_fn,
-               discount_fn: Callable[[Array], Array] = default_discount_fn,
-               rank_fn: RankFn = utils.ranks,
-               cutoff_fn: CutoffFn = utils.cutoff,
-               reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
+def dcg_metric(
+    scores: Array,
+    labels: Array,
+    *,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    topn: Optional[int] = None,
+    weights: Optional[Array] = None,
+    key: Optional[Array] = None,
+    gain_fn: Callable[[Array], Array] = default_gain_fn,
+    discount_fn: Callable[[Array], Array] = default_discount_fn,
+    rank_fn: RankFn = utils.ranks,
+    cutoff_fn: CutoffFn = utils.cutoff,
+    reduce_fn: Optional[ReduceFn] = jnp.mean
+) -> Array:
   r"""Discounted cumulative gain (DCG).
 
   Definition :cite:p:`jarvelin2002cumulated`:
@@ -475,6 +484,9 @@ def dcg_metric(scores: Array,
       relevance label for each item.
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid for computing the metric.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating segments within each list. The metric will only be computed on
+      items that share the same segment.
     topn: An optional integer value indicating at which rank the metric cuts
       off. If ``None``, no cutoff is performed.
     weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
@@ -494,9 +506,15 @@ def dcg_metric(scores: Array,
     The DCG metric.
   """
   # Get the retrieved items.
-  ranks = rank_fn(scores, where=where, key=key)
+  ranks = rank_fn(scores, where=where, segments=segments, key=key)
   retrieved_items = _retrieved_items(
-      scores, ranks, where=where, topn=topn, cutoff_fn=cutoff_fn)
+      scores,
+      ranks,
+      segments=segments,
+      where=where,
+      topn=topn,
+      cutoff_fn=cutoff_fn,
+  )
 
   # Computes (weighted) gains.
   gains = gain_fn(labels)
@@ -507,10 +525,20 @@ def dcg_metric(scores: Array,
   discounts = discount_fn(ranks)
 
   # Compute DCG.
-  values = jnp.sum(retrieved_items * gains * discounts, axis=-1, where=where)
+  if segments is not None:
+    values = utils.segment_sum(
+        retrieved_items * gains * discounts, segments, where=where
+    )
+  else:
+    values = jnp.sum(retrieved_items * gains * discounts, axis=-1, where=where)
+
+  # In the segmented case, values retain their list dimension. This constructs
+  # a mask so that only the first item per segment is used in reduce_fn.
+  if segments is not None:
+    where = utils.first_item_segment_mask(segments, where=where)
 
   # Setup mask to ignore lists with only invalid items in reduce_fn.
-  if where is not None:
+  elif where is not None:
     where = jnp.any(where, axis=-1)
 
   return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)

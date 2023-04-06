@@ -37,8 +37,13 @@ Array = jax.numpy.ndarray
 class RankFn(Protocol):
   """:class:`typing.Protocol` for rank functions."""
 
-  def __call__(self, scores: Array, where: Optional[Array],
-               key: Optional[Array]) -> Array:
+  def __call__(
+      self,
+      scores: Array,
+      where: Optional[Array],
+      key: Optional[Array],
+      segments: Optional[Array] = None,
+  ) -> Array:
     """Computes 1-based ranks based on the given scores.
 
     Args:
@@ -47,6 +52,8 @@ class RankFn(Protocol):
         that indicates which elements to rank. Other elements will be ranked
         last.
       key: An optional :func:`~jax.random.PRNGKey` used for random operations.
+      segments: An optional :class:`jax.numpy.ndarray` of the same shape as
+        ``a`` that indicates which elements to group together.
 
     Returns:
       A :class:`jax.numpy.ndarray` of the same shape as ``scores`` that
@@ -58,12 +65,16 @@ class RankFn(Protocol):
 class CutoffFn(Protocol):
   """:class:`typing.Protocol` for cutoff functions."""
 
-  def __call__(self, a: Array, n: Optional[int]) -> Array:
+  def __call__(
+      self, a: Array, n: Optional[int], segments: Optional[Array] = None
+  ) -> Array:
     """Computes cutoffs based on the given array.
 
     Args:
       a: The array for which to compute the cutoffs.
       n: The position of the cutoff.
+      segments: An optional :class:`jax.numpy.ndarray` of the same shape as
+        ``a`` that indicates which elements to group together.
 
     Returns:
       A binary :class:`jax.numpy.ndarray` of the same shape as ``a`` that
