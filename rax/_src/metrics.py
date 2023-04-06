@@ -408,15 +408,18 @@ def precision_metric(
   return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
 
 
-def ap_metric(scores: Array,
-              labels: Array,
-              *,
-              where: Optional[Array] = None,
-              topn: Optional[int] = None,
-              key: Optional[Array] = None,
-              rank_fn: RankFn = utils.ranks,
-              cutoff_fn: CutoffFn = utils.cutoff,
-              reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
+def ap_metric(
+    scores: Array,
+    labels: Array,
+    *,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    topn: Optional[int] = None,
+    key: Optional[Array] = None,
+    rank_fn: RankFn = utils.ranks,
+    cutoff_fn: CutoffFn = utils.cutoff,
+    reduce_fn: Optional[ReduceFn] = jnp.mean
+) -> Array:
   r"""Average Precision.
 
   .. note::
@@ -443,6 +446,9 @@ def ap_metric(scores: Array,
       relevance label for each item.
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid for computing the metric.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating segments within each list. The metric will only be computed on
+      items that share the same segment.
     topn: An optional integer value indicating at which rank the metric cuts
       off. If ``None``, no cutoff is performed.
     key: An optional :func:`~jax.random.PRNGKey`. If provided, any random
@@ -462,12 +468,15 @@ def ap_metric(scores: Array,
                              jnp.zeros_like(labels))
 
   # Get the retrieved items.
-  ranks = rank_fn(scores, where=where, key=key)
+  ranks = rank_fn(scores, where=where, segments=segments, key=key)
   retrieved_items = _retrieved_items(
-      scores, ranks, where=where, topn=topn, cutoff_fn=cutoff_fn)
-
-  # Compute ranks.
-  ranks = rank_fn(scores, where=where, key=key)
+      scores,
+      ranks,
+      where=where,
+      segments=segments,
+      topn=topn,
+      cutoff_fn=cutoff_fn,
+  )
 
   # Compute a matrix of all precision@k values
   relevant_i = jnp.expand_dims(relevant_items, axis=-1)
@@ -477,18 +486,30 @@ def ap_metric(scores: Array,
   prec_at_k = ((ranks_i >= ranks_j) * relevant_i * relevant_j) / ranks_i
 
   # Only include precision@k for retrieved items.
-  sum_prec_at_k = jnp.sum(
-      prec_at_k * jnp.expand_dims(retrieved_items, -1), axis=(-2, -1))
+  prec_mask = None if segments is None else utils.same_segment_mask(segments)
+  prec_at_k = jnp.sum(
+      prec_at_k * jnp.expand_dims(retrieved_items, -1), axis=-1, where=prec_mask
+  )
 
-  # Compute number of relevant items.
-  n_relevant = jnp.sum(relevant_items, where=where, axis=-1)
+  # Compute summed precision@k for each list and the number of relevant items.
+  if segments is not None:
+    sum_prec_at_k = utils.segment_sum(prec_at_k, segments, where=where)
+    n_relevant = utils.segment_sum(relevant_items, segments, where=where)
+  else:
+    sum_prec_at_k = jnp.sum(prec_at_k, axis=-1)
+    n_relevant = jnp.sum(relevant_items, where=where, axis=-1)
 
   # Compute average precision but prevent division by zero.
   n_relevant = jnp.where(n_relevant == 0, 1., n_relevant)
   values = sum_prec_at_k / n_relevant
 
+  # In the segmented case, values retain their list dimension. This constructs
+  # a mask so that only the first item per segment is used in reduce_fn.
+  if segments is not None:
+    where = utils.first_item_segment_mask(segments, where=where)
+
   # Setup mask to ignore lists with only invalid items in reduce_fn.
-  if where is not None:
+  elif where is not None:
     where = jnp.any(where, axis=-1)
 
   return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)

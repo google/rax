@@ -351,6 +351,7 @@ class MetricsTest(parameterized.TestCase):
   @parameterized.parameters([
       functools.partial(metrics.precision_metric, topn=1),
       functools.partial(metrics.recall_metric, topn=1),
+      metrics.ap_metric,
       metrics.dcg_metric,
       metrics.ndcg_metric,
   ])
@@ -375,6 +376,7 @@ class MetricsTest(parameterized.TestCase):
   @parameterized.parameters([
       functools.partial(metrics.precision_metric, topn=1),
       functools.partial(metrics.recall_metric, topn=1),
+      metrics.ap_metric,
       metrics.dcg_metric,
       metrics.ndcg_metric,
   ])
@@ -400,6 +402,7 @@ class MetricsTest(parameterized.TestCase):
   @parameterized.parameters([
       functools.partial(metrics.precision_metric, topn=1),
       functools.partial(metrics.recall_metric, topn=1),
+      metrics.ap_metric,
       metrics.dcg_metric,
       metrics.ndcg_metric,
   ])
@@ -424,6 +427,7 @@ class MetricsTest(parameterized.TestCase):
   @parameterized.parameters([
       metrics.precision_metric,
       metrics.recall_metric,
+      metrics.ap_metric,
       metrics.dcg_metric,
       metrics.ndcg_metric,
   ])
