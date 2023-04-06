@@ -314,6 +314,32 @@ class SegmentsTest(absltest.TestCase):
     actual = utils.segment_sum(scores, segments)
     np.testing.assert_array_equal(actual, expected)
 
+  def test_segment_max(self):
+    scores = jnp.array([1.0, 2.0, 4.0, -5.0, -5.5, -4.5])
+    segments = jnp.array([0, 0, 1, 2, 2, 2])
+    expected = jnp.array([2.0, 2.0, 4.0, -4.5, -4.5, -4.5])
+    actual = utils.segment_max(scores, segments)
+    np.testing.assert_array_equal(actual, expected)
+
+  def test_segment_max_with_initial(self):
+    scores = jnp.array([1.0, 2.0, 4.0, 1.0, 2.0, 3.0])
+    segments = jnp.array([0, 0, 1, 2, 2, 2])
+    expected = jnp.array([2.5, 2.5, 4.0, 3.0, 3.0, 3.0])
+    actual = utils.segment_max(scores, segments, initial=2.5)
+    np.testing.assert_array_equal(actual, expected)
+
+  def test_segment_max_with_where(self):
+    scores = jnp.array([1.0, 2.0, 4.0, 1.0, 2.0, 3.0])
+    segments = jnp.array([0, 0, 1, 2, 2, 2])
+    mask = jnp.array([1, 0, 1, 1, 1, 0])
+    actual = utils.segment_max(scores, segments, where=mask)
+    # Only non-masked entries have well-defined behavior under max, so we only
+    # check those.
+    np.testing.assert_equal(actual[0], jnp.array(1.0))
+    np.testing.assert_equal(actual[2], jnp.array(4.0))
+    np.testing.assert_equal(actual[3], jnp.array(2.0))
+    np.testing.assert_equal(actual[4], jnp.array(2.0))
+
   def test_in_segment_indices(self):
     segments = jnp.asarray([0, 0, 0, 1, 2, 2])
     expected = jnp.asarray([0, 1, 2, 0, 0, 1])

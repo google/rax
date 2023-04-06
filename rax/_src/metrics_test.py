@@ -349,6 +349,7 @@ class MetricsTest(parameterized.TestCase):
     np.testing.assert_allclose(output, expected)
 
   @parameterized.parameters([
+      metrics.mrr_metric,
       functools.partial(metrics.precision_metric, topn=1),
       functools.partial(metrics.recall_metric, topn=1),
       metrics.ap_metric,
@@ -374,6 +375,7 @@ class MetricsTest(parameterized.TestCase):
     np.testing.assert_allclose(output, expected, rtol=1e-5)
 
   @parameterized.parameters([
+      metrics.mrr_metric,
       functools.partial(metrics.precision_metric, topn=1),
       functools.partial(metrics.recall_metric, topn=1),
       metrics.ap_metric,
@@ -400,6 +402,7 @@ class MetricsTest(parameterized.TestCase):
     np.testing.assert_allclose(output, expected, rtol=1e-5)
 
   @parameterized.parameters([
+      metrics.mrr_metric,
       functools.partial(metrics.precision_metric, topn=1),
       functools.partial(metrics.recall_metric, topn=1),
       metrics.ap_metric,
@@ -425,6 +428,7 @@ class MetricsTest(parameterized.TestCase):
     np.testing.assert_allclose(output, expected, rtol=1e-5)
 
   @parameterized.parameters([
+      metrics.mrr_metric,
       metrics.precision_metric,
       metrics.recall_metric,
       metrics.ap_metric,
