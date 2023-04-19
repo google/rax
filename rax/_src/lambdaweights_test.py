@@ -163,17 +163,28 @@ class LambdaweightsTest(parameterized.TestCase):
           ],
       ]
   }])
-  def test_lambdaweights_with_batchdim(self, lambdaweight_fn, expected):
+  def test_lambdaweights_with_batchdim_or_segments(
+      self, lambdaweight_fn, expected
+  ):
     scores = jnp.array([[0.0, 1.0, 2.0], [0.5, 1.5, 1.0]])
     labels = jnp.array([[0.0, 2.0, 1.0], [0.0, 0.0, 1.0]])
 
     result = lambdaweight_fn(scores, labels)
-
     np.testing.assert_allclose(result, expected, rtol=1e-5)
 
+    segmented_scores = jnp.array([0.0, 1.0, 2.0])
+    segmented_labels = jnp.array([0.0, 2.0, 1.0])
+    segments = jnp.array([1, 1, 1])
+
+    segmented_result = lambdaweight_fn(
+        segmented_scores, segmented_labels, segments=segments
+    )
+    np.testing.assert_allclose(segmented_result, expected[0], rtol=1e-5)
+
   @parameterized.parameters([
-      lambdaweights.labeldiff_lambdaweight, lambdaweights.dcg_lambdaweight,
-      lambdaweights.dcg2_lambdaweight
+      lambdaweights.labeldiff_lambdaweight,
+      lambdaweights.dcg_lambdaweight,
+      lambdaweights.dcg2_lambdaweight,
   ])
   def test_lambdaweights_with_empty_list(self, lambdaweight_fn):
     scores = jnp.array([])

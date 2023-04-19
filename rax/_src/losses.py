@@ -399,7 +399,9 @@ def pairwise_loss(scores: Array,
 
   # Apply lambda weights to losses.
   if lambdaweight_fn is not None:
-    pair_losses *= lambdaweight_fn(scores, labels, where=where, weights=weights)
+    pair_losses *= lambdaweight_fn(
+        scores, labels, where=where, segments=segments, weights=weights
+    )
 
   return utils.safe_reduce(pair_losses, where=valid_pairs, reduce_fn=reduce_fn)
 

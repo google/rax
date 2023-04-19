@@ -38,11 +38,14 @@ from rax._src import utils
 from rax._src.types import Array
 
 
-def labeldiff_lambdaweight(scores: Array,
-                           labels: Array,
-                           *,
-                           where: Optional[Array] = None,
-                           weights: Optional[Array] = None) -> Array:
+def labeldiff_lambdaweight(
+    scores: Array,
+    labels: Array,
+    *,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    weights: Optional[Array] = None
+) -> Array:
   r"""Absolute label difference lambdaweights.
 
   Definition:
@@ -58,6 +61,9 @@ def labeldiff_lambdaweight(scores: Array,
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid for computing the lambdaweights. Items
       for which this is False will be ignored when computing the lambdaweights.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating segments within each list. The loss will only be computed on
+      items that share the same segment.
     weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating the weight for each item.
 
@@ -65,7 +71,12 @@ def labeldiff_lambdaweight(scores: Array,
     Absolute label difference lambdaweights.
   """
   del scores, where, weights  # Unused.
-  return jnp.abs(utils.compute_pairs(labels, operator.sub))
+
+  results = jnp.abs(utils.compute_pairs(labels, operator.sub))
+  if segments is None:
+    return results
+  else:
+    return jnp.where(utils.compute_pairs(segments, operator.eq), results, 0.0)
 
 
 def dcg_lambdaweight(
@@ -73,12 +84,13 @@ def dcg_lambdaweight(
     labels: Array,
     *,
     where: Optional[Array] = None,
+    segments: Optional[Array] = None,
     weights: Optional[Array] = None,
     topn: Optional[int] = None,
     normalize: bool = False,
     gain_fn: Callable[[Array], Array] = metrics.default_gain_fn,
-    discount_fn: Callable[[Array],
-                          Array] = metrics.default_discount_fn) -> Array:
+    discount_fn: Callable[[Array], Array] = metrics.default_discount_fn
+) -> Array:
   r"""DCG lambdaweights.
 
   Definition :cite:p:`burges2006learning`:
@@ -96,6 +108,9 @@ def dcg_lambdaweight(
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid for computing the lambdaweights. Items
       for which this is False will be ignored when computing the lambdaweights.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating segments within each list. The loss will only be computed on
+      items that share the same segment.
     weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating the weight for each item.
     topn: The topn cutoff. If ``None``, no cutoff is performed.
@@ -106,7 +121,7 @@ def dcg_lambdaweight(
   Returns:
     DCG lambdaweights.
   """
-  ranks = utils.ranks(scores, where=where)
+  ranks = utils.ranks(scores, where=where, segments=segments)
   gains = gain_fn(labels)
   if weights is not None:
     gains *= weights
@@ -116,13 +131,16 @@ def dcg_lambdaweight(
         gains,
         labels,
         where=where,
+        segments=segments,
         topn=topn,
         weights=weights,
         gain_fn=gain_fn,
         discount_fn=discount_fn,
-        reduce_fn=None)
+        reduce_fn=None,
+    )
     ideal_dcg = jnp.where(ideal_dcg == 0.0, 1.0, ideal_dcg)
-    ideal_dcg = jnp.expand_dims(ideal_dcg, -1)
+    if segments is None:
+      ideal_dcg = jnp.expand_dims(ideal_dcg, -1)
     gains /= ideal_dcg
 
   gains_abs_diffs = jnp.abs(utils.compute_pairs(gains, operator.sub))
@@ -144,7 +162,11 @@ def dcg_lambdaweight(
   # values.
   weight_scalar = labels.shape[-1]
 
-  return discounts_abs_diffs * gains_abs_diffs * weight_scalar
+  results = discounts_abs_diffs * gains_abs_diffs * weight_scalar
+  if segments is None:
+    return results
+  else:
+    return jnp.where(utils.compute_pairs(segments, operator.eq), results, 0.0)
 
 
 def dcg2_lambdaweight(
@@ -152,12 +174,13 @@ def dcg2_lambdaweight(
     labels: Array,
     *,
     where: Optional[Array] = None,
+    segments: Optional[Array] = None,
     weights: Optional[Array] = None,
     topn: Optional[int] = None,
     normalize: bool = False,
     gain_fn: Callable[[Array], Array] = metrics.default_gain_fn,
-    discount_fn: Callable[[Array],
-                          Array] = metrics.default_discount_fn) -> Array:
+    discount_fn: Callable[[Array], Array] = metrics.default_discount_fn
+) -> Array:
   r"""DCG v2 ("lambdaloss") lambdaweights.
 
   Definition :cite:p:`wang2018lambdaloss`:
@@ -177,6 +200,9 @@ def dcg2_lambdaweight(
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid for computing the lambdaweights. Items
       for which this is False will be ignored when computing the lambdaweights.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating segments within each list. The loss will only be computed on
+      items that share the same segment.
     weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating the weight for each item.
     topn: The topn cutoff. If ``None``, no cutoff is performed. Topn cutoff is
@@ -188,7 +214,7 @@ def dcg2_lambdaweight(
   Returns:
     DCG v2 ("lambdaloss") lambdaweights.
   """
-  ranks = utils.ranks(scores, where=where)
+  ranks = utils.ranks(scores, where=where, segments=segments)
   gains = gain_fn(labels)
   if weights is not None:
     gains *= weights
@@ -202,9 +228,11 @@ def dcg2_lambdaweight(
         weights=weights,
         gain_fn=gain_fn,
         discount_fn=discount_fn,
-        reduce_fn=None)
+        reduce_fn=None,
+    )
     ideal_dcg = jnp.where(ideal_dcg == 0.0, 1.0, ideal_dcg)
-    ideal_dcg = jnp.expand_dims(ideal_dcg, -1)
+    if segments is None:
+      ideal_dcg = jnp.expand_dims(ideal_dcg, -1)
     gains /= ideal_dcg
 
   gains_abs_diffs = jnp.abs(utils.compute_pairs(gains, operator.sub))
@@ -218,7 +246,8 @@ def dcg2_lambdaweight(
   ranks_max = utils.compute_pairs(ranks, jnp.maximum)
 
   discounts = jnp.abs(
-      discount_fn(ranks_abs_diffs) - discount_fn(ranks_abs_diffs + 1))
+      discount_fn(ranks_abs_diffs) - discount_fn(ranks_abs_diffs + 1)
+  )
   discounts = jnp.where(ranks_abs_diffs != 0, discounts, 0.0)
 
   if topn is not None:
@@ -231,4 +260,8 @@ def dcg2_lambdaweight(
   # values.
   weight_scalar = labels.shape[-1]
 
-  return discounts * gains_abs_diffs * weight_scalar
+  results = discounts * gains_abs_diffs * weight_scalar
+  if segments is None:
+    return results
+  else:
+    return jnp.where(utils.compute_pairs(segments, operator.eq), results, 0.0)
