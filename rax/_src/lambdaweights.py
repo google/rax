@@ -70,13 +70,19 @@ def labeldiff_lambdaweight(
   Returns:
     Absolute label difference lambdaweights.
   """
-  del scores, where, weights  # Unused.
+  del scores, weights  # Unused.
 
   results = jnp.abs(utils.compute_pairs(labels, operator.sub))
-  if segments is None:
-    return results
-  else:
-    return jnp.where(utils.compute_pairs(segments, operator.eq), results, 0.0)
+
+  if where is not None:
+    results = jnp.where(utils.compute_pairs(where, operator.eq), results, 0.0)
+
+  if segments is not None:
+    results = jnp.where(
+        utils.compute_pairs(segments, operator.eq), results, 0.0
+    )
+
+  return results
 
 
 def dcg_lambdaweight(

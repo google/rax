@@ -197,7 +197,7 @@ class LambdaweightsTest(parameterized.TestCase):
 
   @parameterized.parameters([{
       "lambdaweight_fn": lambdaweights.labeldiff_lambdaweight,
-      "expected": [0.0, 1.0, 0.3, 1.0, 0.0, 0.7, 0.3, 0.7, 0.0]
+      "expected": [0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0]
   }, {
       "lambdaweight_fn":
           lambdaweights.dcg_lambdaweight,
