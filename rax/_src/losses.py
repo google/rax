@@ -216,14 +216,16 @@ def poly1_softmax_loss(scores: Array,
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def unique_softmax_loss(scores: Array,
-                        labels: Array,
-                        *,
-                        where: Optional[Array] = None,
-                        weights: Optional[Array] = None,
-                        gain_fn: Optional[Callable[
-                            [Array], Array]] = metrics.default_gain_fn,
-                        reduce_fn: ReduceFn = jnp.mean) -> Array:
+def unique_softmax_loss(
+    scores: Array,
+    labels: Array,
+    *,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    weights: Optional[Array] = None,
+    gain_fn: Optional[Callable[[Array], Array]] = metrics.default_gain_fn,
+    reduce_fn: ReduceFn = jnp.mean,
+) -> Array:
   r"""Unique softmax loss.
 
   Definition :cite:p:`zhu2020listwise`:
@@ -244,6 +246,9 @@ def unique_softmax_loss(scores: Array,
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid for computing the loss. Items for which
       this is False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating segments within each list. The loss will only be computed on
+      items that share the same segment.
     weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating the weight for each item.
     gain_fn: An optional function that maps relevance labels to gain values. If
@@ -261,6 +266,8 @@ def unique_softmax_loss(scores: Array,
   labels_lt = jnp.expand_dims(labels, -2) < jnp.expand_dims(labels, -1)
   scores_repeated = jnp.repeat(
       jnp.expand_dims(scores, -2), scores.shape[-1], axis=-2)
+  if segments is not None:
+    labels_lt = labels_lt & segment_utils.same_segment_mask(segments)
 
   # Build an identity mask to select items during softmax computation.
   identity_mask = jnp.identity(scores.shape[-1], dtype=jnp.bool_)
@@ -290,10 +297,18 @@ def unique_softmax_loss(scores: Array,
     log_softmax *= gain_fn(labels)
 
   # Compute per-list loss and return a reduced loss.
-  loss = -jnp.sum(log_softmax, axis=-1, where=where)
+  if segments is None:
+    loss = -jnp.sum(log_softmax, axis=-1, where=where)
+  else:
+    loss = -segment_utils.segment_sum(log_softmax, segments, where=where)
+
+  # In the segmented case, values retain their list dimension. This constructs
+  # a mask so that only the first item per segment is used in reduce_fn.
+  if segments is not None:
+    where = segment_utils.first_item_segment_mask(segments, where=where)
 
   # Setup mask to ignore lists with only invalid items in reduce_fn.
-  if where is not None:
+  elif where is not None:
     where = jnp.any(where, axis=-1)
 
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
