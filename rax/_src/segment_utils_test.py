@@ -26,13 +26,16 @@ import rax
 from rax._src import segment_utils
 
 
-class SegmentsTest(absltest.TestCase):
+class SameSegmentMaskTest(absltest.TestCase):
 
-  def test_same_segment_mask(self):
+  def test_returns_pairwise_mask_indicating_same_segments(self):
     segments = jnp.asarray([0, 0, 1])
     expected = jnp.asarray([[1, 1, 0], [1, 1, 0], [0, 0, 1]])
     actual = jnp.int32(segment_utils.same_segment_mask(segments))
     np.testing.assert_array_equal(actual, expected)
+
+
+class SegmentSumTest(absltest.TestCase):
 
   def test_segment_sum(self):
     scores = jnp.asarray([1.0, 2.0, 4.0])
@@ -41,21 +44,24 @@ class SegmentsTest(absltest.TestCase):
     actual = segment_utils.segment_sum(scores, segments)
     np.testing.assert_array_equal(actual, expected)
 
-  def test_segment_max(self):
+
+class SegmentMaxTest(absltest.TestCase):
+
+  def test_computes_max_per_segment(self):
     scores = jnp.array([1.0, 2.0, 4.0, -5.0, -5.5, -4.5])
     segments = jnp.array([0, 0, 1, 2, 2, 2])
     expected = jnp.array([2.0, 2.0, 4.0, -4.5, -4.5, -4.5])
     actual = segment_utils.segment_max(scores, segments)
     np.testing.assert_array_equal(actual, expected)
 
-  def test_segment_max_with_initial(self):
+  def test_computes_max_with_initial_value(self):
     scores = jnp.array([1.0, 2.0, 4.0, 1.0, 2.0, 3.0])
     segments = jnp.array([0, 0, 1, 2, 2, 2])
     expected = jnp.array([2.5, 2.5, 4.0, 3.0, 3.0, 3.0])
     actual = segment_utils.segment_max(scores, segments, initial=2.5)
     np.testing.assert_array_equal(actual, expected)
 
-  def test_segment_max_with_where(self):
+  def test_computes_max_with_mask(self):
     scores = jnp.array([1.0, 2.0, 4.0, 1.0, 2.0, 3.0])
     segments = jnp.array([0, 0, 1, 2, 2, 2])
     mask = jnp.array([1, 0, 1, 1, 1, 0])
@@ -66,6 +72,9 @@ class SegmentsTest(absltest.TestCase):
     np.testing.assert_equal(actual[2], jnp.array(4.0))
     np.testing.assert_equal(actual[3], jnp.array(2.0))
     np.testing.assert_equal(actual[4], jnp.array(2.0))
+
+
+class InSegmentIndicesTest(absltest.TestCase):
 
   def test_in_segment_indices(self):
     segments = jnp.asarray([0, 0, 0, 1, 2, 2])
@@ -79,13 +88,16 @@ class SegmentsTest(absltest.TestCase):
     actual = segment_utils.in_segment_indices(segments)
     np.testing.assert_array_equal(actual, expected)
 
-  def test_first_item_segment_mask(self):
+
+class FirstItemSegmentMask(absltest.TestCase):
+
+  def test_selects_first_item_per_segment(self):
     segments = jnp.array([0, 0, 1, 1, 1, 2, 2, 1, 1, 3, 3, 3])
     expected = jnp.array([1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0], dtype=jnp.bool_)
     actual = segment_utils.first_item_segment_mask(segments)
     np.testing.assert_array_equal(actual, expected)
 
-  def test_first_item_segment_mask_with_where(self):
+  def test_does_not_select_masked_items(self):
     segments = jnp.array([0, 0, 1, 1, 1, 2, 2, 1, 1, 3, 3, 3])
     where = jnp.array([1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0], dtype=jnp.bool_)
     expected = jnp.array([1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0], dtype=jnp.bool_)
