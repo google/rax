@@ -56,6 +56,7 @@ from typing import Callable, Optional
 
 import jax.numpy as jnp
 
+from rax._src import segment_utils
 from rax._src import utils
 from rax._src.types import Array
 from rax._src.types import CutoffFn
@@ -212,7 +213,7 @@ def mrr_metric(
 
   # Get the maximum reciprocal rank.
   if segments is not None:
-    values = utils.segment_max(
+    values = segment_utils.segment_max(
         relevant_items * retrieved_items * reciprocal_ranks,
         segments,
         where=where,
@@ -229,7 +230,7 @@ def mrr_metric(
   # In the segmented case, values retain their list dimension. This constructs
   # a mask so that only the first item per segment is used in reduce_fn.
   if segments is not None:
-    where = utils.first_item_segment_mask(segments, where=where)
+    where = segment_utils.first_item_segment_mask(segments, where=where)
 
   # Setup mask to ignore lists with only invalid items in reduce_fn.
   elif where is not None:
@@ -310,10 +311,12 @@ def recall_metric(
 
   # Compute number of retrieved+relevant items and relevant items.
   if segments is not None:
-    n_retrieved_relevant = utils.segment_sum(
+    n_retrieved_relevant = segment_utils.segment_sum(
         retrieved_items * relevant_items, segments, where=where
     )
-    n_relevant = utils.segment_sum(relevant_items, segments, where=where)
+    n_relevant = segment_utils.segment_sum(
+        relevant_items, segments, where=where
+    )
   else:
     n_retrieved_relevant = jnp.sum(
         retrieved_items * relevant_items, where=where, axis=-1
@@ -327,7 +330,7 @@ def recall_metric(
   # In the segmented case, values retain their list dimension. This constructs
   # a mask so that only the first item per segment is used in reduce_fn.
   if segments is not None:
-    where = utils.first_item_segment_mask(segments, where=where)
+    where = segment_utils.first_item_segment_mask(segments, where=where)
 
   # Setup mask to ignore lists with only invalid items in reduce_fn.
   elif where is not None:
@@ -408,10 +411,12 @@ def precision_metric(
 
   # Compute number of retrieved+relevant items and retrieved items.
   if segments is not None:
-    n_retrieved_relevant = utils.segment_sum(
+    n_retrieved_relevant = segment_utils.segment_sum(
         retrieved_items * relevant_items, segments, where=where
     )
-    n_retrieved = utils.segment_sum(retrieved_items, segments, where=where)
+    n_retrieved = segment_utils.segment_sum(
+        retrieved_items, segments, where=where
+    )
   else:
     n_retrieved_relevant = jnp.sum(
         retrieved_items * relevant_items, where=where, axis=-1
@@ -425,7 +430,7 @@ def precision_metric(
   # In the segmented case, values retain their list dimension. This constructs
   # a mask so that only the first item per segment is used in reduce_fn.
   if segments is not None:
-    where = utils.first_item_segment_mask(segments, where=where)
+    where = segment_utils.first_item_segment_mask(segments, where=where)
 
   # Setup mask to ignore lists with only invalid items in reduce_fn.
   elif where is not None:
@@ -512,15 +517,19 @@ def ap_metric(
   prec_at_k = ((ranks_i >= ranks_j) * relevant_i * relevant_j) / ranks_i
 
   # Only include precision@k for retrieved items.
-  prec_mask = None if segments is None else utils.same_segment_mask(segments)
+  prec_mask = None
+  if segments is not None:
+    prec_mask = segment_utils.same_segment_mask(segments)
   prec_at_k = jnp.sum(
       prec_at_k * jnp.expand_dims(retrieved_items, -1), axis=-1, where=prec_mask
   )
 
   # Compute summed precision@k for each list and the number of relevant items.
   if segments is not None:
-    sum_prec_at_k = utils.segment_sum(prec_at_k, segments, where=where)
-    n_relevant = utils.segment_sum(relevant_items, segments, where=where)
+    sum_prec_at_k = segment_utils.segment_sum(prec_at_k, segments, where=where)
+    n_relevant = segment_utils.segment_sum(
+        relevant_items, segments, where=where
+    )
   else:
     sum_prec_at_k = jnp.sum(prec_at_k, axis=-1)
     n_relevant = jnp.sum(relevant_items, where=where, axis=-1)
@@ -532,7 +541,7 @@ def ap_metric(
   # In the segmented case, values retain their list dimension. This constructs
   # a mask so that only the first item per segment is used in reduce_fn.
   if segments is not None:
-    where = utils.first_item_segment_mask(segments, where=where)
+    where = segment_utils.first_item_segment_mask(segments, where=where)
 
   # Setup mask to ignore lists with only invalid items in reduce_fn.
   elif where is not None:
@@ -621,7 +630,7 @@ def dcg_metric(
 
   # Compute DCG.
   if segments is not None:
-    values = utils.segment_sum(
+    values = segment_utils.segment_sum(
         retrieved_items * gains * discounts, segments, where=where
     )
   else:
@@ -630,7 +639,7 @@ def dcg_metric(
   # In the segmented case, values retain their list dimension. This constructs
   # a mask so that only the first item per segment is used in reduce_fn.
   if segments is not None:
-    where = utils.first_item_segment_mask(segments, where=where)
+    where = segment_utils.first_item_segment_mask(segments, where=where)
 
   # Setup mask to ignore lists with only invalid items in reduce_fn.
   elif where is not None:
@@ -733,7 +742,7 @@ def ndcg_metric(
   # In the segmented case, values retain their list dimension. This constructs
   # a mask so that only the first item per segment is used in reduce_fn.
   if segments is not None:
-    where = utils.first_item_segment_mask(segments, where=where)
+    where = segment_utils.first_item_segment_mask(segments, where=where)
 
   # Setup mask to ignore lists with only invalid items in reduce_fn.
   elif where is not None:

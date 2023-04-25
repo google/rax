@@ -17,11 +17,12 @@
 import functools
 import inspect
 
-from typing import Any, Callable, Optional, Sequence, TypeVar, Union
+from typing import Any, Callable, Optional, Sequence, TypeVar
 
 import jax
 import jax.numpy as jnp
 
+from rax._src import segment_utils
 from rax._src.types import Array
 
 T = TypeVar("T")
@@ -249,94 +250,6 @@ def sort_by(scores: Array,
   return sorted_values[num_keys:]
 
 
-def same_segment_mask(segments: Array) -> Array:
-  """Returns an array indicating whether a pair is in the same segment."""
-  return jnp.expand_dims(segments, -1) == jnp.expand_dims(segments, axis=-2)
-
-
-def segment_sum(
-    a: Array, segments: Array, where: Optional[Array] = None
-) -> Array:
-  """Returns segment sum."""
-  if where is not None:
-    where = jnp.expand_dims(where, -1) & jnp.expand_dims(where, -2)
-  return jnp.sum(
-      jnp.expand_dims(a, -2) * jnp.int32(same_segment_mask(segments)),
-      axis=-1,
-      where=where,
-  )
-
-
-def segment_max(
-    a: Array,
-    segments: Array,
-    where: Optional[Array] = None,
-    initial: Optional[Union[float, int]] = None,
-) -> Array:
-  """Returns segment max."""
-  mask = same_segment_mask(segments)
-  if where is not None:
-    mask &= jnp.expand_dims(where, -1) & jnp.expand_dims(where, -2)
-  initial = jnp.min(a) if initial is None else initial
-  return jnp.max(
-      jnp.broadcast_to(jnp.expand_dims(a, -2), mask.shape),
-      axis=-1,
-      where=mask,
-      initial=initial
-  )
-
-
-def in_segment_indices(segments: Array) -> Array:
-  """Returns 0-based indices per segment.
-
-  For example: segments = [0, 0, 0, 1, 2, 2], then the in-segment indices are
-  [0, 1, 2 | 0 | 0, 1], where we use "|" to mark the boundaries of the segments.
-  Returns [0, 1, 2, 0, 0, 1] for segments [0, 0, 0, 1, 2, 2].
-
-  Args:
-    segments: A :class:`jax.numpy.ndarray` to indicate segments of items that
-      should be grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or
-      may not be sorted.
-
-  Returns:
-    An Array with 0-based indices per segment.
-  """
-  same_segments = jnp.int32(same_segment_mask(segments))
-  lower_triangle = jnp.tril(jnp.ones_like(same_segments))
-  return jnp.sum(same_segments * lower_triangle, axis=-1) - 1
-
-
-def first_item_segment_mask(
-    segments: Array, where: Optional[Array] = None
-) -> Array:
-  """Constructs a mask that selects the first item per segment.
-
-  Args:
-    segments: A :class:`jax.numpy.ndarray` to indicate segments of items that
-      should be grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or
-      may not be sorted.
-    where: An optional :class:`jax.numpy.ndarray` to indicate invalid items.
-
-  Returns:
-    A :class:`jax.numpy.ndarray` of the same shape as ``segments`` that selects
-    the first valid item in each segment.
-  """
-  # Construct a same-segment mask.
-  mask = same_segment_mask(segments)
-
-  # Mask out invalid items.
-  if where is not None:
-    mask = mask & (jnp.expand_dims(where, -1) & jnp.expand_dims(where, -2))
-
-  # Remove duplicated columns in the mask so only the first item for each
-  # segment appears in the result.
-  mask = mask & (jnp.cumsum(mask, axis=-1) == 1)
-
-  # Collapse mask to original `segments` shape, so we get a mask that selects
-  # exactly the first item per segment.
-  return jnp.any(mask, axis=-2)
-
-
 def ranks(
     scores: Array,
     *,
@@ -388,7 +301,7 @@ def ranks(
         where=where,
         key=key,
     )
-    sorted_ranks = in_segment_indices(sorted_segments) + 1
+    sorted_ranks = segment_utils.in_segment_indices(sorted_segments) + 1
     # Scatter the ranks back to their corresponding entries.
     return sort_by(-sorted_indices, [sorted_ranks])[0]
 
@@ -453,7 +366,7 @@ def approx_ranks(
     pair_mask &= where
   # Mask out pairs that are not in the same segment.
   if segments is not None:
-    pair_mask &= same_segment_mask(segments)
+    pair_mask &= segment_utils.same_segment_mask(segments)
 
   return jnp.sum(score_pairs, axis=-1, where=pair_mask, initial=1.0)
 
@@ -545,12 +458,12 @@ def approx_cutoff(
     # sigmoid), this ensures the cutoff value at `n` can be close to 1, and the
     # cutoff value at `n+1` can be close to 0.
     a_cutoff = (
-        segment_sum(
+        segment_utils.segment_sum(
             jnp.where((a_ranks == n) | (a_ranks == n + 1), a, 0), segments
         )
         / 2.0
     )
-    num_valid = segment_sum(
+    num_valid = segment_utils.segment_sum(
         jnp.ones_like(a, dtype=jnp.int32), segments, where=where
     )
 
