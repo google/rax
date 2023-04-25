@@ -16,6 +16,7 @@
 
 from typing import Optional, Union
 
+import jax
 import jax.numpy as jnp
 
 from rax._src.types import Array
@@ -56,6 +57,20 @@ def segment_max(
       where=mask,
       initial=initial
   )
+
+
+def segment_log_softmax(
+    a: Array,
+    segments: Array,
+    where: Optional[Array] = None
+) -> Array:
+  """Returns segment log-softmax."""
+  a_max = segment_max(a, segments, where=where, initial=jnp.min(a))
+  shifted = a - jax.lax.stop_gradient(a_max)
+  shifted_logsumexp = jnp.log(
+      segment_sum(jnp.exp(shifted), segments, where=where)
+  )
+  return shifted - shifted_logsumexp
 
 
 def in_segment_indices(segments: Array) -> Array:
