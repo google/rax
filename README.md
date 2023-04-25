@@ -36,11 +36,14 @@ various ranking losses and metrics:
 import jax.numpy as jnp
 import rax
 
-scores = jnp.asarray([2.2, -1.3, 5.4])  # output of a model.
-labels = jnp.asarray([1., 0., 0.])      # indicates doc 1 is relevant.
+scores = jnp.array([2.2, -1.3, 5.4])  # output of a model.
+labels = jnp.array([1.0,  0.0, 0.0])  # indicates doc 1 is relevant.
 
-rax.ndcg_metric(scores, labels)         # computes a ranking metric.
-rax.pairwise_hinge_loss(scores, labels) # computes a ranking loss.
+rax.ndcg_metric(scores, labels)  # computes a ranking metric.
+# 0.63092977
+
+rax.pairwise_hinge_loss(scores, labels)  # computes a ranking loss.
+# 2.1
 ```
 
 All of the Rax losses and metrics are purely functional and compose well with
@@ -51,8 +54,11 @@ ranking metric into a differentiable loss. For example:
 
 ```python
 loss_fn = rax.approx_t12n(rax.ndcg_metric)
-loss_fn(scores, labels)            # differentiable approx ndcg loss.
+loss_fn(scores, labels)  # differentiable approx ndcg loss.
+# -0.63282484
+
 jax.grad(loss_fn)(scores, labels)  # computes gradients w.r.t. scores.
+# [-0.01276882  0.00549765  0.00727116]
 ```
 
 ## Installation
@@ -61,7 +67,9 @@ See https://github.com/google/jax#installation for instructions on installing JA
 
 We suggest installing the latest stable version of Rax by running:
 
-`$ pip install rax`
+```
+$ pip install rax
+```
 
 ## Examples
 
