@@ -58,19 +58,23 @@ import jax
 import jax.numpy as jnp
 
 from rax._src import metrics
+from rax._src import segment_utils
 from rax._src import utils
 from rax._src.types import Array
 from rax._src.types import LambdaweightFn
 from rax._src.types import ReduceFn
 
 
-def softmax_loss(scores: Array,
-                 labels: Array,
-                 *,
-                 where: Optional[Array] = None,
-                 weights: Optional[Array] = None,
-                 label_fn: Callable[..., Array] = lambda a, where: a,
-                 reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
+def softmax_loss(
+    scores: Array,
+    labels: Array,
+    *,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    weights: Optional[Array] = None,
+    label_fn: Callable[..., Array] = lambda a, where: a,
+    reduce_fn: Optional[ReduceFn] = jnp.mean,
+) -> Array:
   r"""Softmax loss.
 
   Definition:
@@ -87,6 +91,9 @@ def softmax_loss(scores: Array,
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid for computing the loss. Items for which
       this is False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating segments within each list. The loss will only be computed on
+      items that share the same segment.
     weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating the weight for each item.
     label_fn: A label function that maps labels to probabilities. Default keeps
@@ -109,16 +116,29 @@ def softmax_loss(scores: Array,
 
   # Scales labels and scores to match the cross entropy loss.
   labels_probabilities = label_fn(labels, where=where)
-  scores_log_softmax = jax.nn.log_softmax(scores, axis=-1)
+  if segments is None:
+    scores_log_softmax = jax.nn.log_softmax(scores, axis=-1)
+  else:
+    scores_log_softmax = segment_utils.segment_log_softmax(scores, segments)
 
   # Computes per-element cross entropy.
   softmax_cross_entropy = labels_probabilities * scores_log_softmax
 
   # Reduces softmax cross-entropy loss.
-  loss = -jnp.sum(softmax_cross_entropy, axis=-1, where=where)
+  if segments is None:
+    loss = -jnp.sum(softmax_cross_entropy, axis=-1, where=where)
+  else:
+    loss = -segment_utils.segment_sum(
+        softmax_cross_entropy, segments, where=where
+    )
+
+  # In the segmented case, values retain their list dimension. This constructs
+  # a mask so that only the first item per segment is used in reduce_fn.
+  if segments is not None:
+    where = segment_utils.first_item_segment_mask(segments, where=where)
 
   # Setup mask to ignore lists with only invalid items in reduce_fn.
-  if where is not None:
+  elif where is not None:
     where = jnp.any(where, axis=-1)
 
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)

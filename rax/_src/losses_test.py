@@ -566,6 +566,7 @@ class LossesTest(parameterized.TestCase):
       losses.pairwise_soft_zero_one_loss,
       losses.pairwise_mse_loss,
       losses.pairwise_qr_loss,
+      losses.softmax_loss,
   ])
   def test_computes_loss_value_with_segments(self, loss_fn):
     scores = jnp.asarray([0.0, 3.0, 1.0, 2.0, 4.0, 3.0, 0.0, 2.0])
@@ -597,6 +598,7 @@ class LossesTest(parameterized.TestCase):
       losses.pairwise_soft_zero_one_loss,
       losses.pairwise_mse_loss,
       losses.pairwise_qr_loss,
+      losses.softmax_loss,
   ])
   def test_computes_loss_value_with_segments_and_mask(self, loss_fn):
     scores = jnp.asarray([0.0, 3.0, 1.0, 2.0, 4.0, 3.0, 0.0, 2.0, 0.0, 0.0])
