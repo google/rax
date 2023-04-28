@@ -73,6 +73,17 @@ def segment_log_softmax(
   return shifted - shifted_logsumexp
 
 
+def segment_softmax(
+    a: Array,
+    segments: Array,
+    where: Optional[Array] = None
+) -> Array:
+  """Returns segment softmax."""
+  a_max = segment_max(a, segments, where=where, initial=jnp.min(a))
+  unnormalized = jnp.exp(a - jax.lax.stop_gradient(a_max))
+  return unnormalized / segment_sum(unnormalized, segments, where=where)
+
+
 def in_segment_indices(segments: Array) -> Array:
   """Returns 0-based indices per segment.
 

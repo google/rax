@@ -111,6 +111,43 @@ class SegmentLogSoftmaxTest(absltest.TestCase):
     np.testing.assert_allclose(actual[3:5], expected_2)
 
 
+class SegmentSoftmaxTest(absltest.TestCase):
+
+  def test_computes_softmax(self):
+    a = jnp.array([2.0, -1.0, 0.9, 1.3, 2.3])
+    segments = jnp.array([0, 0, 0, 1, 1])
+
+    expected_1 = jax.nn.softmax(a[0:3])
+    expected_2 = jax.nn.softmax(a[3:5])
+    actual = segment_utils.segment_softmax(a, segments)
+
+    np.testing.assert_allclose(actual[0:3], expected_1)
+    np.testing.assert_allclose(actual[3:5], expected_2)
+
+  def test_computes_softmax_with_mask(self):
+    a = jnp.array([2.0, -1.0, 0.9, 1.3, 2.3])
+    segments = jnp.array([0, 0, 0, 1, 1])
+    mask = jnp.array([1, 1, 0, 1, 1])
+
+    expected_1 = jax.nn.softmax(a[0:3], where=mask[0:3], initial=jnp.min(a))
+    expected_2 = jax.nn.softmax(a[3:5], where=mask[3:5], initial=jnp.min(a))
+    actual = segment_utils.segment_softmax(a, segments, where=mask)
+
+    np.testing.assert_allclose(actual[0:2], expected_1[0:2])
+    np.testing.assert_allclose(actual[3:5], expected_2)
+
+  def test_handles_extreme_values(self):
+    a = jnp.array([-1e34, 3e28, 0.00000001, -100001, 0.999])
+    segments = jnp.array([1, 1, 1, 9999, 9999])
+
+    expected_1 = jax.nn.softmax(a[0:3])
+    expected_2 = jax.nn.softmax(a[3:5])
+    actual = segment_utils.segment_softmax(a, segments)
+
+    np.testing.assert_allclose(actual[0:3], expected_1)
+    np.testing.assert_allclose(actual[3:5], expected_2)
+
+
 class InSegmentIndicesTest(absltest.TestCase):
 
   def test_in_segment_indices(self):
