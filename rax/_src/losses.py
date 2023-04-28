@@ -340,12 +340,15 @@ def unique_softmax_loss(
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def listmle_loss(scores: Array,
-                 labels: Array,
-                 *,
-                 key: Optional[Array] = None,
-                 where: Optional[Array] = None,
-                 reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
+def listmle_loss(
+    scores: Array,
+    labels: Array,
+    *,
+    key: Optional[Array] = None,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    reduce_fn: Optional[ReduceFn] = jnp.mean,
+) -> Array:
   r"""ListMLE Loss.
 
   .. note::
@@ -353,6 +356,7 @@ def listmle_loss(scores: Array,
     This loss performs sorting using the given labels. If the labels contain
     multiple identical values, you should provide a :func:`~jax.random.PRNGKey`
     to the ``key`` argument to make sure ties are broken randomly during the
+    segments: Optional[Array] = None,
     sorting operation.
 
   Definition :cite:p:`xia2008listwise`:
@@ -374,6 +378,9 @@ def listmle_loss(scores: Array,
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid for computing the loss. Items for which
       this is False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating segments within each list. The loss will only be computed on
+      items that share the same segment.
     reduce_fn: An optional function that reduces the loss values. Can be
       :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
       is performed.
@@ -386,17 +393,30 @@ def listmle_loss(scores: Array,
     where = jnp.ones_like(scores, dtype=jnp.bool_)
 
   scores_sorted, where_sorted = utils.sort_by(
-      labels, [scores, where], where=where, key=key)
+      labels, [scores, where], segments=segments, where=where, key=key
+  )
 
-  # Compute cumulative logsumexp.
-  lse = utils.logcumsumexp(
-      scores_sorted, axis=-1, where=where_sorted, reverse=True)
+  # Compute cumulative logsumexp and loss.
+  if segments is None:
+    lse = utils.logcumsumexp(
+        scores_sorted, axis=-1, where=where_sorted, reverse=True
+    )
+    loss = -jnp.sum(scores_sorted - lse, axis=-1, where=where_sorted)
+  else:
+    lse = segment_utils.segment_logcumsumexp(
+        scores_sorted, segments, axis=-1, where=where_sorted, reverse=True
+    )
+    loss = -segment_utils.segment_sum(
+        scores_sorted - lse, segments, where=where_sorted
+    )
 
-  # Reduce list MLE loss.
-  loss = -jnp.sum(scores_sorted - lse, axis=-1, where=where_sorted)
+  # In the segmented case, values retain their list dimension. This constructs
+  # a mask so that only the first item per segment is used in reduce_fn.
+  if segments is not None:
+    where = segment_utils.first_item_segment_mask(segments, where=where)
 
   # Setup mask to ignore lists with only invalid items in reduce_fn.
-  if where is not None:
+  elif where is not None:
     where = jnp.any(where, axis=-1)
 
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
