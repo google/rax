@@ -237,11 +237,14 @@ def logcumsumexp(x: Array,
   return out
 
 
-def sort_by(scores: Array,
-            tensors_to_sort: Sequence[Array],
-            axis: int = -1,
-            where: Optional[Array] = None,
-            key: Optional[Array] = None) -> Sequence[Array]:
+def sort_by(
+    scores: Array,
+    tensors_to_sort: Sequence[Array],
+    axis: int = -1,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    key: Optional[Array] = None,
+) -> Sequence[Array]:
   """Sorts given list of tensors by given scores.
 
   Each of the entries in the `tensors_to_sort` sequence must be a tensor that
@@ -255,6 +258,9 @@ def sort_by(scores: Array,
     axis: The axis to sort on, by default this is the last axis.
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid. Invalid entries are pushed to the end.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating which items in the list should be grouped together. Items will
+      be sorted within each segment, but not across segments.
     key: An optional :func:`jax.random.PRNGKey`. If provided, ties will be
       broken randomly using this key. If not provided, ties will retain the
       order of their appearance in the `scores` array.
@@ -265,6 +271,8 @@ def sort_by(scores: Array,
   """
   # Sets up the keys we want to sort on.
   sort_operands = []
+  if segments is not None:
+    sort_operands.append(segments)
   if where is not None:
     sort_operands.append(jnp.logical_not(where))
   sort_operands.append(-scores)
@@ -277,7 +285,17 @@ def sort_by(scores: Array,
 
   # Performs sort and returns the sorted tensors.
   sorted_values = jax.lax.sort(sort_operands, dimension=axis, num_keys=num_keys)
-  return sorted_values[num_keys:]
+  sorted_values = sorted_values[num_keys:]
+
+  # Revert segments to their original positions.
+  if segments is not None:
+    segment_indices = jnp.argsort(jnp.argsort(segments, axis), axis)
+    sorted_values = tuple(
+        jnp.take_along_axis(values, segment_indices, axis=axis)
+        for values in sorted_values
+    )
+
+  return sorted_values
 
 
 def ranks(

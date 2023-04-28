@@ -237,6 +237,31 @@ class SortByTest(absltest.TestCase):
     np.testing.assert_array_equal(result1, jnp.asarray([12., 11.2, 11.1, 10.]))
     np.testing.assert_array_equal(result2, jnp.asarray([12., 11.1, 11.2, 10.]))
 
+  def test_sorts_within_segments(self):
+    scores = jnp.asarray([[0.0, 3.0, 1.0, 2.0, 3.5, -2.0, 5.0]])
+    tensors_to_sort = [jnp.asarray([[10.0, 13.0, 11.0, 12.0, 15.0, 8.0, 13.5]])]
+    segments = jnp.array([[0, 0, 0, 1, 2, 1, 2]])
+
+    result = utils.sort_by(scores, tensors_to_sort, segments=segments)[0]
+
+    np.testing.assert_array_equal(
+        result, jnp.asarray([[13.0, 11.0, 10.0, 12.0, 13.5, 8.0, 15.0]])
+    )
+
+  def test_places_masked_values_last_in_each_segment(self):
+    scores = jnp.asarray([0.0, 3.0, 1.0, 2.0, 3.5, -2.0, 5.0])
+    tensors_to_sort = [jnp.asarray([10.0, 13.0, 11.0, 12.0, 15.0, 8.0, 13.5])]
+    segments = jnp.array([0, 0, 0, 1, 2, 1, 2])
+    where = jnp.array([1, 1, 0, 1, 1, 1, 0], dtype=jnp.bool_)
+
+    result = utils.sort_by(
+        scores, tensors_to_sort, where=where, segments=segments
+    )[0]
+
+    np.testing.assert_array_equal(
+        result, jnp.asarray([13.0, 10.0, 11.0, 12.0, 15.0, 8.0, 13.5])
+    )
+
 
 class CutoffTest(absltest.TestCase):
 
