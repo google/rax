@@ -17,6 +17,7 @@
 
 import doctest
 import functools
+import math
 from absl.testing import absltest
 import jax
 import jax.numpy as jnp
@@ -24,6 +25,8 @@ import numpy as np
 
 import rax
 from rax._src import segment_utils
+
+log, exp = math.log, math.exp
 
 
 class SameSegmentMaskTest(absltest.TestCase):
@@ -177,6 +180,92 @@ class FirstItemSegmentMask(absltest.TestCase):
     expected = jnp.array([1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0], dtype=jnp.bool_)
     actual = segment_utils.first_item_segment_mask(segments, where=where)
     np.testing.assert_array_equal(actual, expected)
+
+
+class SegmentLogcumsumexpTest(absltest.TestCase):
+
+  def test_computes_logcumsumexp(self):
+    x = jnp.array([-4.0, 5.0, 2.3, 0.0, 5.5])
+    segments = jnp.array([1, 1, 2, 1, 2])
+
+    result = segment_utils.segment_logcumsumexp(x, segments)
+
+    np.testing.assert_array_equal(
+        result,
+        jnp.asarray([
+            log(exp(-4.0)),
+            log(exp(-4.0) + exp(5.0)),
+            log(exp(2.3)),
+            log(exp(-4.0) + exp(5.0) + exp(0.0)),
+            log(exp(2.3) + exp(5.5)),
+        ]),
+    )
+
+  def test_computes_over_specified_axis(self):
+    x = jnp.asarray([[[-4.0, 2.3, 0.0], [2.2, -1.2, 1.1]]])
+    segments = jnp.array([[[1, 1, 2], [1, 2, 2]]])
+
+    result = segment_utils.segment_logcumsumexp(x, segments, axis=0)
+    np.testing.assert_allclose(
+        result, jnp.array([[[-4.0, 2.3, 0.0], [2.2, -1.2, 1.1]]])
+    )
+
+    result = segment_utils.segment_logcumsumexp(x, segments, axis=1)
+    np.testing.assert_allclose(
+        result,
+        jnp.array([[
+            [-4.0, 2.3, 0.0],
+            [log(exp(-4.0) + exp(2.2)), -1.2, log(exp(0.0) + exp(1.1))],
+        ]]),
+    )
+
+    result = segment_utils.segment_logcumsumexp(x, segments, axis=2)
+    np.testing.assert_allclose(
+        result,
+        jnp.array([[
+            [-4.0, log(exp(-4.0) + exp(2.3)), 0.0],
+            [2.2, -1.2, log(exp(-1.2) + exp(1.1))],
+        ]]),
+    )
+
+  def test_computes_reversed(self):
+    x = jnp.asarray([-4.0, 5.0, 2.3, 0.0])
+    segments = jnp.array([1, 1, 2, 2])
+
+    result = segment_utils.segment_logcumsumexp(x, segments, reverse=True)
+
+    np.testing.assert_allclose(
+        result,
+        jnp.array(
+            [log(exp(-4.0) + exp(5.0)), 5.0, log(exp(2.3) + exp(0.0)), 0.0]
+        ),
+    )
+
+  def test_computes_with_where_mask(self):
+    x = jnp.asarray([-4.0, 5.0, 2.3, 0.0])
+    where = jnp.asarray([True, False, True, True])
+    segments = jnp.array([1, 1, 1, 2])
+    x_masked = jnp.asarray([-4.0, 2.3, 0.0])
+    segments_masked = jnp.array([1, 1, 2])
+
+    result_where = segment_utils.segment_logcumsumexp(x, segments, where=where)
+    result_masked = segment_utils.segment_logcumsumexp(
+        x_masked, segments_masked
+    )
+
+    np.testing.assert_array_equal(result_where[0], result_masked[0])
+    np.testing.assert_array_equal(result_where[2], result_masked[1])
+    np.testing.assert_array_equal(result_where[3], result_masked[2])
+
+  def test_handles_extreme_values(self):
+    x = jnp.array([-4.0, -2.1e26, 5.0, 3.4e38, 10.0, -2.99e26, 1000.0])
+    segments = jnp.array([10, 10, 10, 10, 9999, 9999, 9999])
+
+    result = segment_utils.segment_logcumsumexp(x, segments)
+
+    np.testing.assert_array_equal(
+        result, jnp.asarray([-4.0, -4.0, 5.0001235, 3.4e38, 10.0, 10.0, 1000.0])
+    )
 
 
 def load_tests(loader, tests, ignore):

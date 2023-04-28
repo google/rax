@@ -135,3 +135,77 @@ def first_item_segment_mask(
   return jnp.any(mask, axis=-2)
 
 
+def segment_logcumsumexp(
+    x: Array,
+    segments: Array,
+    *,
+    axis: int = -1,
+    where: Optional[Array] = None,
+    reverse: bool = False,
+) -> Array:
+  """Computes the cumulative logsumexp.
+
+  This is a numerically safe and efficient implementation of a cumulative
+  logsumexp operation.
+
+  Args:
+    x: The :class:`~jax.numpy.ndarray` to compute the cumulative logsumexp for.
+    segments: A :class:`jax.numpy.ndarray` to indicate segments of items that
+      should be grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or
+      may not be sorted.
+    axis: The axis over which the cumulative sum should take place.
+    where: An optional :class:`~jax.numpy.ndarray` of the same shape as ``x``
+      indicating which items are valid for computing the cumulative logsumexp.
+    reverse: Whether to compute the cumulative sum in reverse.
+
+  Returns:
+    An :class:`~jax.numpy.ndarray` of the same shape as ``x`` representing the
+    cumulative logsumexp of the values of ``x``.
+  """
+  # Flip the inputs if the cumulative sum needs to be in reverse.
+  if reverse:
+    x = jnp.flip(x, axis=axis)
+    where = None if where is None else jnp.flip(where, axis=axis)
+    segments = None if segments is None else jnp.flip(segments, axis=axis)
+
+  # Swap axes to make sure the axis to sum over is always last.
+  x = jnp.swapaxes(x, axis, -1)
+  segments = jnp.swapaxes(segments, axis, -1)
+  if where is not None:
+    where = jnp.swapaxes(where, axis, -1)
+
+  # Expand `x` to a pairwise matrix with repeated values.
+  x_pairs = jnp.repeat(jnp.expand_dims(x, -2), x.shape[-1], -2)
+
+  # Construct a mask to only select valid items with each segment.
+  mask = same_segment_mask(segments)
+  if where is not None:
+    mask = mask & jnp.expand_dims(where, -1) & jnp.expand_dims(where, -2)
+
+  # Select the lower triangle of the mask matrix to only select items that
+  # preceed each other. This is needed to compute cumulatives.
+  mask = jnp.tril(mask)
+
+  # Use mask to mask out the actual values.
+  x_pairs = jnp.where(mask, x_pairs, -jnp.inf)
+
+  # Compute cumulative maximum.
+  m = jnp.max(x_pairs, axis=-1)
+
+  # Compute `exp(x_i - m_j)` for each (i, j) pair.
+  x_shifted = jnp.exp(jnp.expand_dims(x, -2) - jnp.expand_dims(m, -1))
+
+  # Compute `out[i] = sum_{j=1}^{i} exp(x_j - m_i)`.
+  out = jnp.sum(x_shifted, where=mask, axis=-1)
+
+  # Compute the log of the cumulative sum and correct for the cumulative
+  # maximum shift.
+  tiny = jnp.finfo(x.dtype).tiny
+  out = jnp.log(out + tiny) + m
+
+  # Swap axes back and flip output if the cumulative sum needs to be in reverse.
+  out = jnp.swapaxes(out, -1, axis)
+  if reverse:
+    out = jnp.flip(out, axis=axis)
+
+  return out
