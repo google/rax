@@ -53,10 +53,50 @@ class NormalizeProbabilitiesTest(absltest.TestCase):
     arr = jnp.asarray([[0., 1., 2.], [3., 4., 5.]])
     where = jnp.asarray([[True, False, True], [True, True, True]])
 
-    result = utils.normalize_probabilities(arr, where, axis=1)
+    result = utils.normalize_probabilities(arr, where=where, axis=1)
 
     np.testing.assert_array_equal(
         jnp.sum(result, axis=1, where=where), jnp.asarray([1., 1.]))
+
+  def test_handles_segments(self):
+    arr = jnp.asarray([0.0, 1.0, 2.0, 5.0, 7.0, 9.0])
+    segments = jnp.array([0, 0, 0, 0, 1, 1])
+
+    result = utils.normalize_probabilities(arr, segments=segments)
+
+    np.testing.assert_array_equal(
+        jnp.array([0.0, 0.125, 0.25, 0.625, 0.4375, 0.5625]),
+        result,
+    )
+
+  def test_handles_where_and_segments_with_any_axis(self):
+    arr = jnp.array([[[0.5, 1.5, 2.0, 3.0], [4.0, 6.0, 3.6, 4.4]]])
+    where = jnp.array([[[1, 1, 1, 1], [1, 1, 1, 0]]])
+    segments = jnp.array([[[1, 1, 1, 2], [1, 1, 2, 2]]])
+
+    result1 = utils.normalize_probabilities(
+        arr, where=where, segments=segments, axis=0
+    )
+    result2 = utils.normalize_probabilities(
+        arr, where=where, segments=segments, axis=1
+    )
+    result3 = utils.normalize_probabilities(
+        arr, where=where, segments=segments, axis=2
+    )
+
+    # Assert non-masked values sum to the number of segments in each axis.
+    np.testing.assert_array_equal(
+        jnp.sum(result1, where=where, axis=0, keepdims=True),
+        jnp.array([[[1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 0.0]]])
+    )
+    np.testing.assert_array_equal(
+        jnp.sum(result2, where=where, axis=1, keepdims=True),
+        jnp.array([[[1.0, 1.0, 2.0, 1.0]]])
+    )
+    np.testing.assert_array_equal(
+        jnp.sum(result3, where=where, axis=2, keepdims=True),
+        jnp.array([[[2.0], [2.0]]])
+    )
 
   def test_correctly_sets_all_zeros(self):
     arr = jnp.asarray([[0., 0., 0.], [0., 0., 0.]])
@@ -73,8 +113,8 @@ class NormalizeProbabilitiesTest(absltest.TestCase):
     arr = jnp.asarray([[2., 1., 3.], [1., 1., 1.]])
     where = jnp.asarray([[False, False, False], [False, False, False]])
 
-    result1 = utils.normalize_probabilities(arr, where, axis=0)
-    result2 = utils.normalize_probabilities(arr, where, axis=1)
+    result1 = utils.normalize_probabilities(arr, where=where, axis=0)
+    result2 = utils.normalize_probabilities(arr, where=where, axis=1)
 
     np.testing.assert_array_equal(
         jnp.sum(result1, axis=0), jnp.asarray([1., 1., 1.]))

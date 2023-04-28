@@ -76,9 +76,13 @@ def safe_reduce(a: Array,
   return output
 
 
-def normalize_probabilities(unscaled_probabilities: Array,
-                            where: Optional[Array] = None,
-                            axis: int = -1) -> Array:
+def normalize_probabilities(
+    unscaled_probabilities: Array,
+    *,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    axis: int = -1,
+) -> Array:
   """Normalizes given unscaled probabilities so they sum to one in given axis.
 
   This will scale the given unscaled probabilities such that its valid
@@ -94,30 +98,56 @@ def normalize_probabilities(unscaled_probabilities: Array,
   Args:
     unscaled_probabilities: The probabilities to normalize.
     where: The mask to indicate which entries are valid.
+    segments: A :class:`jax.numpy.ndarray` to indicate segments of items that
+      should be grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or
+      may not be sorted.
     axis: The axis to normalize on.
 
   Returns:
     Given unscaled probabilities normalized so they sum to one for the valid
     (non-masked) items in the given axis.
   """
+  # Swap axes so the axis we want to normalize is always last.
+  unscaled_probabilities = jnp.swapaxes(unscaled_probabilities, axis, -1)
+  where = None if where is None else jnp.swapaxes(where, axis, -1)
+  segments = None if segments is None else jnp.swapaxes(segments, axis, -1)
+
   if where is None:
     where = jnp.ones_like(unscaled_probabilities, dtype=jnp.bool_)
 
-  # Sum only the valid items across the given axis.
-  unscaled_probabilities_sum = jnp.sum(
-      unscaled_probabilities, axis=axis, keepdims=True, where=where)
-
-  # Sum mask for correctly normalizing all-zero elements with mask.
-  where_sum = jnp.sum(where, axis=axis, keepdims=True)
-  where_sum = jnp.where(where_sum == 0.,
-                        jnp.sum(jnp.ones_like(where), axis=axis, keepdims=True),
-                        where_sum)
+  # Sum only the valid items across the given axis and sum mask to correctly
+  # normalize all-zero elements with mask.
+  if segments is None:
+    unscaled_probabilities_sum = jnp.sum(
+        unscaled_probabilities, axis=-1, keepdims=True, where=where
+    )
+    where_sum = jnp.sum(where, axis=-1, keepdims=True)
+    where_sum = jnp.where(
+        where_sum == 0.0,
+        jnp.sum(jnp.ones_like(where), axis=-1, keepdims=True),
+        where_sum,
+    )
+  else:
+    unscaled_probabilities_sum = segment_utils.segment_sum(
+        unscaled_probabilities, segments, where=where
+    )
+    where_sum = segment_utils.segment_sum(where, segments)
+    where_sum = jnp.where(
+        where_sum == 0.0,
+        segment_utils.segment_sum(jnp.ones_like(where), segments),
+        where_sum,
+    )
 
   # Compute output
-  return jnp.where(
-      unscaled_probabilities_sum != 0.,
+  output = jnp.where(
+      unscaled_probabilities_sum != 0.0,
       unscaled_probabilities / unscaled_probabilities_sum,
-      jnp.ones_like(where, dtype=unscaled_probabilities.dtype) / where_sum)
+      jnp.ones_like(where, dtype=unscaled_probabilities.dtype) / where_sum,
+  )
+
+  # Swap the axis back to its original position and return the result.
+  output = jnp.swapaxes(output, axis, -1)
+  return output
 
 
 def logcumsumexp(x: Array,
