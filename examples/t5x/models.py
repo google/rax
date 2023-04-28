@@ -196,7 +196,7 @@ class RankingEncDecModel(models.EncoderDecoderModel):
     self._rax_loss_fn = rax_loss_fn
     self._rax_metric_fns = rax_metric_fns
 
-  def get_initial_variables(self, rng: jax.random.PRNGKeyArray, input_shapes,
+  def get_initial_variables(self, rng: jax.random.PRNGKeyArray, input_shapes,  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
                             input_types):
     """Initializes model variables for the given input shapes and types.
 
