@@ -144,13 +144,16 @@ def softmax_loss(
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def poly1_softmax_loss(scores: Array,
-                       labels: Array,
-                       *,
-                       epsilon: float = 1.0,
-                       where: Optional[Array] = None,
-                       weights: Optional[Array] = None,
-                       reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
+def poly1_softmax_loss(
+    scores: Array,
+    labels: Array,
+    *,
+    epsilon: float = 1.0,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    weights: Optional[Array] = None,
+    reduce_fn: Optional[ReduceFn] = jnp.mean,
+) -> Array:
   r"""Poly1 softmax loss.
 
   Definition :cite:p:`leng2022polyloss`:
@@ -175,6 +178,9 @@ def poly1_softmax_loss(scores: Array,
     where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating which items are valid for computing the loss. Items for which
       this is False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
+      indicating segments within each list. The loss will only be computed on
+      items that share the same segment.
     weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
       indicating the weight for each item.
     reduce_fn: An optional function that reduces the loss values. Can be
@@ -186,7 +192,13 @@ def poly1_softmax_loss(scores: Array,
   """
   # Compute softmax cross-entropy loss without batch reduction.
   ce = softmax_loss(
-      scores, labels, where=where, weights=weights, reduce_fn=None)
+      scores,
+      labels,
+      where=where,
+      segments=segments,
+      weights=weights,
+      reduce_fn=None,
+  )
 
   # Applies mask so that masked elements do not count towards the loss.
   if where is not None:
@@ -198,21 +210,35 @@ def poly1_softmax_loss(scores: Array,
     labels *= weights
 
   # Compute target probabilities.
-  scores_softmax = jax.nn.softmax(scores)
-  labels_normalized = utils.normalize_probabilities(labels, where=where)
-  pt = jnp.sum(labels_normalized * scores_softmax, where=where, axis=-1)
+  if segments is None:
+    scores_softmax = jax.nn.softmax(scores)
+    labels_normalized = utils.normalize_probabilities(labels, where=where)
+    pt = jnp.sum(labels_normalized * scores_softmax, where=where, axis=-1)
+  else:
+    scores_softmax = segment_utils.segment_softmax(scores, segments)
+    labels_normalized = utils.normalize_probabilities(
+        labels, segments=segments, where=where
+    )
+    pt = segment_utils.segment_sum(
+        labels_normalized * scores_softmax, segments, where=where
+    )
 
   # For lists where all items are masked, this sets pt to 1 so that the term
   # (1 - pt) is set to 0 for the loss computation.
   if where is not None:
     pt = jnp.where(jnp.all(jnp.logical_not(where), axis=-1), 1., pt)
 
+  # In the segmented case, values retain their list dimension. This constructs
+  # a mask so that only the first item per segment is used in reduce_fn.
+  if segments is not None:
+    where = segment_utils.first_item_segment_mask(segments, where=where)
+
   # Setup mask to ignore lists with only invalid items in reduce_fn.
-  if where is not None:
+  elif where is not None:
     where = jnp.any(where, axis=-1)
 
   # Compute and return the poly1 loss.
-  loss = ce + epsilon * (1. - pt)
+  loss = ce + epsilon * (1.0 - pt)
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
