@@ -56,22 +56,24 @@ class RankingEncDecFeatureConverter(seqio.FeatureConverter):
       "mask": FeatureSpec(dtype=tf.bool),
   }
   MODEL_FEATURES = {
-      "encoder_input_tokens":
-          FeatureSpec(dtype=tf.int32, rank=2, sequence_dim=1),
-      "decoder_input_tokens":
-          FeatureSpec(dtype=tf.int32, rank=2, sequence_dim=1),
-      "decoder_target_tokens":
-          FeatureSpec(dtype=tf.int32, rank=2, sequence_dim=1),
-      "label":
-          FeatureSpec(dtype=tf.float32),
-      "mask":
-          FeatureSpec(dtype=tf.bool),
+      "encoder_input_tokens": FeatureSpec(
+          dtype=tf.int32, rank=2, sequence_dim=1
+      ),
+      "decoder_input_tokens": FeatureSpec(
+          dtype=tf.int32, rank=2, sequence_dim=1
+      ),
+      "decoder_target_tokens": FeatureSpec(
+          dtype=tf.int32, rank=2, sequence_dim=1
+      ),
+      "label": FeatureSpec(dtype=tf.float32),
+      "mask": FeatureSpec(dtype=tf.bool),
   }
   PACKING_FEATURE_DTYPES = None
 
   def _convert_features(
-      self, ds: tf.data.Dataset,
-      task_feature_lengths: Mapping[str, Union[int, Sequence[int]]]
+      self,
+      ds: tf.data.Dataset,
+      task_feature_lengths: Mapping[str, Union[int, Sequence[int]]],
   ) -> tf.data.Dataset:
     """Convert the dataset to be fed to the encoder-decoder model.
 
@@ -92,8 +94,11 @@ class RankingEncDecFeatureConverter(seqio.FeatureConverter):
     # cannot handle ragged tensors, so we convert them to dense here.
     def to_dense(features):
       return {
-          key:
-          value.to_tensor(0) if isinstance(value, tf.RaggedTensor) else value
+          key: (
+              value.to_tensor(0)
+              if isinstance(value, tf.RaggedTensor)
+              else value
+          )
           for key, value in features.items()
       }
 
@@ -101,12 +106,14 @@ class RankingEncDecFeatureConverter(seqio.FeatureConverter):
 
     # Trim and pad the list_size dimension.
     ds = seqio.utils.trim_and_pad_dataset(
-        ds, {
+        ds,
+        {
             "label": task_feature_lengths["label"][0],
             "mask": task_feature_lengths["label"][0],
             "targets": task_feature_lengths["targets"][0],
-            "inputs": task_feature_lengths["inputs"][0]
-        })
+            "inputs": task_feature_lengths["inputs"][0],
+        },
+    )
 
     # Function to swap leading axes for "inputs" and "targets" so we can trim
     # and pad the sequence length. The seqio `trim_and_pad_dataset` can only pad
@@ -114,10 +121,9 @@ class RankingEncDecFeatureConverter(seqio.FeatureConverter):
     # length, which is the second dimension.
     def transpose_inputs_and_targets(task_features):
       return {
-          **task_features, "inputs":
-              tf.transpose(task_features["inputs"], [1, 0]),
-          "targets":
-              tf.transpose(task_features["targets"], [1, 0])
+          **task_features,
+          "inputs": tf.transpose(task_features["inputs"], [1, 0]),
+          "targets": tf.transpose(task_features["targets"], [1, 0]),
       }
 
     # Trim and pad the sequence length dimension. This first swaps the sequence
@@ -125,10 +131,12 @@ class RankingEncDecFeatureConverter(seqio.FeatureConverter):
     # sequence length back to the second dimension.
     ds = ds.map(transpose_inputs_and_targets)
     ds = seqio.utils.trim_and_pad_dataset(
-        ds, {
+        ds,
+        {
             "targets": task_feature_lengths["targets"][1],
-            "inputs": task_feature_lengths["inputs"][1]
-        })
+            "inputs": task_feature_lengths["inputs"][1],
+        },
+    )
     ds = ds.map(transpose_inputs_and_targets)
 
     # Finally, this adds the actual model features to the dataset and returns
@@ -141,14 +149,15 @@ class RankingEncDecFeatureConverter(seqio.FeatureConverter):
           "decoder_input_tokens": tf.zeros_like(task_features["targets"]),
           "decoder_target_tokens": task_features["targets"],
           "label": task_features["label"],
-          "mask": task_features["mask"]
+          "mask": task_features["mask"],
       }
 
     ds = ds.map(add_features)
     return ds
 
   def get_model_feature_lengths(
-      self, task_feature_lengths: Mapping[str, int]) -> Mapping[str, int]:
+      self, task_feature_lengths: Mapping[str, int]
+  ) -> Mapping[str, int]:
     """Define the length relationship between input and output features.
 
     Args:
@@ -178,26 +187,32 @@ class RankingEncDecModel(models.EncoderDecoderModel):
 
   FEATURE_CONVERTER_CLS = RankingEncDecFeatureConverter
 
-  def __init__(self,
-               module: flax.linen.Module,
-               input_vocabulary: seqio.Vocabulary,
-               output_vocabulary: seqio.Vocabulary,
-               optimizer_def: optimizers.OptimizerDefType,
-               rax_loss_fn: rax.types.LossFn = DEFAULT_LOSS_FN,
-               rax_metric_fns: Mapping[str,
-                                       rax.types.MetricFn] = DEFAULT_METRIC_FNS,
-               loss_normalizing_factor: Optional[float] = None):
+  def __init__(
+      self,
+      module: flax.linen.Module,
+      input_vocabulary: seqio.Vocabulary,
+      output_vocabulary: seqio.Vocabulary,
+      optimizer_def: optimizers.OptimizerDefType,
+      rax_loss_fn: rax.types.LossFn = DEFAULT_LOSS_FN,
+      rax_metric_fns: Mapping[str, rax.types.MetricFn] = DEFAULT_METRIC_FNS,
+      loss_normalizing_factor: Optional[float] = None,
+  ):
     super().__init__(
         module,
         input_vocabulary,
         output_vocabulary,
         optimizer_def,
-        loss_normalizing_factor=loss_normalizing_factor)
+        loss_normalizing_factor=loss_normalizing_factor,
+    )
     self._rax_loss_fn = rax_loss_fn
     self._rax_metric_fns = rax_metric_fns
 
-  def get_initial_variables(self, rng: jax.random.PRNGKeyArray, input_shapes,  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
-                            input_types):
+  def get_initial_variables(
+      self,
+      rng: jax.random.PRNGKeyArray,
+      input_shapes,  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
+      input_types,
+  ):
     """Initializes model variables for the given input shapes and types.
 
     This method supports computing variables for a batch of data of shape
@@ -217,15 +232,18 @@ class RankingEncDecModel(models.EncoderDecoderModel):
     batch_size, list_size, *_ = input_shapes["encoder_input_tokens"]
     input_shapes = {
         **input_shapes,
-        "encoder_input_tokens": (batch_size * list_size,) +
-                                input_shapes["encoder_input_tokens"][2:],
-        "decoder_input_tokens": (batch_size * list_size,) +
-                                input_shapes["decoder_input_tokens"][2:],
+        "encoder_input_tokens": (batch_size * list_size,) + input_shapes[
+            "encoder_input_tokens"
+        ][2:],
+        "decoder_input_tokens": (batch_size * list_size,) + input_shapes[
+            "decoder_input_tokens"
+        ][2:],
     }
     return super().get_initial_variables(rng, input_shapes, input_types)
 
-  def _compute_logits(self, params: PyTree,
-                      batch: Mapping[str, jnp.ndarray], *args, **kwargs):
+  def _compute_logits(
+      self, params: PyTree, batch: Mapping[str, jnp.ndarray], *args, **kwargs
+  ):
     """Computes logits on a batch of data.
 
     This method supports computing logits for a batch of data of shape
@@ -245,18 +263,20 @@ class RankingEncDecModel(models.EncoderDecoderModel):
     # for model inputs.
     batch_size, list_size, *_ = batch["encoder_input_tokens"].shape
     flattened_batch = {
-        **batch, "encoder_input_tokens":
-            jnp.reshape(batch["encoder_input_tokens"],
-                        (batch_size * list_size,) +
-                        batch["encoder_input_tokens"].shape[2:]),
-        "decoder_input_tokens":
-            jnp.reshape(batch["decoder_input_tokens"],
-                        (batch_size * list_size,) +
-                        batch["decoder_input_tokens"].shape[2:]),
-        "decoder_target_tokens":
-            jnp.reshape(batch["decoder_target_tokens"],
-                        (batch_size * list_size,) +
-                        batch["decoder_target_tokens"].shape[2:])
+        **batch,
+        "encoder_input_tokens": jnp.reshape(
+            batch["encoder_input_tokens"],
+            (batch_size * list_size,) + batch["encoder_input_tokens"].shape[2:],
+        ),
+        "decoder_input_tokens": jnp.reshape(
+            batch["decoder_input_tokens"],
+            (batch_size * list_size,) + batch["decoder_input_tokens"].shape[2:],
+        ),
+        "decoder_target_tokens": jnp.reshape(
+            batch["decoder_target_tokens"],
+            (batch_size * list_size,)
+            + batch["decoder_target_tokens"].shape[2:],
+        ),
     }
 
     # Compute logits on flattened inputs.
@@ -268,13 +288,16 @@ class RankingEncDecModel(models.EncoderDecoderModel):
     # Compute per-item scores. We do three vmaps here for each of the dimensions
     # (batch_size, list_size, sequence_length, ...)
     output = jax.vmap(jax.vmap(jax.vmap(jnp.take)))(
-        output, batch["decoder_target_tokens"])
+        output, batch["decoder_target_tokens"]
+    )
     output = jnp.squeeze(output, -1)
     return output
 
   def loss_fn(
-      self, params: PyTree, batch: Mapping[str, jnp.ndarray],
-      dropout_rng: Optional[jnp.ndarray]
+      self,
+      params: PyTree,
+      batch: Mapping[str, jnp.ndarray],
+      dropout_rng: Optional[jnp.ndarray],
   ) -> Tuple[jnp.ndarray, metrics_lib.MetricsMap]:
     """Ranking loss function.
 
@@ -301,9 +324,13 @@ class RankingEncDecModel(models.EncoderDecoderModel):
 
     return loss, metrics
 
-  def _compute_metrics(self, loss: jnp.ndarray, scores: jnp.ndarray,
-                       labels: jnp.ndarray,
-                       mask: Optional[jnp.ndarray]) -> metrics_lib.MetricsMap:
+  def _compute_metrics(
+      self,
+      loss: jnp.ndarray,
+      scores: jnp.ndarray,
+      labels: jnp.ndarray,
+      mask: Optional[jnp.ndarray],
+  ) -> metrics_lib.MetricsMap:
     """Computes ranking metrics.
 
     Args:
@@ -326,9 +353,12 @@ class RankingEncDecModel(models.EncoderDecoderModel):
         "timing/steps_per_second": metrics_lib.StepsPerTime.from_model_output(),
         "timing/seconds": metrics_lib.Time(),
     }
-    metrics.update({
-        f"metrics/{key}":
-        metrics_lib.AveragePerStep(total=metric(scores, labels, where=mask))
-        for key, metric in self._rax_metric_fns.items()
-    })
+    metrics.update(
+        {
+            f"metrics/{key}": metrics_lib.AveragePerStep(
+                total=metric(scores, labels, where=mask)
+            )
+            for key, metric in self._rax_metric_fns.items()
+        }
+    )
     return metrics
