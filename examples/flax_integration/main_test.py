@@ -32,7 +32,8 @@ class Web30kTest(absltest.TestCase):
     mock_stdout = io.StringIO()
     with mock.patch("sys.stdout", mock_stdout):
       with tfds.testing.mock_data(
-          num_examples=16, policy=tfds.testing.MockPolicy.USE_CODE):
+          num_examples=16, policy=tfds.testing.MockPolicy.USE_CODE
+      ):
         argv = ()
         main.main(argv)
 

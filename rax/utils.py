@@ -19,12 +19,9 @@ from rax._src.utils import approx_ranks
 from rax._src.utils import cutoff
 from rax._src.utils import ranks
 
-# pyformat: disable
 __all__ = [
     "approx_cutoff",
     "approx_ranks",
     "cutoff",
     "ranks",
 ]
-# pyformat: enable
-

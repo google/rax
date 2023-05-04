@@ -43,7 +43,6 @@ from rax._src.t12n import segment_t12n
 
 __version__ = "0.2.0"
 
-# pyformat: disable
 __all__ = [
     "dcg2_lambdaweight",
     "dcg_lambdaweight",
@@ -70,7 +69,6 @@ __all__ = [
     "gumbel_t12n",
     "segment_t12n",
 ]
-# pyformat: enable
 
 # copybara: stripped(1)
 
