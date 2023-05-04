@@ -31,7 +31,7 @@ except ImportError:
   from typing_extensions import Protocol  # pylint: disable=g-import-not-at-top
 
 # Type alias for a JAX array.
-Array = jax.numpy.ndarray
+Array = jax.Array
 
 
 class RankFn(Protocol):
@@ -48,15 +48,14 @@ class RankFn(Protocol):
 
     Args:
       scores: The scores to compute the 1-based ranks for.
-      where: An optional :class:`jax.numpy.ndarray` of the same shape as ``a``
-        that indicates which elements to rank. Other elements will be ranked
-        last.
+      where: An optional :class:`~jax.Array` of the same shape as ``a`` that
+        indicates which elements to rank. Other elements will be ranked last.
       key: An optional :func:`~jax.random.PRNGKey` used for random operations.
-      segments: An optional :class:`jax.numpy.ndarray` of the same shape as
-        ``a`` that indicates which elements to group together.
+      segments: An optional :class:`~jax.Array` of the same shape as ``a`` that
+        indicates which elements to group together.
 
     Returns:
-      A :class:`jax.numpy.ndarray` of the same shape as ``scores`` that
+      A :class:`~jax.Array` of the same shape as ``scores`` that
       represents the 1-based ranks.
     """
     pass
@@ -73,11 +72,11 @@ class CutoffFn(Protocol):
     Args:
       a: The array for which to compute the cutoffs.
       n: The position of the cutoff.
-      segments: An optional :class:`jax.numpy.ndarray` of the same shape as
-        ``a`` that indicates which elements to group together.
+      segments: An optional :class:`~jax.Array` of the same shape as ``a`` that
+        indicates which elements to group together.
 
     Returns:
-      A binary :class:`jax.numpy.ndarray` of the same shape as ``a`` that
+      A binary :class:`~jax.Array` of the same shape as ``a`` that
       represents which elements of ``a`` should be selected for the topn cutoff.
     """
     pass
@@ -92,13 +91,13 @@ class ReduceFn(Protocol):
 
     Args:
       a: The array to reduce.
-      where: An optional :class:`jax.numpy.ndarray` of the same shape as ``a``
-        that indicates which elements to include in the reduction.
+      where: An optional :class:`~jax.Array` of the same shape as ``a`` that
+        indicates which elements to include in the reduction.
       axis: One or more axes to use for the reduction. If ``None`` this reduces
         across all available axes.
 
     Returns:
-      A :class:`jax.numpy.ndarray` that represents the reduced result of ``a``
+      A :class:`~jax.Array` that represents the reduced result of ``a``
       over given ``axis``.
     """
     pass
@@ -114,12 +113,12 @@ class LossFn(Protocol):
     Args:
       scores: The score of each item.
       labels: The label of each item.
-      where: An optional :class:`jax.numpy.ndarray` of the same shape as
-        ``scores`` that indicates which elements to include in the loss.
+      where: An optional :class:`~jax.Array` of the same shape as ``scores``
+        that indicates which elements to include in the loss.
       **kwargs: Optional loss-specific keyword arguments.
 
     Returns:
-      A :class:`jax.numpy.ndarray` that represents the loss computed on the
+      A :class:`~jax.Array` that represents the loss computed on the
       given ``scores`` and ``labels``.
     """
     pass
@@ -135,12 +134,12 @@ class MetricFn(Protocol):
     Args:
       scores: The score of each item.
       labels: The label of each item.
-      where: An optional :class:`jax.numpy.ndarray` of the same shape as
-        ``scores`` that indicates which elements to include in the metric.
+      where: An optional :class:`~jax.Array` of the same shape as ``scores``
+        that indicates which elements to include in the metric.
       **kwargs: Optional metric-specific keyword arguments.
 
     Returns:
-      A :class:`jax.numpy.ndarray` that represents the metric computed on the
+      A :class:`~jax.Array` that represents the metric computed on the
       given ``scores`` and ``labels``.
     """
     pass
@@ -154,19 +153,18 @@ class LambdaweightFn(Protocol):
     """Computes lambdaweights.
 
     Args:
-      scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-        score of each item.
-      labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
+      scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score
+        of each item.
+      labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the
         relevance label for each item.
-      where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-        indicating which items are valid for computing the lambdaweights. Items
-        for which this is False will be ignored when computing the
-        lambdaweights.
-      weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-        indicating the weight for each item.
+      where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+        which items are valid for computing the lambdaweights. Items for which
+        this is False will be ignored when computing the lambdaweights.
+      weights: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+        the weight for each item.
       **kwargs: Optional lambdaweight-specific keyword arguments.
 
     Returns:
-      A :class:`jax.numpy.ndarray` that represents the lambda weights.
+      A :class:`~jax.Array` that represents the lambda weights.
     """
     pass

@@ -80,22 +80,21 @@ def softmax_loss(
   Definition:
 
   .. math::
-      \ell(s, y) =
-      - \sum_i y_i \log \frac{\exp(s_i)}{\sum_j \exp(s_j)}
+      \ell(s, y) = -\sum_i y_i \log \frac{\exp(s_i)}{\sum_j \exp(s_j)}
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score of each item.
-    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      relevance label for each item.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid for computing the loss. Items for which
-      this is False will be ignored when computing the loss.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating segments within each list. The loss will only be computed on
-      items that share the same segment.
-    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating the weight for each item.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid for computing the loss. Items for which this is
+      False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      segments within each list. The loss will only be computed on items that
+      share the same segment.
+    weights: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      the weight for each item.
     label_fn: A label function that maps labels to probabilities. Default keeps
       labels as-is.
     reduce_fn: An optional function that reduces the loss values. Can be
@@ -159,30 +158,30 @@ def poly1_softmax_loss(
   Definition :cite:p:`leng2022polyloss`:
 
   .. math::
-      \ell(s, y) = softmax(s, y) + \epsilon * (1 - pt)
+      \ell(s, y) = \op{softmax}(s, y) + \epsilon * (1 - \op{pt})
 
-  where :math:`softmax` is the standard softmax loss as implemented in
-  :func:`~rax.softmax_loss` and :math:`pt` is the target softmax probability
-  defined as:
+  where :math:`\op{softmax}` is the standard softmax loss as implemented in
+  :func:`~rax.softmax_loss` and :math:`\op{pt}` is the target softmax
+  probability defined as:
 
   .. math::
-      pt = \sum_i \frac{y_i}{\sum_j y_j} \frac{\exp(s_i)}{\sum_j \exp(s_j)}
+      \op{pt} = \sum_i \frac{y_i}{\sum_j y_j} \frac{\exp(s_i)}{\sum_j \exp(s_j)}
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score of each item.
-    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      relevance label for each item.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
     epsilon: A float hyperparameter indicating the weight of the leading
       polynomial coefficient in the poly loss.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid for computing the loss. Items for which
-      this is False will be ignored when computing the loss.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating segments within each list. The loss will only be computed on
-      items that share the same segment.
-    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating the weight for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid for computing the loss. Items for which this is
+      False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      segments within each list. The loss will only be computed on items that
+      share the same segment.
+    weights: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      the weight for each item.
     reduce_fn: An optional function that reduces the loss values. Can be
       :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
       is performed.
@@ -257,26 +256,25 @@ def unique_softmax_loss(
   Definition :cite:p:`zhu2020listwise`:
 
   .. math::
-      \ell(s, y) =
-      - \sum_i \operatorname{gain}(y_i)
-      \log \frac{\exp(s_i)}{\exp(s_i) + \sum_{j : y_j < y_i} \exp(s_j)}
+      \ell(s, y) = -\sum_i \op{gain}(y_i) \log
+                   \frac{\exp(s_i)}{\exp(s_i) + \sum_{j : y_j < y_i} \exp(s_j)}
 
-  where :math:`\operatorname{gain}(y_i)` is a user-specified gain function
+  where :math:`\op{gain}(y_i)` is a user-specified gain function
   applied to label :math:`y_i` to boost items with higher relevance.
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score of each item.
-    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      relevance label for each item.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid for computing the loss. Items for which
-      this is False will be ignored when computing the loss.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating segments within each list. The loss will only be computed on
-      items that share the same segment.
-    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating the weight for each item.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid for computing the loss. Items for which this is
+      False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      segments within each list. The loss will only be computed on items that
+      share the same segment.
+    weights: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      the weight for each item.
     gain_fn: An optional function that maps relevance labels to gain values. If
       provided, the per-item losses are multiplied by ``gain_fn(label)`` to
       boost the importance of relevant items.
@@ -362,25 +360,25 @@ def listmle_loss(
   Definition :cite:p:`xia2008listwise`:
 
   .. math::
-      \ell(s, y) =
-      - \sum_i \log
-        \frac{\exp(s_i)}{\sum_j I[rank(y_j) \ge rank(y_i)] \exp(s_j)}
+      \ell(s, y) = -\sum_i \log
+                   \frac{\exp(s_i)}
+                   {\sum_j \II{\op{rank}(y_j) \ge \op{rank}(y_i)} \exp(s_j)}
 
-  where :math:`\operatorname{rank}(y_i)` indicates the rank of item :math:`i`
+  where :math:`\op{rank}(y_i)` indicates the rank of item :math:`i`
   after sorting all labels :math:`y`.
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score of each item.
-    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      relevance label for each item.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
     key: An optional :func:`~jax.random.PRNGKey` to perform random tie-breaking.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid for computing the loss. Items for which
-      this is False will be ignored when computing the loss.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating segments within each list. The loss will only be computed on
-      items that share the same segment.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid for computing the loss. Items for which this is
+      False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      segments within each list. The loss will only be computed on items that
+      share the same segment.
     reduce_fn: An optional function that reduces the loss values. Can be
       :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
       is performed.
@@ -437,21 +435,21 @@ def pairwise_loss(scores: Array,
   for each pair and also the valid pairs considered in the loss.
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score of each item.
-    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      relevance label for each item.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
     pair_loss_fn: A function that outputs ``(pair_losses, valid_pairs)`` given
       ``(scores_diff, labels_diff)``.
     lambdaweight_fn: An optional function that outputs lambdaweights.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid for computing the loss. Items for which
-      this is False will be ignored when computing the loss.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating segments within each list. The loss will only be computed on
-      items that share the same segment.
-    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating the weight for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid for computing the loss. Items for which this is
+      False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      segments within each list. The loss will only be computed on items that
+      share the same segment.
+    weights: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      the weight for each item.
     reduce_fn: An optional function that reduces the loss values. Can be
       :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
       is performed.
@@ -500,22 +498,21 @@ def pairwise_hinge_loss(scores: Array,
   Definition:
 
   .. math::
-      \ell(s, y) =
-      \sum_i \sum_j I[y_i > y_j] \max(0, 1 - (s_i - s_j))
+      \ell(s, y) = \sum_i \sum_j \II{y_i > y_j} \max(0, 1 - (s_i - s_j))
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score of each item.
-    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      relevance label for each item.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid for computing the loss. Items for which
-      this is False will be ignored when computing the loss.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating segments within each list. The loss will only be computed on
-      items that share the same segment.
-    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating the weight for each item.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid for computing the loss. Items for which this is
+      False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      segments within each list. The loss will only be computed on items that
+      share the same segment.
+    weights: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      the weight for each item.
     lambdaweight_fn: An optional function that outputs lambdaweights.
     reduce_fn: An optional function that reduces the loss values. Can be
       :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
@@ -553,22 +550,21 @@ def pairwise_logistic_loss(scores: Array,
   Definition :cite:p:`burges2005learning`:
 
   .. math::
-      \ell(s, y) =
-      \sum_i \sum_j I[y_i > y_j] \log(1 + \exp(-(s_i - s_j)))
+      \ell(s, y) = \sum_i \sum_j \II{y_i > y_j} \log(1 + \exp(-(s_i - s_j)))
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score of each item.
-    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      relevance label for each item.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid for computing the loss. Items for which
-      this is False will be ignored when computing the loss.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating segments within each list. The loss will only be computed on
-      items that share the same segment.
-    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating the weight for each item.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid for computing the loss. Items for which this is
+      False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      segments within each list. The loss will only be computed on items that
+      share the same segment.
+    weights: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      the weight for each item.
     lambdaweight_fn: An optional function that outputs lambdaweights.
     reduce_fn: An optional function that reduces the loss values. Can be
       :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
@@ -609,22 +605,21 @@ def pairwise_soft_zero_one_loss(
   Definition:
 
   .. math::
-      \ell(s, y) =
-      \sum_i \sum_j I[y_i > y_j] sigmod(-(s_i - s_j))
+      \ell(s, y) = \sum_i \sum_j \II{y_i > y_j} sigmod(-(s_i - s_j))
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score of each item.
-    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      relevance label for each item.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid for computing the loss. Items for which
-      this is False will be ignored when computing the loss.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating segments within each list. The loss will only be computed on
-      items that share the same segment.
-    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating the weight for each item.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid for computing the loss. Items for which this is
+      False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      segments within each list. The loss will only be computed on items that
+      share the same segment.
+    weights: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      the weight for each item.
     lambdaweight_fn: An optional function that outputs lambdaweights.
     reduce_fn: An optional function that reduces the loss values. Can be
       :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
@@ -667,27 +662,29 @@ def pointwise_sigmoid_loss(scores: Array,
                            reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
   r"""Sigmoid cross entropy loss.
 
+  .. note::
+
+    This loss clips label values so that ``0 <= label <= 1``.
+
   Definition:
 
   .. math::
-      \ell(s, y) =
-      \sum_i y_i * -log(sigmoid(s_i)) + (1 - y_i) * -log(1 - sigmoid(s_i))
-
-  This loss clips label values so that ``0 <= label <= 1``.
+      \ell(s, y) = \sum_i y_i * -\log(\op{sigmoid}(s_i)) +
+                          (1 - y_i) * -\log(1 - \op{sigmoid}(s_i))
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score of each item.
-    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      relevance label for each item.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
     where: An optional [..., list_size]-Array, indicating which items are valid
       for computing the loss. Items for which this is False will be ignored when
       computing the loss.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating segments within each list. The loss will only be computed on
-      items that share the same segment.
-    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating the weight for each item.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      segments within each list. The loss will only be computed on items that
+      share the same segment.
+    weights: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      the weight for each item.
     reduce_fn: An optional function that reduces the loss values. Can be
       :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
       is performed.
@@ -729,18 +726,18 @@ def pointwise_mse_loss(scores: Array,
       \ell(s, y) = \sum_i (y_i - s_i)^2
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score of each item.
-    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      relevance label for each item.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid for computing the loss. Items for which
-      this is False will be ignored when computing the loss.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating segments within each list. The loss will only be computed on
-      items that share the same segment.
-    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating the weight for each item.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid for computing the loss. Items for which this is
+      False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      segments within each list. The loss will only be computed on items that
+      share the same segment.
+    weights: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      the weight for each item.
     reduce_fn: An optional function that reduces the loss values. Can be
       :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
       is performed.
@@ -774,22 +771,21 @@ def pairwise_mse_loss(scores: Array,
   Definition:
 
   .. math::
-      \ell(s, y) =
-      \sum_i \sum_j ((y_i - y_j) - (s_i - s_j))^2
+      \ell(s, y) = \sum_i \sum_j ((y_i - y_j) - (s_i - s_j))^2
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score of each item.
-    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      relevance label for each item.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid for computing the loss. Items for which
-      this is False will be ignored when computing the loss.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating segments within each list. The loss will only be computed on
-      items that share the same segment.
-    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating the weight for each item.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid for computing the loss. Items for which this is
+      False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      segments within each list. The loss will only be computed on items that
+      share the same segment.
+    weights: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      the weight for each item.
     lambdaweight_fn: An optional function that outputs lambdaweights.
     reduce_fn: An optional function that reduces the loss values. Can be
       :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
@@ -829,9 +825,9 @@ def pairwise_qr_loss(scores: Array,
   Definition:
 
   .. math::
-    \ell(s, y) = \sum_i \sum_j I(y_i > y_j) * loss_{ij} \\
-    loss_{ij} = \tau * \max(0, (y_i - y_j) - (s_i - s_j)) +
-                 (1-\tau) * \max(0, (s_i - s_j) - (y_i - y_j))
+    \ell(s, y) = \sum_i \sum_j \II{y_i > y_j} \op{loss}_{ij} \\
+    \op{loss}_{ij} = \tau \max(0, (y_i - y_j) - (s_i - s_j)) +
+                     (1-\tau) \max(0, (s_i - s_j) - (y_i - y_j))
 
   When ``squared`` is True, each hinge loss is squared. Please note that only
   the pairs that have different labels are considered. When ``tau`` = 0.5, this
@@ -839,18 +835,18 @@ def pairwise_qr_loss(scores: Array,
   labels.
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score of each item.
-    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      relevance label for each item.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid for computing the loss. Items for which
-      this is False will be ignored when computing the loss.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating segments within each list. The loss will only be computed on
-      items that share the same segment.
-    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating the weight for each item.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid for computing the loss. Items for which this is
+      False will be ignored when computing the loss.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      segments within each list. The loss will only be computed on items that
+      share the same segment.
+    weights: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      the weight for each item.
     tau: A float in (0, 1.0] to define the quantile. When tau = 0.5, it becomes
       median regression.
     squared: If True, square each individual pairwise loss value.

@@ -92,12 +92,12 @@ def in_segment_indices(segments: Array) -> Array:
   Returns [0, 1, 2, 0, 0, 1] for segments [0, 0, 0, 1, 2, 2].
 
   Args:
-    segments: A :class:`jax.numpy.ndarray` to indicate segments of items that
-      should be grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or
-      may not be sorted.
+    segments: A :class:`jax.Array` to indicate segments of items that should be
+      grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or may not be
+      sorted.
 
   Returns:
-    An Array with 0-based indices per segment.
+    A :class:`jax.Array` with 0-based indices per segment.
   """
   same_segments = jnp.int32(same_segment_mask(segments))
   lower_triangle = jnp.tril(jnp.ones_like(same_segments))
@@ -110,14 +110,14 @@ def first_item_segment_mask(
   """Constructs a mask that selects the first item per segment.
 
   Args:
-    segments: A :class:`jax.numpy.ndarray` to indicate segments of items that
-      should be grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or
-      may not be sorted.
-    where: An optional :class:`jax.numpy.ndarray` to indicate invalid items.
+    segments: A :class:`jax.Array` to indicate segments of items that should be
+      grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or may not be
+      sorted.
+    where: An optional :class:`jax.Array` to indicate invalid items.
 
   Returns:
-    A :class:`jax.numpy.ndarray` of the same shape as ``segments`` that selects
-    the first valid item in each segment.
+    A :class:`jax.Array` of the same shape as ``segments`` that selects the
+    first valid item in each segment.
   """
   # Construct a same-segment mask.
   mask = same_segment_mask(segments)
@@ -149,17 +149,17 @@ def segment_logcumsumexp(
   logsumexp operation.
 
   Args:
-    x: The :class:`~jax.numpy.ndarray` to compute the cumulative logsumexp for.
+    x: The :class:`~jax.Array` to compute the cumulative logsumexp for.
     segments: A :class:`jax.numpy.ndarray` to indicate segments of items that
       should be grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or
       may not be sorted.
     axis: The axis over which the cumulative sum should take place.
-    where: An optional :class:`~jax.numpy.ndarray` of the same shape as ``x``
-      indicating which items are valid for computing the cumulative logsumexp.
+    where: An optional :class:`~jax.Array` of the same shape as ``x`` indicating
+      which items are valid for computing the cumulative logsumexp.
     reverse: Whether to compute the cumulative sum in reverse.
 
   Returns:
-    An :class:`~jax.numpy.ndarray` of the same shape as ``x`` representing the
+    An :class:`~jax.Array` of the same shape as ``x`` representing the
     cumulative logsumexp of the values of ``x``.
   """
   # Flip the inputs if the cumulative sum needs to be in reverse.

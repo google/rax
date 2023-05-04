@@ -112,6 +112,14 @@ bibtex_bibfiles = ['references.bib']
 bibtex_default_style = 'alpha'
 bibtex_reference_style = 'author_year'
 
+# -- Options for katex -------------------------------------------------------
+
+katex_options = r'''{
+    macros: {
+        "\\II": "\\mathbb{I}\\left[#1\\right]",
+        "\\op": "\\operatorname{#1}",
+    }
+}'''
 
 # -- Intersphinx configuration -----------------------------------------------
 

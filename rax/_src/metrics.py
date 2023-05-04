@@ -49,7 +49,6 @@ Usage with :func:`jax.vmap` batching and a mask to indicate valid items:
 >>> where = jnp.array([[True, True, False], [True, True, True]])
 >>> print(jax.vmap(rax.ndcg_metric)(scores, labels, where=where))
 [1. 1.]
-
 """
 
 from typing import Callable, Optional
@@ -76,12 +75,15 @@ def _retrieved_items(
   """Computes an array that indicates which items are retrieved.
 
   Args:
-    scores: A [..., list_size]-Array, indicating the score of each item.
-    ranks: A [..., list_size]-Array, indicating the 1-based rank of each item.
-    where: An optional [..., list_size]-Array, indicating which items are valid.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating segments within each list. The retrieved items will only be
-      computed on items that share the same segment.
+    scores: A [..., list_size]-:class:`jax.Array`, indicating the score of each
+      item.
+    ranks: A [..., list_size]-:class:`jax.Array`, indicating the 1-based rank of
+      each item.
+    where: An optional [..., list_size]-:class:`jax.Array`, indicating which
+      items are valid.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      segments within each list. The retrieved items will only be computed on
+      items that share the same segment.
     topn: An optional integer value indicating at which rank items are cut off.
       If None, no cutoff is performed.
     cutoff_fn: A callable that computes a cutoff tensor indicating which
@@ -112,7 +114,7 @@ def default_gain_fn(label: Array) -> Array:
   Definition:
 
   .. math::
-      \operatorname{gain}(y) = 2^{y} - 1
+      \op{gain}(y) = 2^{y} - 1
 
   Args:
     label: The label to compute the gain for.
@@ -129,7 +131,7 @@ def default_discount_fn(rank: Array) -> Array:
   Definition:
 
   .. math::
-      \operatorname{discount}(r) = 1. / \log_2(r + 1)
+      \op{discount}(r) = 1. / \log_2(r + 1)
 
   Args:
     rank: The 1-based rank.
@@ -163,22 +165,22 @@ def mrr_metric(
   Definition:
 
   .. math::
-      \operatorname{mrr}(s, y) = \max_i \frac{y_i}{\operatorname{rank}(s_i)}
+      \op{mrr}(s, y) = \max_i \frac{y_i}{\op{rank}(s_i)}
 
-  where :math:`\operatorname{rank}(s_i)` indicates the rank of item :math:`i`
+  where :math:`\op{rank}(s_i)` indicates the rank of item :math:`i`
   after sorting all scores :math:`s` using ``rank_fn``.
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score of each item. Items for which the score is :math:`-\inf` are treated
-        as unranked items.
-    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      relevance label for each item.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid for computing the metric.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating segments within each list. The metric will only be computed on
-      items that share the same segment.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item. Items for which the score is :math:`-\inf` are treated as
+      unranked items.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid for computing the metric.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      segments within each list. The metric will only be computed on items that
+      share the same segment.
     topn: An optional integer value indicating at which rank the metric cuts
       off. If ``None``, no cutoff is performed.
     key: An optional :func:`~jax.random.PRNGKey`. If provided, any random
@@ -262,24 +264,23 @@ def recall_metric(
   Definition:
 
   .. math::
-      \operatorname{recall@n}(s, y) =
-      \frac{1}{\sum_i y_i}
-      \sum_i y_i \cdot \mathbb{I}\left[\operatorname{rank}(s_i) \leq n\right]
+      \op{recall@n}(s, y) = \frac{1}{\sum_i y_i}
+                            \sum_i y_i \cdot \II{\op{rank}(s_i) \leq n}
 
-  where :math:`\operatorname{rank}(s_i)` indicates the rank of item :math:`i`
+  where :math:`\op{rank}(s_i)` indicates the rank of item :math:`i`
   after sorting all scores :math:`s` using `rank_fn`.
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score of each item. Items for which the score is :math:`-\inf` are treated
-        as unranked items.
-    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      relevance label for each item.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid for computing the metric.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating segments within each list. The metric will only be computed on
-      items that share the same segment.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item. Items for which the score is :math:`-\inf` are treated as
+      unranked items.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid for computing the metric.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      segments within each list. The metric will only be computed on items that
+      share the same segment.
     topn: An optional integer value indicating at which rank the metric cuts
       off. If ``None``, no cutoff is performed.
     key: An optional :func:`~jax.random.PRNGKey`. If provided, any random
@@ -362,24 +363,23 @@ def precision_metric(
   Definition:
 
   .. math::
-      \operatorname{precision@n}(s, y) =
-      \frac{1}{n}
-      \sum_i y_i \cdot \mathbb{I}\left[\operatorname{rank}(s_i) \leq n\right]
+      \op{precision@n}(s, y) = \frac{1}{n}
+                               \sum_i y_i \cdot \II{\op{rank}(s_i) \leq n}
 
-  where :math:`\operatorname{rank}(s_i)` indicates the rank of item :math:`i`
+  where :math:`\op{rank}(s_i)` indicates the rank of item :math:`i`
   after sorting all scores :math:`s` using ``rank_fn``.
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score of each item. Items for which the score is :math:`-\inf` are treated
-        as unranked items.
-    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      relevance label for each item.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid for computing the metric.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating segments within each list. The metric will only be computed on
-      items that share the same segment.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item. Items for which the score is :math:`-\inf` are treated as
+      unranked items.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid for computing the metric.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      segments within each list. The metric will only be computed on items that
+      share the same segment.
     topn: An optional integer value indicating at which rank the metric cuts
       off. If ``None``, no cutoff is performed.
     key: An optional :func:`~jax.random.PRNGKey`. If provided, any random
@@ -462,24 +462,23 @@ def ap_metric(
   Definition:
 
   .. math::
-      \operatorname{ap}(s, y) =
-      \frac{1}{\sum_i y_i}
-      \sum_i y_i \operatorname{precision@rank}_{s_i}(s, y)
+      \op{ap}(s, y) =
+      \frac{1}{\sum_i y_i} \sum_i y_i \op{precision@rank}_{s_i}(s, y)
 
-  where :math:`\operatorname{precision@rank}_{s_i}(s, y)` indicates the
+  where :math:`\op{precision@rank}_{s_i}(s, y)` indicates the
   precision at the rank of item :math:`i`.
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score of each item. Items for which the score is :math:`-\inf` are treated
-        as unranked items.
-    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      relevance label for each item.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid for computing the metric.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating segments within each list. The metric will only be computed on
-      items that share the same segment.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item. Items for which the score is :math:`-\inf` are treated as
+      unranked items.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid for computing the metric.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      segments within each list. The metric will only be computed on items that
+      share the same segment.
     topn: An optional integer value indicating at which rank the metric cuts
       off. If ``None``, no cutoff is performed.
     key: An optional :func:`~jax.random.PRNGKey`. If provided, any random
@@ -570,31 +569,29 @@ def dcg_metric(
   Definition :cite:p:`jarvelin2002cumulated`:
 
   .. math::
-      \operatorname{dcg}(s, y) =
-      \sum_i \operatorname{gain}(y_i)
-      \cdot \operatorname{discount}(\operatorname{rank}(s_i))
+      \op{dcg}(s, y) = \sum_i \op{gain}(y_i) \cdot \op{discount}(\op{rank}(s_i))
 
-  where :math:`\operatorname{rank}(s_i)` indicates the 1-based rank of item
-  :math:`i` as computed by ``rank_fn``, :math:`\operatorname{gain}(y)` indicates
+  where :math:`\op{rank}(s_i)` indicates the 1-based rank of item
+  :math:`i` as computed by ``rank_fn``, :math:`\op{gain}(y)` indicates
   the per-item gains as computed by ``gain_fn``, and,
-  :math:`\operatorname{discount}(r)` indicates the per-item rank discounts as
+  :math:`\op{discount}(r)` indicates the per-item rank discounts as
   computed by ``discount_fn``.
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score of each item. Items for which the score is :math:`-\inf` are treated
-        as unranked items.
-    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      relevance label for each item.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid for computing the metric.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating segments within each list. The metric will only be computed on
-      items that share the same segment.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item. Items for which the score is :math:`-\inf` are treated as
+      unranked items.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid for computing the metric.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      segments within each list. The metric will only be computed on items that
+      share the same segment.
     topn: An optional integer value indicating at which rank the metric cuts
       off. If ``None``, no cutoff is performed.
-    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating the per-item weights.
+    weights: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      the per-item weights.
     key: An optional :func:`~jax.random.PRNGKey`. If provided, any random
       operations in this metric will be based on this key.
     gain_fn: A function that maps relevance label to gain values.
@@ -668,26 +665,25 @@ def ndcg_metric(
   Definition :cite:p:`jarvelin2002cumulated`:
 
   .. math::
-      \operatorname{ndcg}(s, y) =
-      \operatorname{dcg}(s, y) / \operatorname{dcg}(y, y)
+      \op{ndcg}(s, y) = \op{dcg}(s, y) / \op{dcg}(y, y)
 
-  where :math:`\operatorname{dcg}` is the discounted cumulative gain metric.
+  where :math:`\op{dcg}` is the discounted cumulative gain metric.
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score of each item. Items for which the score is :math:`-\inf` are treated
-        as unranked items.
-    labels: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      relevance label for each item.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid for computing the metric.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating segments within each list. The metric will only be computed on
-      items that share the same segment.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item. Items for which the score is :math:`-\inf` are treated as
+      unranked items.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid for computing the metric.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      segments within each list. The metric will only be computed on items that
+      share the same segment.
     topn: An optional integer value indicating at which rank the metric cuts
       off. If ``None``, no cutoff is performed.
-    weights: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating the per-item weights.
+    weights: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      the per-item weights.
     key: An optional :func:`~jax.random.PRNGKey`. If provided, any random
       operations in this metric will be based on this key.
     gain_fn: A function that maps relevance label to gain values.

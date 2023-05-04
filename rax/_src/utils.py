@@ -33,21 +33,22 @@ def safe_reduce(a: Array,
                 reduce_fn: Optional[Callable[..., Array]] = None) -> Array:
   """Reduces the values of given array while preventing NaN in the output.
 
-  For `jnp.mean` reduction, this additionally prevents NaN in the output if all
-  elements are masked. This can happen with pairwise losses where there are no
-  valid pairs because all labels are the same. In this situation, 0 is returned
-  instead.
+  For :func:`jax.numpy.mean` reduction, this additionally prevents ``NaN`` in
+  the output if all elements are masked. This can happen with pairwise losses
+  where there are no valid pairs because all labels are the same. In this
+  situation, 0 is returned instead.
 
-  When there is no `reduce_fn`, this will set elements of `a` to 0 according to
-  the `where` mask.
+  When there is no ``reduce_fn``, this will set elements of ``a`` to 0 according
+  to the ``where`` mask.
 
   Args:
-    a: The array to reduce.
-    where: Which elements to include in the reduction.
+    a: The :class:`jax.Array` to reduce.
+    where: An optional :class:`jax.Array` indicating which elements to include
+      in the reduction.
     reduce_fn: The function used to reduce. If None, no reduction is performed.
 
   Returns:
-    The result of reducing the values of `a` using given `reduce_fn`.
+    The result of reducing the values of ``a`` using given ``reduce_fn``.
   """
   # Reduce values if there is a reduce_fn, otherwise keep the values as-is.
   output = reduce_fn(a, where=where) if reduce_fn is not None else a
@@ -97,8 +98,9 @@ def normalize_probabilities(
 
   Args:
     unscaled_probabilities: The probabilities to normalize.
-    where: The mask to indicate which entries are valid.
-    segments: A :class:`jax.numpy.ndarray` to indicate segments of items that
+    where: An optional :class:`jax.Array` indicating which elements to include
+      in the normalization.
+    segments: An optional :class:`jax.Array` to indicate segments of items that
       should be grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or
       may not be sorted.
     axis: The axis to normalize on.
@@ -161,15 +163,15 @@ def logcumsumexp(x: Array,
   logsumexp operation.
 
   Args:
-    x: The :class:`~jax.numpy.ndarray` to compute the cumulative logsumexp for.
+    x: The :class:`~jax.Array` to compute the cumulative logsumexp for.
     axis: The axis over which the cumulative sum should take place.
-    where: An optional :class:`~jax.numpy.ndarray` of the same shape as ``x``
+    where: An optional :class:`~jax.Array` of the same shape as ``x``
       indicating which items are valid for computing the cumulative logsumexp.
     reverse: Whether to compute the cumulative sum in reverse.
 
   Returns:
-    An :class:`~jax.numpy.ndarray` of the same shape as ``x`` representing the
-    cumulative logsumexp of the values of ``x``.
+    A :class:`~jax.Array` of the same shape as ``x`` representing the cumulative
+    logsumexp of the values of ``x``.
   """
   if where is None:
     where = jnp.ones_like(x, dtype=jnp.bool_)
@@ -215,8 +217,6 @@ def logcumsumexp(x: Array,
   #
   # This recursive formulation allows for an o(n) complexity implementation
   # using `jax.lax.scan` and is used here.
-  #
-  # TODO(jagerman): Investigate using log-space summation instead of product.
   def f(previous, x):
     out_i = x[0] + previous * x[1]
     return out_i, out_i
@@ -251,16 +251,16 @@ def sort_by(
   matches the shape of the `scores`.
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score for each item.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score for
+      each item.
     tensors_to_sort: A sequence of tensors of the same shape as scores. These
       are the tensors that will be sorted in the order of scores.
     axis: The axis to sort on, by default this is the last axis.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid. Invalid entries are pushed to the end.
-    segments: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items in the list should be grouped together. Items will
-      be sorted within each segment, but not across segments.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid. Invalid entries are pushed to the end.
+    segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items in the list should be grouped together. Items will be sorted
+      within each segment, but not across segments.
     key: An optional :func:`jax.random.PRNGKey`. If provided, ties will be
       broken randomly using this key. If not provided, ties will retain the
       order of their appearance in the `scores` array.
@@ -312,21 +312,21 @@ def ranks(
   the sort operation having no gradients.
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score for each item.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid.
-    segments: A :class:`jax.numpy.ndarray` to indicate segments of items that
-      should be grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or
-      may not be sorted.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score for
+      each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid.
+    segments: A :class:`~jax.Array` to indicate segments of items that should be
+      grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or may not be
+      sorted.
     axis: The axis to sort on, by default this is the last axis.
     key: An optional :func:`jax.random.PRNGKey`. If provided, ties will be
       broken randomly using this key. If not provided, ties will retain the
       order of their appearance in the `scores` array.
 
   Returns:
-    A tensor with the same shape as `scores` that indicates the 1-based rank of
-    each item.
+    A :class:`~jax.Array` with the same shape as `scores` that indicates the
+    1-based rank of each item.
   """
   # Construct `arange` tensor and broadcast it to the shape of `scores`.
   arange_broadcast_dims = list(range(len(scores.shape)))
@@ -386,18 +386,18 @@ def approx_ranks(
   [-0.03763788 -0.03763788  0.07527576]
 
   Args:
-    scores: A ``[..., list_size]``-:class:`~jax.numpy.ndarray`, indicating the
-      score for each item.
-    where: An optional ``[..., list_size]``-:class:`~jax.numpy.ndarray`,
-      indicating which items are valid.
-    segments: A :class:`jax.numpy.ndarray` to indicate segments of items that
-      should be grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or
-      may not be sorted.
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score for
+      each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid.
+    segments: A :class:`~jax.Array` to indicate segments of items that should be
+      grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or may not be
+      sorted.
     key: An optional :func:`jax.random.PRNGKey`. Unused by ``approx_ranks``.
     step_fn: A callable that approximates the step function ``x >= 0``.
 
   Returns:
-    A :class:`~jax.numpy.ndarray` of the same shape as ``scores``, indicating
+    A :class:`~jax.Array` of the same shape as ``scores``, indicating
     the 1-based approximate rank of each item.
   """
 
@@ -427,20 +427,20 @@ def cutoff(
 ) -> Array:
   """Computes a binary array to select the largest ``n`` values of ``a``.
 
-  This function computes a binary :class:`jax.numpy.ndarray` that selects the
-  ``n`` largest values of ``a`` across its last dimension.
+  This function computes a binary :class:`~jax.Array` that selects the ``n``
+  largest values of ``a`` across its last dimension.
 
   Args:
-    a: The :class:`jax.numpy.ndarray` to select the topn from.
+    a: The :class:`~jax.Array` to select the topn from.
     n: The cutoff value. If None, no cutoff is performed.
     where: A mask to indicate which values to include in the topn calculation.
-    segments: A :class:`jax.numpy.ndarray` to indicate segments of items that
-      should be grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or
-      may not be sorted.
+    segments: A :class:`~jax.Array` to indicate segments of items that should be
+      grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or may not be
+      sorted.
 
   Returns:
-    A :class:`jax.numpy.ndarray` of the same shape as ``a``, where the
-    ``n`` largest values are set to 1, and the smaller values are set to 0.
+    A :class:`~jax.Array` of the same shape as ``a``, where the ``n`` largest
+    values are set to 1, and the smaller values are set to 0.
   """
   if n is None:
     return jnp.ones_like(a)
@@ -461,20 +461,20 @@ def approx_cutoff(
 ) -> Array:
   """Approximately select the largest ``n`` values of ``a``.
 
-  This function computes a :class:`jax.numpy.ndarray` that is the probability of
-  an item being in the ``n`` largest values of ``a`` across its last dimension.
+  This function computes a :class:`~jax.Array` that is the probability of an
+  item being in the ``n`` largest values of ``a`` across its last dimension.
 
   Args:
-    a: The :class:`jax.numpy.ndarray` to select the topn from.
+    a: The :class:`~jax.Array` to select the topn from.
     n: The cutoff value. If None, no cutoff is performed.
     where: A mask to indicate which values to include in the topn calculation.
-    segments: A :class:`jax.numpy.ndarray` to indicate segments of items that
-      should be grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or
-      may not be sorted.
+    segments: A :class:`~jax.Array` to indicate segments of items that should be
+      grouped together. Like ``[0, 0, 1, 0, 2]``. The segments may or may not be
+      sorted.
     step_fn: A function that computes an approximation of ``x >= 0``.
 
   Returns:
-    A :class:`jax.numpy.ndarray` of the same shape as ``a``.
+    A :class:`~jax.Array` of the same shape as ``a``.
   """
   if n is None:
     return jnp.ones_like(a)
@@ -539,8 +539,8 @@ def compute_pairs(a: Array, op: Callable[[Array, Array], Array]) -> Array:
     op: The binary op to map a pair of values to a single value.
 
   Returns:
-    A new array with the same leading dimensions as `a`, but with the last
-    dimension expanded so it includes all pairs `op(a[..., i], a[..., j])`
+    A :class:`jax.Array` with the same leading dimensions as `a`, but with the
+    last dimension expanded so it includes all pairs `op(a[..., i], a[..., j])`
   """
   a_i = jnp.expand_dims(a, -1)
   a_j = jnp.expand_dims(a, -2)
@@ -556,9 +556,9 @@ def update_signature(
 ) -> Callable[[T], T]:
   """Function decorator to update a function signature by appending new kwargs.
 
-  This is useful for functions where standard ``functools.wraps`` is not
+  This is useful for functions where standard :func:`functools.wraps` is not
   sufficient because the wrapper has new kwargs that are not a part of the
-  signature of the wrapped function and ``inspect.signature`` would fail to
+  signature of the wrapped function and :func:`inspect.signature` would fail to
   expose those kwargs.
 
   Example usage:
