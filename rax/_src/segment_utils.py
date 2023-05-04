@@ -55,14 +55,12 @@ def segment_max(
       jnp.broadcast_to(jnp.expand_dims(a, -2), mask.shape),
       axis=-1,
       where=mask,
-      initial=initial
+      initial=initial,
   )
 
 
 def segment_log_softmax(
-    a: Array,
-    segments: Array,
-    where: Optional[Array] = None
+    a: Array, segments: Array, where: Optional[Array] = None
 ) -> Array:
   """Returns segment log-softmax."""
   a_max = segment_max(a, segments, where=where, initial=jnp.min(a))
@@ -74,9 +72,7 @@ def segment_log_softmax(
 
 
 def segment_softmax(
-    a: Array,
-    segments: Array,
-    where: Optional[Array] = None
+    a: Array, segments: Array, where: Optional[Array] = None
 ) -> Array:
   """Returns segment softmax."""
   a_max = segment_max(a, segments, where=where, initial=jnp.min(a))

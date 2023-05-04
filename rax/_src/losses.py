@@ -225,7 +225,7 @@ def poly1_softmax_loss(
   # For lists where all items are masked, this sets pt to 1 so that the term
   # (1 - pt) is set to 0 for the loss computation.
   if where is not None:
-    pt = jnp.where(jnp.all(jnp.logical_not(where), axis=-1), 1., pt)
+    pt = jnp.where(jnp.all(jnp.logical_not(where), axis=-1), 1.0, pt)
 
   # In the segmented case, values retain their list dimension. This constructs
   # a mask so that only the first item per segment is used in reduce_fn.
@@ -289,7 +289,8 @@ def unique_softmax_loss(
   # indicate, for each item, which other items have a smaller label.
   labels_lt = jnp.expand_dims(labels, -2) < jnp.expand_dims(labels, -1)
   scores_repeated = jnp.repeat(
-      jnp.expand_dims(scores, -2), scores.shape[-1], axis=-2)
+      jnp.expand_dims(scores, -2), scores.shape[-1], axis=-2
+  )
   if segments is not None:
     labels_lt = labels_lt & segment_utils.same_segment_mask(segments)
 
@@ -309,7 +310,8 @@ def unique_softmax_loss(
       scores_repeated,
       axis=-1,
       where=identity_mask | labels_lt,
-      initial=jnp.min(scores))
+      initial=jnp.min(scores),
+  )
   log_softmax = jnp.diagonal(log_softmax, axis1=-2, axis2=-1)
 
   # Apply per-item weights.
@@ -420,15 +422,17 @@ def listmle_loss(
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def pairwise_loss(scores: Array,
-                  labels: Array,
-                  *,
-                  pair_loss_fn: Callable[[Array, Array], Tuple[Array, Array]],
-                  lambdaweight_fn: Optional[LambdaweightFn] = None,
-                  where: Optional[Array] = None,
-                  segments: Optional[Array] = None,
-                  weights: Optional[Array] = None,
-                  reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
+def pairwise_loss(
+    scores: Array,
+    labels: Array,
+    *,
+    pair_loss_fn: Callable[[Array, Array], Tuple[Array, Array]],
+    lambdaweight_fn: Optional[LambdaweightFn] = None,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    weights: Optional[Array] = None,
+    reduce_fn: Optional[ReduceFn] = jnp.mean,
+) -> Array:
   r"""Generic pairwise loss.
 
   The ``pair_loss_fn`` takes ``(scores_diff, labels_diff)`` and returns the loss
@@ -485,14 +489,16 @@ def pairwise_loss(scores: Array,
   return utils.safe_reduce(pair_losses, where=valid_pairs, reduce_fn=reduce_fn)
 
 
-def pairwise_hinge_loss(scores: Array,
-                        labels: Array,
-                        *,
-                        where: Optional[Array] = None,
-                        segments: Optional[Array] = None,
-                        weights: Optional[Array] = None,
-                        lambdaweight_fn: Optional[LambdaweightFn] = None,
-                        reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
+def pairwise_hinge_loss(
+    scores: Array,
+    labels: Array,
+    *,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    weights: Optional[Array] = None,
+    lambdaweight_fn: Optional[LambdaweightFn] = None,
+    reduce_fn: Optional[ReduceFn] = jnp.mean,
+) -> Array:
   r"""Pairwise hinge loss.
 
   Definition:
@@ -522,9 +528,10 @@ def pairwise_hinge_loss(scores: Array,
     The pairwise hinge loss.
   """
 
-  def _hinge_loss(scores_diff: Array,
-                  labels_diff: Array) -> Tuple[Array, Array]:
-    return jax.nn.relu(1. - scores_diff), labels_diff > 0
+  def _hinge_loss(
+      scores_diff: Array, labels_diff: Array
+  ) -> Tuple[Array, Array]:
+    return jax.nn.relu(1.0 - scores_diff), labels_diff > 0
 
   return pairwise_loss(
       scores,
@@ -534,17 +541,20 @@ def pairwise_hinge_loss(scores: Array,
       where=where,
       weights=weights,
       lambdaweight_fn=lambdaweight_fn,
-      reduce_fn=reduce_fn)
+      reduce_fn=reduce_fn,
+  )
 
 
-def pairwise_logistic_loss(scores: Array,
-                           labels: Array,
-                           *,
-                           where: Optional[Array] = None,
-                           segments: Optional[Array] = None,
-                           weights: Optional[Array] = None,
-                           lambdaweight_fn: Optional[LambdaweightFn] = None,
-                           reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
+def pairwise_logistic_loss(
+    scores: Array,
+    labels: Array,
+    *,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    weights: Optional[Array] = None,
+    lambdaweight_fn: Optional[LambdaweightFn] = None,
+    reduce_fn: Optional[ReduceFn] = jnp.mean,
+) -> Array:
   r"""Pairwise logistic loss.
 
   Definition :cite:p:`burges2005learning`:
@@ -574,10 +584,13 @@ def pairwise_logistic_loss(scores: Array,
     The pairwise logistic loss.
   """
 
-  def _logistic_loss(scores_diff: Array,
-                     labels_diff: Array) -> Tuple[Array, Array]:
-    return (jax.nn.relu(-scores_diff) +
-            jnp.log1p(jnp.exp(-jnp.abs(scores_diff))), labels_diff > 0)
+  def _logistic_loss(
+      scores_diff: Array, labels_diff: Array
+  ) -> Tuple[Array, Array]:
+    return (
+        jax.nn.relu(-scores_diff) + jnp.log1p(jnp.exp(-jnp.abs(scores_diff))),
+        labels_diff > 0,
+    )
 
   return pairwise_loss(
       scores,
@@ -587,7 +600,8 @@ def pairwise_logistic_loss(scores: Array,
       segments=segments,
       weights=weights,
       lambdaweight_fn=lambdaweight_fn,
-      reduce_fn=reduce_fn)
+      reduce_fn=reduce_fn,
+  )
 
 
 def pairwise_soft_zero_one_loss(
@@ -653,13 +667,15 @@ def pairwise_soft_zero_one_loss(
   )
 
 
-def pointwise_sigmoid_loss(scores: Array,
-                           labels: Array,
-                           *,
-                           where: Optional[Array] = None,
-                           segments: Optional[Array] = None,
-                           weights: Optional[Array] = None,
-                           reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
+def pointwise_sigmoid_loss(
+    scores: Array,
+    labels: Array,
+    *,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    weights: Optional[Array] = None,
+    reduce_fn: Optional[ReduceFn] = jnp.mean,
+) -> Array:
   r"""Sigmoid cross entropy loss.
 
   .. note::
@@ -702,8 +718,10 @@ def pointwise_sigmoid_loss(scores: Array,
 
   # A numerically stable version of sigmoid cross entropy.
   loss = (
-      jax.nn.relu(scores) - scores * labels +
-      jnp.log(1. + jnp.exp(-jnp.abs(scores))))
+      jax.nn.relu(scores)
+      - scores * labels
+      + jnp.log(1.0 + jnp.exp(-jnp.abs(scores)))
+  )
 
   if weights is not None:
     loss *= weights
@@ -711,13 +729,15 @@ def pointwise_sigmoid_loss(scores: Array,
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def pointwise_mse_loss(scores: Array,
-                       labels: Array,
-                       *,
-                       where: Optional[Array] = None,
-                       segments: Optional[Array] = None,
-                       weights: Optional[Array] = None,
-                       reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
+def pointwise_mse_loss(
+    scores: Array,
+    labels: Array,
+    *,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    weights: Optional[Array] = None,
+    reduce_fn: Optional[ReduceFn] = jnp.mean,
+) -> Array:
   r"""Mean squared error loss.
 
   Definition:
@@ -758,14 +778,16 @@ def pointwise_mse_loss(scores: Array,
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def pairwise_mse_loss(scores: Array,
-                      labels: Array,
-                      *,
-                      where: Optional[Array] = None,
-                      segments: Optional[Array] = None,
-                      weights: Optional[Array] = None,
-                      lambdaweight_fn: Optional[LambdaweightFn] = None,
-                      reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
+def pairwise_mse_loss(
+    scores: Array,
+    labels: Array,
+    *,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    weights: Optional[Array] = None,
+    lambdaweight_fn: Optional[LambdaweightFn] = None,
+    reduce_fn: Optional[ReduceFn] = jnp.mean,
+) -> Array:
   r"""Pairwise mean squared error loss.
 
   Definition:
@@ -796,8 +818,10 @@ def pairwise_mse_loss(scores: Array,
   """
 
   def _mse_loss(scores_diff: Array, labels_diff: Array) -> Tuple[Array, Array]:
-    return (jnp.square(scores_diff - labels_diff),
-            jnp.ones_like(labels_diff > 0))
+    return (
+        jnp.square(scores_diff - labels_diff),
+        jnp.ones_like(labels_diff > 0),
+    )
 
   return pairwise_loss(
       scores,
@@ -807,19 +831,22 @@ def pairwise_mse_loss(scores: Array,
       segments=segments,
       weights=weights,
       lambdaweight_fn=lambdaweight_fn,
-      reduce_fn=reduce_fn)
+      reduce_fn=reduce_fn,
+  )
 
 
-def pairwise_qr_loss(scores: Array,
-                     labels: Array,
-                     *,
-                     where: Optional[Array] = None,
-                     segments: Optional[Array] = None,
-                     weights: Optional[Array] = None,
-                     tau: float = 0.5,
-                     squared: bool = False,
-                     lambdaweight_fn: Optional[LambdaweightFn] = None,
-                     reduce_fn: Optional[ReduceFn] = jnp.mean) -> Array:
+def pairwise_qr_loss(
+    scores: Array,
+    labels: Array,
+    *,
+    where: Optional[Array] = None,
+    segments: Optional[Array] = None,
+    weights: Optional[Array] = None,
+    tau: float = 0.5,
+    squared: bool = False,
+    lambdaweight_fn: Optional[LambdaweightFn] = None,
+    reduce_fn: Optional[ReduceFn] = jnp.mean,
+) -> Array:
   r"""Pairwise quantile regression loss.
 
   Definition:
@@ -866,9 +893,10 @@ def pairwise_qr_loss(scores: Array,
       loss_1, loss_2 = jnp.square(loss_1), jnp.square(loss_2)
     return tau * loss_1 + (1 - tau) * loss_2, labels_diff > 0
 
-  if not (tau > 0. and tau <= 1.):
+  if not (tau > 0.0 and tau <= 1.0):
     raise ValueError(
-        f'tau should be in the range of (0.0, 1.0], but {tau} is given.')
+        f'tau should be in the range of (0.0, 1.0], but {tau} is given.'
+    )
 
   return pairwise_loss(
       scores,
@@ -878,4 +906,5 @@ def pairwise_qr_loss(scores: Array,
       segments=segments,
       weights=weights,
       lambdaweight_fn=lambdaweight_fn,
-      reduce_fn=reduce_fn)
+      reduce_fn=reduce_fn,
+  )

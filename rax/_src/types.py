@@ -85,8 +85,12 @@ class CutoffFn(Protocol):
 class ReduceFn(Protocol):
   """:class:`typing.Protocol` for reduce functions."""
 
-  def __call__(self, a: Array, where: Optional[Array],
-               axis: Optional[Union[int, Tuple[int, ...]]]) -> Array:
+  def __call__(
+      self,
+      a: Array,
+      where: Optional[Array],
+      axis: Optional[Union[int, Tuple[int, ...]]],
+  ) -> Array:
     """Reduces an array across one or more dimensions.
 
     Args:
@@ -106,8 +110,9 @@ class ReduceFn(Protocol):
 class LossFn(Protocol):
   """:class:`typing.Protocol` for loss functions."""
 
-  def __call__(self, scores: Array, labels: Array, *, where: Optional[Array],
-               **kwargs) -> Array:
+  def __call__(
+      self, scores: Array, labels: Array, *, where: Optional[Array], **kwargs
+  ) -> Array:
     """Computes a loss.
 
     Args:
@@ -127,8 +132,9 @@ class LossFn(Protocol):
 class MetricFn(Protocol):
   """:class:`typing.Protocol` for metric functions."""
 
-  def __call__(self, scores: Array, labels: Array, *, where: Optional[Array],
-               **kwargs) -> Array:
+  def __call__(
+      self, scores: Array, labels: Array, *, where: Optional[Array], **kwargs
+  ) -> Array:
     """Computes a metric.
 
     Args:
@@ -148,8 +154,15 @@ class MetricFn(Protocol):
 class LambdaweightFn(Protocol):
   """:class:`typing.Protocol` for lambdaweight functions."""
 
-  def __call__(self, scores: Array, labels: Array, *, where: Optional[Array],
-               weights: Optional[Array], **kwargs) -> Array:
+  def __call__(
+      self,
+      scores: Array,
+      labels: Array,
+      *,
+      where: Optional[Array],
+      weights: Optional[Array],
+      **kwargs
+  ) -> Array:
     """Computes lambdaweights.
 
     Args:

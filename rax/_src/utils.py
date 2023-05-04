@@ -28,9 +28,11 @@ from rax._src.types import Array
 T = TypeVar("T")
 
 
-def safe_reduce(a: Array,
-                where: Optional[Array] = None,
-                reduce_fn: Optional[Callable[..., Array]] = None) -> Array:
+def safe_reduce(
+    a: Array,
+    where: Optional[Array] = None,
+    reduce_fn: Optional[Callable[..., Array]] = None,
+) -> Array:
   """Reduces the values of given array while preventing NaN in the output.
 
   For :func:`jax.numpy.mean` reduction, this additionally prevents ``NaN`` in
@@ -64,7 +66,7 @@ def safe_reduce(a: Array,
     # valid pairs. Instead, we prefer that the loss returns 0 in these cases.
     # Note that this only hides those NaN values if the input did not contain
     # any NaN values. Otherwise it just returns the output as-is.
-    output = jnp.where(jnp.isnan(output) & is_input_valid, 0., output)
+    output = jnp.where(jnp.isnan(output) & is_input_valid, 0.0, output)
 
   if reduce_fn is None and where is not None:
     # When there is no reduce_fn (i.e. we are returning an unreduced
@@ -72,7 +74,7 @@ def safe_reduce(a: Array,
     # This makes sure that manual sum reduction on an unreduced loss works as
     # expected:
     # `jnp.sum(loss_fn(reduce_fn=None)) == loss_fn(reduce_fn=jnp.sum)`
-    output = jnp.where(where, output, 0.)
+    output = jnp.where(where, output, 0.0)
 
   return output
 
@@ -152,11 +154,13 @@ def normalize_probabilities(
   return output
 
 
-def logcumsumexp(x: Array,
-                 *,
-                 axis: int = -1,
-                 where: Optional[Array] = None,
-                 reverse: bool = False):
+def logcumsumexp(
+    x: Array,
+    *,
+    axis: int = -1,
+    where: Optional[Array] = None,
+    reverse: bool = False,
+):
   """Computes the cumulative logsumexp.
 
   This is a numerically safe and efficient implementation of a cumulative
@@ -165,8 +169,8 @@ def logcumsumexp(x: Array,
   Args:
     x: The :class:`~jax.Array` to compute the cumulative logsumexp for.
     axis: The axis over which the cumulative sum should take place.
-    where: An optional :class:`~jax.Array` of the same shape as ``x``
-      indicating which items are valid for computing the cumulative logsumexp.
+    where: An optional :class:`~jax.Array` of the same shape as ``x`` indicating
+      which items are valid for computing the cumulative logsumexp.
     reverse: Whether to compute the cumulative sum in reverse.
 
   Returns:
@@ -194,14 +198,14 @@ def logcumsumexp(x: Array,
 
   # Compute `exp(x_i - m_i)` for each i.
   x_shifted = jnp.exp(x - m)
-  x_shifted = jnp.where(where, x_shifted, 0.)
+  x_shifted = jnp.where(where, x_shifted, 0.0)
 
   # Compute `exp(m_{i-1} - m_i)` for each i. This is used to perform an
   # efficient version of the internal cumulative sumation (see below).
   # Note that `m_{i-1} <= m_i` for all i because m_i is a cumulative maximum, so
   # this is numerically safe.
-  m_diffs = jnp.exp(jnp.minimum(0., jnp.roll(m, 1, axis=0) - m))
-  m_diffs = jnp.where(where, m_diffs, 1.)
+  m_diffs = jnp.exp(jnp.minimum(0.0, jnp.roll(m, 1, axis=0) - m))
+  m_diffs = jnp.where(where, m_diffs, 1.0)
 
   # We wish to compute the following output values (for each i):
   #
@@ -304,7 +308,7 @@ def ranks(
     where: Optional[Array] = None,
     segments: Optional[Array] = None,
     axis: int = -1,
-    key: Optional[Array] = None
+    key: Optional[Array] = None,
 ) -> Array:
   """Computes the ranks for given scores.
 
@@ -368,7 +372,7 @@ def approx_ranks(
     where: Optional[Array] = None,
     segments: Optional[Array] = None,
     key: Optional[Array] = None,
-    step_fn: Callable[[Array], Array] = jax.nn.sigmoid
+    step_fn: Callable[[Array], Array] = jax.nn.sigmoid,
 ) -> Array:
   """Computes approximate ranks.
 
@@ -457,7 +461,7 @@ def approx_cutoff(
     *,
     where: Optional[Array] = None,
     segments: Optional[Array] = None,
-    step_fn: Callable[[Array], Array] = jax.nn.sigmoid
+    step_fn: Callable[[Array], Array] = jax.nn.sigmoid,
 ) -> Array:
   """Approximately select the largest ``n`` values of ``a``.
 

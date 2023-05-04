@@ -122,7 +122,7 @@ def default_gain_fn(label: Array) -> Array:
   Returns:
     The gain value for given label.
   """
-  return jnp.power(2., label) - 1.
+  return jnp.power(2.0, label) - 1.0
 
 
 def default_discount_fn(rank: Array) -> Array:
@@ -139,7 +139,7 @@ def default_discount_fn(rank: Array) -> Array:
   Returns:
     The discount value for given rank.
   """
-  return 1. / jnp.log2(rank + 1)
+  return 1.0 / jnp.log2(rank + 1)
 
 
 def mrr_metric(
@@ -196,8 +196,9 @@ def mrr_metric(
     The MRR metric.
   """
   # Get the relevant items.
-  relevant_items = jnp.where(labels >= 1, jnp.ones_like(labels),
-                             jnp.zeros_like(labels))
+  relevant_items = jnp.where(
+      labels >= 1, jnp.ones_like(labels), jnp.zeros_like(labels)
+  )
 
   # Get the retrieved items.
   ranks = rank_fn(scores, where=where, segments=segments, key=key)
@@ -211,7 +212,7 @@ def mrr_metric(
   )
 
   # Compute reciprocal ranks.
-  reciprocal_ranks = jnp.reciprocal(jnp.where(ranks == 0., jnp.inf, ranks))
+  reciprocal_ranks = jnp.reciprocal(jnp.where(ranks == 0.0, jnp.inf, ranks))
 
   # Get the maximum reciprocal rank.
   if segments is not None:
@@ -219,7 +220,7 @@ def mrr_metric(
         relevant_items * retrieved_items * reciprocal_ranks,
         segments,
         where=where,
-        initial=0.0
+        initial=0.0,
     )
   else:
     values = jnp.max(
@@ -296,8 +297,9 @@ def recall_metric(
     The recall metric.
   """
   # Get the relevant items.
-  relevant_items = jnp.where(labels >= 1, jnp.ones_like(labels),
-                             jnp.zeros_like(labels))
+  relevant_items = jnp.where(
+      labels >= 1, jnp.ones_like(labels), jnp.zeros_like(labels)
+  )
 
   # Get the retrieved items.
   ranks = rank_fn(scores, where=where, segments=segments, key=key)
@@ -325,7 +327,7 @@ def recall_metric(
     n_relevant = jnp.sum(relevant_items, where=where, axis=-1)
 
   # Compute recall but prevent division by zero.
-  n_relevant = jnp.where(n_relevant == 0, 1., n_relevant)
+  n_relevant = jnp.where(n_relevant == 0, 1.0, n_relevant)
   values = n_retrieved_relevant / n_relevant
 
   # In the segmented case, values retain their list dimension. This constructs
@@ -395,8 +397,9 @@ def precision_metric(
     The precision metric.
   """
   # Get the relevant items.
-  relevant_items = jnp.where(labels >= 1, jnp.ones_like(labels),
-                             jnp.zeros_like(labels))
+  relevant_items = jnp.where(
+      labels >= 1, jnp.ones_like(labels), jnp.zeros_like(labels)
+  )
 
   # Get the retrieved items.
   ranks = rank_fn(scores, where=where, segments=segments, key=key)
@@ -424,7 +427,7 @@ def precision_metric(
     n_retrieved = jnp.sum(retrieved_items, where=where, axis=-1)
 
   # Compute precision but prevent division by zero.
-  n_retrieved = jnp.where(n_retrieved == 0, 1., n_retrieved)
+  n_retrieved = jnp.where(n_retrieved == 0, 1.0, n_retrieved)
   values = n_retrieved_relevant / n_retrieved
 
   # In the segmented case, values retain their list dimension. This constructs
@@ -494,8 +497,9 @@ def ap_metric(
     The average precision metric.
   """
   # Get the relevant items.
-  relevant_items = jnp.where(labels >= 1, jnp.ones_like(labels),
-                             jnp.zeros_like(labels))
+  relevant_items = jnp.where(
+      labels >= 1, jnp.ones_like(labels), jnp.zeros_like(labels)
+  )
 
   # Get the retrieved items.
   ranks = rank_fn(scores, where=where, segments=segments, key=key)
@@ -534,7 +538,7 @@ def ap_metric(
     n_relevant = jnp.sum(relevant_items, where=where, axis=-1)
 
   # Compute average precision but prevent division by zero.
-  n_relevant = jnp.where(n_relevant == 0, 1., n_relevant)
+  n_relevant = jnp.where(n_relevant == 0, 1.0, n_relevant)
   values = sum_prec_at_k / n_relevant
 
   # In the segmented case, values retain their list dimension. This constructs
@@ -711,7 +715,8 @@ def ndcg_metric(
       discount_fn=discount_fn,
       rank_fn=rank_fn,
       cutoff_fn=cutoff_fn,
-      reduce_fn=None)
+      reduce_fn=None,
+  )
 
   # The ideal dcg is computed by ordering items by their (weighted) gains.
   ideal_scores = gain_fn(labels)
@@ -729,10 +734,11 @@ def ndcg_metric(
       discount_fn=discount_fn,
       rank_fn=utils.ranks,
       cutoff_fn=utils.cutoff,
-      reduce_fn=None)
+      reduce_fn=None,
+  )
 
   # Compute the result as `dcg / ideal_dcg` while preventing division by zero.
-  ideal_dcg = jnp.where(ideal_dcg == 0., 1., ideal_dcg)
+  ideal_dcg = jnp.where(ideal_dcg == 0.0, 1.0, ideal_dcg)
   values = regular_dcg / ideal_dcg
 
   # In the segmented case, values retain their list dimension. This constructs
