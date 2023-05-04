@@ -21,7 +21,6 @@ from rax._src.types import MetricFn
 from rax._src.types import RankFn
 from rax._src.types import ReduceFn
 
-# pyformat: disable
 __all__ = [
     "CutoffFn",
     "LambdaweightFn",
@@ -30,5 +29,3 @@ __all__ = [
     "RankFn",
     "ReduceFn",
 ]
-# pyformat: enable
-

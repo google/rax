@@ -51,11 +51,13 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 
 
-def prepare_dataset(ds: tf.data.Dataset,
-                    batch_size: int = 128,
-                    list_size: Optional[int] = 200,
-                    shuffle_size: Optional[int] = 1000,
-                    rng_seed: int = 42):
+def prepare_dataset(
+    ds: tf.data.Dataset,
+    batch_size: int = 128,
+    list_size: Optional[int] = 200,
+    shuffle_size: Optional[int] = 1000,
+    rng_seed: int = 42,
+):
   """Prepares a training dataset by applying padding/truncating/etc."""
   tf.random.set_seed(rng_seed)
   ds = ds.cache()
@@ -140,7 +142,7 @@ def eval_metrics(ds, w, metrics):
   """
   # Define initial metric values.
   metric_values = {
-      metric_name: Average(jnp.float32(0.), jnp.int32(0))
+      metric_name: Average(jnp.float32(0.0), jnp.int32(0))
       for metric_name in metrics
   }
 
@@ -150,7 +152,8 @@ def eval_metrics(ds, w, metrics):
     scores = model_fn(w, features)
     for metric_name, metric in metrics.items():
       metric_values[metric_name] = metric_values[metric_name].merge(
-          Average(metric(scores, labels, where=mask), jnp.int32(1)))
+          Average(metric(scores, labels, where=mask), jnp.int32(1))
+      )
     return metric_values
 
   # Iterate over each batch and update the metric average values.
@@ -177,7 +180,8 @@ def main(argv: Sequence[str], epochs: int = 10):
   approx_ap = rax.approx_t12n(rax.ap_metric)
   approx_ndcg = rax.approx_t12n(rax.ndcg_metric)
   approx_recall_at_50 = rax.approx_t12n(
-      functools.partial(rax.recall_metric, topn=50))
+      functools.partial(rax.recall_metric, topn=50)
+  )
 
   # Train model with each of the approx metrics.
   w_ndcg = train(ds_train, approx_ndcg, epochs=epochs)
@@ -188,13 +192,13 @@ def main(argv: Sequence[str], epochs: int = 10):
   metrics = {
       "AP": rax.ap_metric,
       "NDCG": rax.ndcg_metric,
-      "R@50": functools.partial(rax.recall_metric, topn=50)
+      "R@50": functools.partial(rax.recall_metric, topn=50),
   }
 
   output = {
       "ApproxAP": eval_metrics(ds_train, w_ap, metrics),
       "ApproxNDCG": eval_metrics(ds_train, w_ndcg, metrics),
-      "ApproxR@50": eval_metrics(ds_train, w_recall, metrics)
+      "ApproxR@50": eval_metrics(ds_train, w_recall, metrics),
   }
   print(json.dumps(output, sort_keys=True, indent=2))
 

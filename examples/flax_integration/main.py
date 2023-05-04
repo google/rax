@@ -89,11 +89,13 @@ class DNN(nn.Module):
     return x
 
 
-def prepare_dataset(ds: tf.data.Dataset,
-                    batch_size: int = 128,
-                    list_size: Optional[int] = 200,
-                    shuffle_size: Optional[int] = 1000,
-                    rng_seed: int = 42):
+def prepare_dataset(
+    ds: tf.data.Dataset,
+    batch_size: int = 128,
+    list_size: Optional[int] = 200,
+    shuffle_size: Optional[int] = 1000,
+    rng_seed: int = 42,
+):
   """Prepares a training dataset by applying padding/truncating/etc."""
   tf.random.set_seed(rng_seed)
   ds = ds.cache()
@@ -133,14 +135,14 @@ def main(argv: Sequence[str]):
   metric_fns = {
       "metric/mrr": rax.mrr_metric,
       "metric/ndcg": rax.ndcg_metric,
-      "metric/ndcg@10": functools.partial(rax.ndcg_metric, topn=10)
+      "metric/ndcg@10": functools.partial(rax.ndcg_metric, topn=10),
   }
 
   # Implement train and eval logic.
   @jax.jit
   def train_step(
-      batch, model_state: ModelState,
-      opt_state: OptState) -> Tuple[jnp.ndarray, ModelState, OptState]:
+      batch, model_state: ModelState, opt_state: OptState
+  ) -> Tuple[jnp.ndarray, ModelState, OptState]:
     # Unpack batch.
     inputs, labels, mask = batch
 

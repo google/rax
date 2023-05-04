@@ -26,7 +26,6 @@ Example usage:
 >>> approx_ndcg_loss_fn = rax.approx_t12n(rax.ndcg_metric)
 >>> print(approx_ndcg_loss_fn(scores, labels))
 -0.71789175
-
 """
 
 import functools
@@ -92,10 +91,12 @@ def approx_t12n(metric_fn: MetricFn, temperature: float = 1.0) -> LossFn:
   approx_kwargs = {}
   if "rank_fn" in parameters:
     approx_kwargs["rank_fn"] = functools.partial(
-        utils.approx_ranks, step_fn=step_fn)
+        utils.approx_ranks, step_fn=step_fn
+    )
   if "cutoff_fn" in parameters:
     approx_kwargs["cutoff_fn"] = functools.partial(
-        utils.approx_cutoff, step_fn=step_fn)
+        utils.approx_cutoff, step_fn=step_fn
+    )
 
   @jax.util.wraps(metric_fn, namestr="approx_{fun}", docstr="Approx {doc}")
   def approx_metric_loss(scores, labels, **kwargs):
@@ -137,18 +138,20 @@ def bound_t12n(metric_fn: MetricFn):
     A loss function that computes the lower-bound version of ``metric_fn``.
   """
   # Define lower and upper bound step_fn.
-  upper_bound_step_fn = lambda x: jax.nn.relu(x + 1.)
-  lower_bound_step_fn = lambda x: 1. - jax.nn.relu(1. - x)
+  upper_bound_step_fn = lambda x: jax.nn.relu(x + 1.0)
+  lower_bound_step_fn = lambda x: 1.0 - jax.nn.relu(1.0 - x)
 
   # Construct kwargs for rank and cutoff functions.
   parameters = inspect.signature(metric_fn).parameters
   approx_kwargs = {}
   if "rank_fn" in parameters:
     approx_kwargs["rank_fn"] = functools.partial(
-        utils.approx_ranks, step_fn=upper_bound_step_fn)
+        utils.approx_ranks, step_fn=upper_bound_step_fn
+    )
   if "cutoff_fn" in parameters:
     approx_kwargs["cutoff_fn"] = functools.partial(
-        utils.approx_cutoff, step_fn=lower_bound_step_fn)
+        utils.approx_cutoff, step_fn=lower_bound_step_fn
+    )
 
   @jax.util.wraps(metric_fn, namestr="bounded_{fun}", docstr="Bounded {doc}")
   def bounded_metric_loss(scores, labels, **kwargs):
@@ -160,11 +163,13 @@ def bound_t12n(metric_fn: MetricFn):
   return bounded_metric_loss
 
 
-def gumbel_t12n(loss_or_metric_fn: LossOrMetricFn,
-                *,
-                samples: int = 8,
-                beta: float = 1.0,
-                smoothing_factor: Optional[float] = None) -> LossOrMetricFn:
+def gumbel_t12n(
+    loss_or_metric_fn: LossOrMetricFn,
+    *,
+    samples: int = 8,
+    beta: float = 1.0,
+    smoothing_factor: Optional[float] = None
+) -> LossOrMetricFn:
   """Transforms ``loss_or_metric_fn`` to operate on Gumbel-sampled scores.
 
   This transformation changes given ``loss_or_metric_fn`` so that it samples
@@ -205,8 +210,9 @@ def gumbel_t12n(loss_or_metric_fn: LossOrMetricFn,
       loss_or_metric_fn, namestr="gumbel_{fun}", docstr="Gumbel {doc}"
   )
   @utils.update_signature(loss_or_metric_fn, "key")
-  def _loss_or_metric_fn_with_gumbel_scores(scores: Array, labels: Array, *,
-                                            key: Array, **kwargs):
+  def _loss_or_metric_fn_with_gumbel_scores(
+      scores: Array, labels: Array, *, key: Array, **kwargs
+  ):
     # Repeat scores and labels `n` times by adding a new batch dim.
     scores = expand_and_repeat_dim(scores)
     labels = expand_and_repeat_dim(labels)
