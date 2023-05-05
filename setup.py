@@ -48,19 +48,21 @@ setup(
     url='https://github.com/google/rax',
     license='Apache 2.0',
     author='Google',
-    description=('Composable Learning-to-Rank using JAX.'),
+    description='Learning-to-Rank using JAX.',
     long_description=open(os.path.join(_CURRENT_DIR, 'README.md')).read(),
     long_description_content_type='text/markdown',
     author_email='rax-dev@google.com',
     keywords='learning-to-rank jax ranking',
     packages=find_namespace_packages(exclude=['*_test.py']),
     install_requires=_parse_requirements(
-        os.path.join(_CURRENT_DIR, 'requirements', 'requirements.txt')),
+        os.path.join(_CURRENT_DIR, 'requirements', 'requirements.txt')
+    ),
     tests_require=_parse_requirements(
-        os.path.join(_CURRENT_DIR, 'requirements', 'requirements-test.txt')),
-    python_requires='>=3.7',
+        os.path.join(_CURRENT_DIR, 'requirements', 'requirements-test.txt')
+    ),
+    python_requires='>=3.8',
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Science/Research',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',
@@ -70,4 +72,3 @@ setup(
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
 )
-

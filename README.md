@@ -1,4 +1,4 @@
-# 🦖 **Rax**: Composable Learning to Rank using JAX
+# 🦖 **Rax**: Learning-to-Rank using JAX
 
 [![Docs](https://readthedocs.org/projects/rax/badge/?version=latest)](https://rax.readthedocs.io/en/latest/?badge=latest)
 [![PyPI](https://img.shields.io/pypi/v/rax?color=brightgreen)](https://pypi.org/project/rax/)

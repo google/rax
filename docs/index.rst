@@ -1,7 +1,7 @@
 :github_url: https://github.com/google/rax/tree/main/docs
 
-🦖 Rax Documentation
-====================
+🦖 Rax: Learning-to-Rank using JAX
+==================================
 
 .. toctree::
    :hidden:
