@@ -45,7 +45,7 @@ $ python examples/flax_integration/web30k.py
 import collections
 import functools
 import json
-from typing import Mapping, Optional, Sequence, Tuple
+from typing import Mapping, Optional, Sequence, Tuple, Union, Dict, Any
 
 from absl import app
 
@@ -62,7 +62,7 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 
 # Type aliases
-ModelState = flax.core.scope.FrozenVariableDict
+ModelState = Union[Dict[str, Any], flax.core.scope.FrozenVariableDict]
 OptState = optax.OptState
 
 
@@ -148,7 +148,9 @@ def main(argv: Sequence[str]):
 
     # Compute gradients wrt model params
     def _loss_fn(params):
-      scores = model.apply(model_state.copy({"params": params}), inputs)
+      scores = model.apply(
+          flax.core.copy(model_state, {"params": params}), inputs
+      )
       loss = loss_fn(scores, labels, where=mask, reduce_fn=jnp.mean)
       return loss
 
@@ -158,7 +160,7 @@ def main(argv: Sequence[str]):
     # Apply gradients using the optimizer.
     updates, opt_state = optimizer.update(grads, opt_state, params)
     params = optax.apply_updates(params, updates)
-    model_state = model_state.copy({"params": params})
+    model_state = flax.core.copy(model_state, {"params": params})
     return loss, model_state, opt_state
 
   @jax.jit
@@ -171,7 +173,9 @@ def main(argv: Sequence[str]):
     }
 
   # Initialize model and optimizer state.
-  model_state = model.init(jax.random.PRNGKey(0), next(iter(ds_train))[0])
+  model_state = flax.core.freeze(
+      model.init(jax.random.PRNGKey(0), next(iter(ds_train))[0])
+  )
   opt_state = optimizer.init(model_state["params"])
 
   output = []
