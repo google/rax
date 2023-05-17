@@ -41,7 +41,7 @@ from rax._src.t12n import bound_t12n
 from rax._src.t12n import gumbel_t12n
 from rax._src.t12n import segment_t12n
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "dcg2_lambdaweight",
