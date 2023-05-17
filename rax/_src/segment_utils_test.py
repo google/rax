@@ -47,6 +47,13 @@ class SegmentSumTest(absltest.TestCase):
     actual = segment_utils.segment_sum(scores, segments)
     np.testing.assert_array_equal(actual, expected)
 
+  def test_handles_nan(self):
+    scores = jnp.asarray([1.0, 2.0, 4.0, jnp.nan, 3.0, 6.5, jnp.nan])
+    segments = jnp.asarray([0, 0, 1, 1, 1, 2, 3])
+    expected = jnp.asarray([3.0, 3.0, jnp.nan, jnp.nan, jnp.nan, 6.5, jnp.nan])
+    actual = segment_utils.segment_sum(scores, segments)
+    np.testing.assert_array_equal(actual, expected)
+
 
 class SegmentMaxTest(absltest.TestCase):
 
@@ -54,6 +61,13 @@ class SegmentMaxTest(absltest.TestCase):
     scores = jnp.array([1.0, 2.0, 4.0, -5.0, -5.5, -4.5])
     segments = jnp.array([0, 0, 1, 2, 2, 2])
     expected = jnp.array([2.0, 2.0, 4.0, -4.5, -4.5, -4.5])
+    actual = segment_utils.segment_max(scores, segments)
+    np.testing.assert_array_equal(actual, expected)
+
+  def test_handles_nan(self):
+    scores = jnp.asarray([1.0, 2.0, jnp.nan, 5.0, 3.0, 6.5, jnp.nan])
+    segments = jnp.asarray([0, 0, 1, 1, 1, 2, 3])
+    expected = jnp.asarray([2.0, 2.0, jnp.nan, jnp.nan, jnp.nan, 6.5, jnp.nan])
     actual = segment_utils.segment_max(scores, segments)
     np.testing.assert_array_equal(actual, expected)
 

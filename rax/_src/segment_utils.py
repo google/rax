@@ -31,12 +31,15 @@ def segment_sum(
     a: Array, segments: Array, where: Optional[Array] = None
 ) -> Array:
   """Returns segment sum."""
+  mask = same_segment_mask(segments)
   if where is not None:
-    where = jnp.expand_dims(where, -1) & jnp.expand_dims(where, -2)
+    mask &= jnp.expand_dims(where, -1) & jnp.expand_dims(where, -2)
+
+  # Compute segmented sum using pairwise approach.
   return jnp.sum(
-      jnp.expand_dims(a, -2) * jnp.int32(same_segment_mask(segments)),
+      jnp.broadcast_to(jnp.expand_dims(a, -2), mask.shape),
       axis=-1,
-      where=where,
+      where=mask,
   )
 
 
@@ -44,13 +47,14 @@ def segment_max(
     a: Array,
     segments: Array,
     where: Optional[Array] = None,
-    initial: Optional[Union[float, int]] = None,
+    initial: Union[float, int] = -jnp.inf,
 ) -> Array:
   """Returns segment max."""
   mask = same_segment_mask(segments)
   if where is not None:
     mask &= jnp.expand_dims(where, -1) & jnp.expand_dims(where, -2)
-  initial = jnp.min(a) if initial is None else initial
+
+  # Compute segmented max using pairwise approach.
   return jnp.max(
       jnp.broadcast_to(jnp.expand_dims(a, -2), mask.shape),
       axis=-1,
