@@ -619,7 +619,7 @@ def pairwise_soft_zero_one_loss(
   Definition:
 
   .. math::
-      \ell(s, y) = \sum_i \sum_j \II{y_i > y_j} sigmod(-(s_i - s_j))
+      \ell(s, y) = \sum_i \sum_j \II{y_i > y_j} \op{sigmoid}(-(s_i - s_j))
 
   Args:
     scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
