@@ -96,6 +96,7 @@ class RankingEncDecModelTest(absltest.TestCase):
   def test_get_initial_variables(self):
     # Create a RankingEncDecModel with mocked implementations.
     mocked_module = mock.Mock(spec=models.flax.linen.Module)
+    mocked_module.init = mock.Mock(return_value={})
     mocked_vocab = mock.Mock(spec=models.seqio.Vocabulary)
     mocked_optimizer = mock.Mock(spec=models.optimizers.OptimizerDefType)
     model = models.RankingEncDecModel(
