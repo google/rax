@@ -567,12 +567,12 @@ def opa_metric(
   .. math::
       \op{opa}(s, y) =
       \frac{1}{\sum_i \sum_j \II{y_i > y_j}}
-      \sum_i \sum_j \II{s_i > s_j} \II{y_i > y_j}}
+      \sum_i \sum_j \II{s_i > s_j} \II{y_i > y_j}
 
   .. note::
 
-    Pairs with equal labels (`y_i = y_j`) are always ignored. Pairs with equal
-    scores (`s_i = s_j`) are considered incorrectly ordered.
+    Pairs with equal labels (:math:`y_i = y_j`) are always ignored. Pairs with
+    equal scores (:math:`s_i = s_j`) are considered incorrectly ordered.
 
   Args:
     scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
