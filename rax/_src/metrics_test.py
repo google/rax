@@ -65,6 +65,10 @@ class MetricsTest(parameterized.TestCase):
               1 / log2(1 + 1) + 1 / log2(1 + 2)
           ),
       },
+      {
+          "metric_fn": metrics.opa_metric,
+          "expected_value": 2 / 4,
+      },
   ])
   def test_computes_metric_value(self, metric_fn, expected_value):
     scores = jnp.asarray([0.0, 3.0, 1.0, 2.0])
@@ -115,6 +119,10 @@ class MetricsTest(parameterized.TestCase):
               / ((2**2 - 1) / log2(1 + 1) + 1 / log2(1 + 2)),
           ],
       },
+      {
+          "metric_fn": metrics.opa_metric,
+          "expected_value": [2 / 4, 0 / 4],
+      },
   ])
   def test_computes_metric_value_on_batch_with_vmap(
       self, metric_fn, expected_value
@@ -163,6 +171,11 @@ class MetricsTest(parameterized.TestCase):
               (3.0 / log2(1 + 1) + 1.0 / log2(1 + 3))
               / (3.0 + 1.0 / log2(1 + 2)),
           ],
+          "normalizer": 2.0,
+      },
+      {
+          "metric_fn": metrics.opa_metric,
+          "expected_value": [2 / 4, 2 / 3],
           "normalizer": 2.0,
       },
   ])
@@ -273,6 +286,7 @@ class MetricsTest(parameterized.TestCase):
       {"metric_fn": metrics.ap_metric, "expected_value": 0.0},
       {"metric_fn": metrics.dcg_metric, "expected_value": 0.0},
       {"metric_fn": metrics.ndcg_metric, "expected_value": 0.0},
+      {"metric_fn": metrics.opa_metric, "expected_value": 0.0},
   ])
   def test_computes_metric_value_with_all_masked(
       self, metric_fn, expected_value
@@ -306,6 +320,7 @@ class MetricsTest(parameterized.TestCase):
       {"metric_fn": metrics.ap_metric, "expected_value": 0.0},
       {"metric_fn": metrics.dcg_metric, "expected_value": 0.0},
       {"metric_fn": metrics.ndcg_metric, "expected_value": 0.0},
+      {"metric_fn": metrics.opa_metric, "expected_value": 0.0},
   ])
   def test_computes_metric_value_with_no_relevant_labels(
       self, metric_fn, expected_value
@@ -348,6 +363,7 @@ class MetricsTest(parameterized.TestCase):
       metrics.ap_metric,
       metrics.dcg_metric,
       metrics.ndcg_metric,
+      metrics.opa_metric,
   ])
   def test_ignores_lists_containing_only_invalid_items(self, metric_fn):
     scores = jnp.asarray([[0.0, 3.0, 1.0, 2.0], [3.0, 1.0, 4.0, 2.0]])

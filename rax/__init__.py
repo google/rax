@@ -34,6 +34,7 @@ from rax._src.metrics import ap_metric
 from rax._src.metrics import dcg_metric
 from rax._src.metrics import mrr_metric
 from rax._src.metrics import ndcg_metric
+from rax._src.metrics import opa_metric
 from rax._src.metrics import precision_metric
 from rax._src.metrics import recall_metric
 from rax._src.t12n import approx_t12n
@@ -62,6 +63,7 @@ __all__ = [
     "dcg_metric",
     "mrr_metric",
     "ndcg_metric",
+    "opa_metric",
     "precision_metric",
     "recall_metric",
     "approx_t12n",

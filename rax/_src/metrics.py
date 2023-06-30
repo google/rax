@@ -553,6 +553,72 @@ def ap_metric(
   return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
 
 
+def opa_metric(
+    scores: Array,
+    labels: Array,
+    *,
+    where: Optional[Array] = None,
+    reduce_fn: Optional[ReduceFn] = jnp.mean
+) -> Array:
+  r"""Ordered Pair Accuracy (OPA).
+
+  Definition:
+
+  .. math::
+      \op{opa}(s, y) =
+      \frac{1}{\sum_i \sum_j \II{y_i > y_j}}
+      \sum_i \sum_j \II{s_i > s_j} \II{y_i > y_j}}
+
+  .. note::
+
+    Pairs with equal labels (`y_i = y_j`) are always ignored. Pairs with equal
+    scores (`s_i = s_j`) are considered incorrectly ordered.
+
+  Args:
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item. Items for which the score is :math:`-\inf` are treated as
+      unranked items.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid for computing the metric.
+    reduce_fn: An optional function that reduces the metric values. Can be
+      :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
+      is performed.
+
+  Returns:
+    The Ordered Pair Accuracy (OPA).
+  """
+  valid_pairs = None
+  # TODO(junru): change to utils.compute_pairs implementation.
+  pair_label_diff = jnp.expand_dims(labels, -1) - jnp.expand_dims(labels, -2)
+  pair_score_diff = jnp.expand_dims(scores, -1) - jnp.expand_dims(scores, -2)
+  # Infer location of valid pairs through where
+  if where is not None:
+    valid_pairs = jnp.logical_and(
+        jnp.expand_dims(where, -1), jnp.expand_dims(where, -2)
+    )
+  correct_pairs = (pair_label_diff > 0) * (pair_score_diff > 0)
+  # Calculate per list pairs.
+  per_list_pairs = jnp.sum(
+      pair_label_diff > 0, where=valid_pairs, axis=[-2, -1]
+  )
+  # A workaround to bypass divide by zero.
+  per_list_pairs = jnp.where(per_list_pairs == 0, 1, per_list_pairs)
+  per_list_opa = jnp.divide(
+      jnp.sum(
+          correct_pairs,
+          where=valid_pairs,
+          axis=[-2, -1],
+      ),
+      per_list_pairs,
+  )
+  # Setup mask to ignore lists with only invalid items in reduce_fn.
+  if where is not None:
+    where = jnp.any(where, axis=-1)
+  return utils.safe_reduce(per_list_opa, where=where, reduce_fn=reduce_fn)
+
+
 def dcg_metric(
     scores: Array,
     labels: Array,

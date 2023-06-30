@@ -46,6 +46,7 @@ Ranking Metrics (``rax.*_metric``)
     ap_metric
     dcg_metric
     ndcg_metric
+    opa_metric
 
 .. autofunction:: mrr_metric
 .. autofunction:: precision_metric
@@ -53,6 +54,8 @@ Ranking Metrics (``rax.*_metric``)
 .. autofunction:: ap_metric
 .. autofunction:: dcg_metric
 .. autofunction:: ndcg_metric
+.. autofunction:: opa_metric
+
 
 Function Transformations (``rax.*_t12n``)
 =========================================
