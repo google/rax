@@ -54,13 +54,13 @@ Usage with :func:`jax.vmap` batching and a mask to indicate valid items:
 from typing import Callable, Optional
 
 import jax.numpy as jnp
-
 from rax._src import segment_utils
 from rax._src import utils
 from rax._src.types import Array
 from rax._src.types import CutoffFn
 from rax._src.types import RankFn
 from rax._src.types import ReduceFn
+from sklearn import metrics
 
 
 def _retrieved_items(
@@ -551,6 +551,93 @@ def ap_metric(
     where = jnp.any(where, axis=-1)
 
   return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
+
+
+def auc_roc_metric(
+    scores: Array,
+    labels: Array,
+    *,
+    where: Optional[Array] = None,
+    topn: Optional[int] = None,
+    key: Optional[Array] = None,
+    rank_fn: RankFn = utils.ranks,
+    cutoff_fn: CutoffFn = utils.cutoff,
+    reduce_fn: Optional[ReduceFn] = jnp.mean,
+) -> Array:
+  r"""Area under the ROC Curve (AUC-ROC) metric.
+
+  .. note::
+
+    This metric converts graded relevance to binary relevance by considering
+    items with ``label >= 1`` as relevant and items with ``label < 1`` as
+    non-relevant.
+
+  Definition:
+
+  .. math::
+      \op{auc_roc@n}(s, y) = \frac{1}{n}
+                               \sum_i y_i \cdot \II{\op{rank}(s_i) \leq n}
+
+  where :math:`\op{auc_roc@rank}_{s_i}(s, y)` indicates the rank of item
+  :math:`i` after sorting all scores :math:`s` using ``rank_fn``.
+
+  Args:
+    scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
+      each item. Items for which the score is :math:`-\inf` are treated as
+      unranked items.
+    labels: A ``[..., list_size]``-:class:`~jax.Array`, indicating the relevance
+      label for each item.
+    where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+      which items are valid for computing the metric.
+    topn: An optional integer value indicating at which rank the metric cuts
+      off. If ``None``, no cutoff is performed.
+    key: An optional :func:`~jax.random.PRNGKey`. If provided, any random
+      operations in this metric will be based on this key.
+    rank_fn: A function that maps scores to 1-based ranks.
+    cutoff_fn: A function that maps ranks and a cutoff integer to a binary array
+      indicating which items are cutoff.
+    reduce_fn: An optional function that reduces the metric values. Can be
+      :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
+      is performed.
+
+  Returns:
+    The area under the ROC Curve (AUC-ROC) metric.
+  """
+  relevant_items = jnp.where(
+      labels >= 1, jnp.ones_like(labels), jnp.zeros_like(labels)
+  )
+  ranks = rank_fn(scores, where=where, segments=None, key=key)
+  retrieved_items = _retrieved_items(
+      scores,
+      ranks,
+      where=where,
+      segments=None,
+      topn=topn,
+      cutoff_fn=cutoff_fn,
+  )
+  retrieved_items = (
+      jnp.expand_dims(retrieved_items, axis=0)
+      if len(retrieved_items.shape) == 1
+      else retrieved_items
+  )
+  relevant_items = (
+      jnp.expand_dims(relevant_items, axis=0)
+      if len(relevant_items.shape) == 1
+      else relevant_items
+  )
+  # In cases when there is only one class in labels, the AUC is invalid.
+  for label in relevant_items:
+    if len(jnp.unique(label)) == 1:
+      raise ValueError
+  per_list_auc_roc = jnp.asarray(
+      [
+          metrics.roc_auc_score(y_score=score, y_true=label, multi_class="ovr")
+          for (score, label) in zip(retrieved_items, relevant_items)
+      ]
+  )
+  if where is not None:
+    where = jnp.any(where, axis=-1)
+  return utils.safe_reduce(per_list_auc_roc, where=where, reduce_fn=reduce_fn)
 
 
 def opa_metric(

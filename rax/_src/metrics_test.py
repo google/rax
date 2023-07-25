@@ -178,6 +178,11 @@ class MetricsTest(parameterized.TestCase):
           "expected_value": [2 / 4, 2 / 3],
           "normalizer": 2.0,
       },
+      {
+          "metric_fn": metrics.auc_roc_metric,
+          "expected_value": [0 / 4, 4 / 4],
+          "normalizer": 2.0,
+      },
   ])
   def test_computes_reduced_metric(self, metric_fn, expected_value, normalizer):
     scores = jnp.array([[2.0, 1.0, 3.0], [1.0, 0.5, 1.5]])
@@ -287,6 +292,7 @@ class MetricsTest(parameterized.TestCase):
       {"metric_fn": metrics.dcg_metric, "expected_value": 0.0},
       {"metric_fn": metrics.ndcg_metric, "expected_value": 0.0},
       {"metric_fn": metrics.opa_metric, "expected_value": 0.0},
+      {"metric_fn": metrics.auc_roc_metric, "expected_value": 0.0},
   ])
   def test_computes_metric_value_with_all_masked(
       self, metric_fn, expected_value
@@ -364,6 +370,7 @@ class MetricsTest(parameterized.TestCase):
       metrics.dcg_metric,
       metrics.ndcg_metric,
       metrics.opa_metric,
+      metrics.auc_roc_metric,
   ])
   def test_ignores_lists_containing_only_invalid_items(self, metric_fn):
     scores = jnp.asarray([[0.0, 3.0, 1.0, 2.0], [3.0, 1.0, 4.0, 2.0]])
