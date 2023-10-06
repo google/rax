@@ -142,7 +142,7 @@ def default_discount_fn(rank: Array) -> Array:
   return 1.0 / jnp.log2(rank + 1)
 
 
-def mrr_metric(
+def mrr_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
     scores: Array,
     labels: Array,
     *,
@@ -242,7 +242,7 @@ def mrr_metric(
   return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
 
 
-def recall_metric(
+def recall_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
     scores: Array,
     labels: Array,
     *,
@@ -342,7 +342,7 @@ def recall_metric(
   return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
 
 
-def precision_metric(
+def precision_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
     scores: Array,
     labels: Array,
     *,
@@ -442,7 +442,7 @@ def precision_metric(
   return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
 
 
-def ap_metric(
+def ap_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
     scores: Array,
     labels: Array,
     *,
@@ -553,7 +553,7 @@ def ap_metric(
   return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
 
 
-def opa_metric(
+def opa_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
     scores: Array,
     labels: Array,
     *,
@@ -619,7 +619,7 @@ def opa_metric(
   return utils.safe_reduce(per_list_opa, where=where, reduce_fn=reduce_fn)
 
 
-def dcg_metric(
+def dcg_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
     scores: Array,
     labels: Array,
     *,
@@ -715,7 +715,7 @@ def dcg_metric(
   return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
 
 
-def ndcg_metric(
+def ndcg_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
     scores: Array,
     labels: Array,
     *,

@@ -65,7 +65,7 @@ from rax._src.types import LambdaweightFn
 from rax._src.types import ReduceFn
 
 
-def softmax_loss(
+def softmax_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
     scores: Array,
     labels: Array,
     *,
@@ -143,7 +143,7 @@ def softmax_loss(
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def poly1_softmax_loss(
+def poly1_softmax_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
     scores: Array,
     labels: Array,
     *,
@@ -241,7 +241,7 @@ def poly1_softmax_loss(
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def unique_softmax_loss(
+def unique_softmax_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
     scores: Array,
     labels: Array,
     *,
@@ -340,7 +340,7 @@ def unique_softmax_loss(
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def listmle_loss(
+def listmle_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
     scores: Array,
     labels: Array,
     *,
@@ -422,7 +422,7 @@ def listmle_loss(
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def pairwise_loss(
+def pairwise_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
     scores: Array,
     labels: Array,
     *,
@@ -489,7 +489,7 @@ def pairwise_loss(
   return utils.safe_reduce(pair_losses, where=valid_pairs, reduce_fn=reduce_fn)
 
 
-def pairwise_hinge_loss(
+def pairwise_hinge_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
     scores: Array,
     labels: Array,
     *,
@@ -545,7 +545,7 @@ def pairwise_hinge_loss(
   )
 
 
-def pairwise_logistic_loss(
+def pairwise_logistic_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
     scores: Array,
     labels: Array,
     *,
@@ -604,7 +604,7 @@ def pairwise_logistic_loss(
   )
 
 
-def pairwise_soft_zero_one_loss(
+def pairwise_soft_zero_one_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
     scores: Array,
     labels: Array,
     *,
@@ -667,7 +667,7 @@ def pairwise_soft_zero_one_loss(
   )
 
 
-def pointwise_sigmoid_loss(
+def pointwise_sigmoid_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
     scores: Array,
     labels: Array,
     *,
@@ -729,7 +729,7 @@ def pointwise_sigmoid_loss(
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def pointwise_mse_loss(
+def pointwise_mse_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
     scores: Array,
     labels: Array,
     *,
@@ -778,7 +778,7 @@ def pointwise_mse_loss(
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def pairwise_mse_loss(
+def pairwise_mse_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
     scores: Array,
     labels: Array,
     *,
@@ -835,7 +835,7 @@ def pairwise_mse_loss(
   )
 
 
-def pairwise_qr_loss(
+def pairwise_qr_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
     scores: Array,
     labels: Array,
     *,
