@@ -151,7 +151,7 @@ def main(argv: Sequence[str]):
       scores = model.apply(
           flax.core.copy(model_state, {"params": params}), inputs
       )
-      loss = loss_fn(scores, labels, where=mask, reduce_fn=jnp.mean)
+      loss = loss_fn(scores, labels, where=mask, reduce_fn=jnp.mean)  # pytype: disable=wrong-arg-types  # jnp-type
       return loss
 
     params = model_state["params"]
