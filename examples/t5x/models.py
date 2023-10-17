@@ -209,7 +209,7 @@ class RankingEncDecModel(models.EncoderDecoderModel):
 
   def get_initial_variables(
       self,
-      rng: jax.random.PRNGKeyArray,
+      rng: jax.Array,
       input_shapes,  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
       input_types,
   ):
