@@ -16,12 +16,14 @@
 
 from rax._src.utils import approx_cutoff
 from rax._src.utils import approx_ranks
+from rax._src.utils import compute_pairs
 from rax._src.utils import cutoff
 from rax._src.utils import ranks
 
 __all__ = [
     "approx_cutoff",
     "approx_ranks",
+    "compute_pairs",
     "cutoff",
     "ranks",
 ]
