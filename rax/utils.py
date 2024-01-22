@@ -14,6 +14,7 @@
 
 """Rax-specific utilities."""
 
+from rax._src.losses import pairwise_loss
 from rax._src.utils import approx_cutoff
 from rax._src.utils import approx_ranks
 from rax._src.utils import compute_pairs
@@ -25,5 +26,6 @@ __all__ = [
     "approx_ranks",
     "compute_pairs",
     "cutoff",
+    "pairwise_loss",
     "ranks",
 ]
