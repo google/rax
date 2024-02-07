@@ -16,6 +16,7 @@
 """Tests for rax._src.weights."""
 
 import doctest
+import functools
 import math
 
 from absl.testing import absltest
@@ -64,6 +65,22 @@ class LambdaweightsTest(parameterized.TestCase):
               3.0 * abs(discount(1) - discount(2)) * abs(gain(1.0) - gain(0.3)),
               3.0 * abs(discount(2) - discount(3)) * abs(gain(0.3) - gain(0.0)),
               3.0 * abs(discount(1) - discount(2)) * abs(gain(0.3) - gain(1.0)),
+              0.0,
+          ],
+      },
+      {
+          "lambdaweight_fn": functools.partial(
+              lambdaweights.dcg2_lambdaweight, light_discount=True
+          ),
+          "expected": [
+              0.0,
+              3.0 * abs(discount(1)) * abs(gain(0.0) - gain(1.0)),
+              3.0 * abs(discount(2)) * abs(gain(0.0) - gain(0.3)),
+              3.0 * abs(discount(1)) * abs(gain(1.0) - gain(0.0)),
+              0.0,
+              3.0 * abs(discount(1)) * abs(gain(1.0) - gain(0.3)),
+              3.0 * abs(discount(2)) * abs(gain(0.3) - gain(0.0)),
+              3.0 * abs(discount(1)) * abs(gain(0.3) - gain(1.0)),
               0.0,
           ],
       },

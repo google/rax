@@ -44,7 +44,7 @@ def labeldiff_lambdaweight(
     *,
     where: Optional[Array] = None,
     segments: Optional[Array] = None,
-    weights: Optional[Array] = None
+    weights: Optional[Array] = None,
 ) -> Array:
   r"""Absolute label difference lambdaweights.
 
@@ -96,7 +96,7 @@ def _generic_dcg_lambdaweight(
     topn: Optional[int] = None,
     normalize: bool = False,
     gain_fn: Callable[[Array], Array] = metrics.default_gain_fn,
-    discount_fn: Callable[[Array], Array] = metrics.default_discount_fn
+    discount_fn: Callable[[Array], Array] = metrics.default_discount_fn,
 ) -> Array:
   r"""Generic DCG lambdaweights with customized rank pair discount fn."""
 
@@ -148,7 +148,7 @@ def dcg_lambdaweight(
     topn: Optional[int] = None,
     normalize: bool = False,
     gain_fn: Callable[[Array], Array] = metrics.default_gain_fn,
-    discount_fn: Callable[[Array], Array] = metrics.default_discount_fn
+    discount_fn: Callable[[Array], Array] = metrics.default_discount_fn,
 ) -> Array:
   r"""DCG lambdaweights.
 
@@ -220,7 +220,8 @@ def dcg2_lambdaweight(
     topn: Optional[int] = None,
     normalize: bool = False,
     gain_fn: Callable[[Array], Array] = metrics.default_gain_fn,
-    discount_fn: Callable[[Array], Array] = metrics.default_discount_fn
+    discount_fn: Callable[[Array], Array] = metrics.default_discount_fn,
+    light_discount: bool = False,
 ) -> Array:
   r"""DCG v2 ("lambdaloss") lambdaweights.
 
@@ -230,6 +231,12 @@ def dcg2_lambdaweight(
       \lambda_{ij}(s, y) = |\op{gain}(y_i) - \op{gain}(y_j)| \cdot
                            |\op{discount}(|\op{rank}(s_i) - \op{rank}(s_j)|) -
                             \op{discount}(|\op{rank}(s_i) - \op{rank}(s_j)|+1)|
+
+  Or the following when ``light_discount`` is ``True``:
+
+  .. math::
+      \lambda_{ij}(s, y) = |\op{gain}(y_i) - \op{gain}(y_j)| \cdot
+                           |\op{discount}(|\op{rank}(s_i) - \op{rank}(s_j)|)|
 
   Args:
     scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
@@ -249,6 +256,7 @@ def dcg2_lambdaweight(
     normalize: Whether to use the normalized DCG formulation.
     gain_fn: A function mapping labels to gain values.
     discount_fn: A function mapping ranks to discount values.
+    light_discount: If ``True``, make the position discount light as above.
 
   Returns:
     DCG v2 ("lambdaloss") lambdaweights.
@@ -258,9 +266,12 @@ def dcg2_lambdaweight(
     ranks_abs_diffs = jnp.abs(utils.compute_pairs(ranks, operator.sub))
     ranks_max = utils.compute_pairs(ranks, jnp.maximum)
 
-    discounts = jnp.abs(
-        discount_fn(ranks_abs_diffs) - discount_fn(ranks_abs_diffs + 1)
-    )
+    if light_discount:
+      discounts = jnp.abs(discount_fn(ranks_abs_diffs))
+    else:
+      discounts = jnp.abs(
+          discount_fn(ranks_abs_diffs) - discount_fn(ranks_abs_diffs + 1)
+      )
     discounts = jnp.where(ranks_abs_diffs != 0, discounts, 0.0)
 
     if topn is not None:
