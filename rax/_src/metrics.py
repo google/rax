@@ -54,13 +54,14 @@ Usage with :func:`jax.vmap` batching and a mask to indicate valid items:
 from typing import Callable, Optional
 
 import jax.numpy as jnp
-
 from rax._src import segment_utils
+from rax._src import types
 from rax._src import utils
-from rax._src.types import Array
-from rax._src.types import CutoffFn
-from rax._src.types import RankFn
-from rax._src.types import ReduceFn
+
+Array = types.Array
+CutoffFn = types.CutoffFn
+RankFn = types.RankFn
+ReduceFn = types.ReduceFn
 
 
 def _retrieved_items(
@@ -142,7 +143,7 @@ def default_discount_fn(rank: Array) -> Array:
   return 1.0 / jnp.log2(rank + 1)
 
 
-def mrr_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
+def mrr_metric(
     scores: Array,
     labels: Array,
     *,
@@ -242,7 +243,7 @@ def mrr_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
   return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
 
 
-def recall_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
+def recall_metric(
     scores: Array,
     labels: Array,
     *,
@@ -342,7 +343,7 @@ def recall_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
   return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
 
 
-def precision_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
+def precision_metric(
     scores: Array,
     labels: Array,
     *,
@@ -442,7 +443,7 @@ def precision_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
   return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
 
 
-def ap_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
+def ap_metric(
     scores: Array,
     labels: Array,
     *,
@@ -553,7 +554,7 @@ def ap_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
   return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
 
 
-def opa_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
+def opa_metric(
     scores: Array,
     labels: Array,
     *,
@@ -619,7 +620,7 @@ def opa_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
   return utils.safe_reduce(per_list_opa, where=where, reduce_fn=reduce_fn)
 
 
-def dcg_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
+def dcg_metric(
     scores: Array,
     labels: Array,
     *,
@@ -715,7 +716,7 @@ def dcg_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
   return utils.safe_reduce(values, where=where, reduce_fn=reduce_fn)
 
 
-def ndcg_metric(  # pytype: disable=annotation-type-mismatch  # jnp-type
+def ndcg_metric(
     scores: Array,
     labels: Array,
     *,

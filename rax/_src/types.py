@@ -20,7 +20,7 @@
   do **not** need to instantiate, subclass or extend them.
 """
 
-from typing import Optional, Tuple, Union
+from typing import Optional, Sequence, Union
 import jax
 
 # Protocol is a python 3.8+ feature. For older versions, we can use
@@ -88,17 +88,18 @@ class ReduceFn(Protocol):
   def __call__(
       self,
       a: Array,
+      axis: Optional[Union[int, Sequence[int]]],
+      *,
       where: Optional[Array],
-      axis: Optional[Union[int, Tuple[int, ...]]],
   ) -> Array:
     """Reduces an array across one or more dimensions.
 
     Args:
       a: The array to reduce.
-      where: An optional :class:`~jax.Array` of the same shape as ``a`` that
-        indicates which elements to include in the reduction.
       axis: One or more axes to use for the reduction. If ``None`` this reduces
         across all available axes.
+      where: An optional :class:`~jax.Array` of the same shape as ``a`` that
+        indicates which elements to include in the reduction.
 
     Returns:
       A :class:`~jax.Array` that represents the reduced result of ``a``

@@ -34,8 +34,10 @@ from typing import Callable, Optional
 
 import jax.numpy as jnp
 from rax._src import metrics
+from rax._src import types
 from rax._src import utils
-from rax._src.types import Array
+
+Array = types.Array
 
 
 def labeldiff_lambdaweight(

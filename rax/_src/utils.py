@@ -16,15 +16,14 @@
 
 import functools
 import inspect
-
 from typing import Any, Callable, Optional, Sequence, TypeVar
 
 import jax
 import jax.numpy as jnp
-
 from rax._src import segment_utils
-from rax._src.types import Array
+from rax._src import types
 
+Array = types.Array
 T = TypeVar("T")
 
 

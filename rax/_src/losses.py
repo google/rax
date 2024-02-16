@@ -52,20 +52,21 @@ transformations such as :func:`jax.grad` or :func:`jax.value_and_grad`:
 """
 
 import operator
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional
 
 import jax
 import jax.numpy as jnp
-
 from rax._src import metrics
 from rax._src import segment_utils
+from rax._src import types
 from rax._src import utils
-from rax._src.types import Array
-from rax._src.types import LambdaweightFn
-from rax._src.types import ReduceFn
+
+Array = types.Array
+LambdaweightFn = types.LambdaweightFn
+ReduceFn = types.ReduceFn
 
 
-def softmax_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
+def softmax_loss(
     scores: Array,
     labels: Array,
     *,
@@ -143,7 +144,7 @@ def softmax_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def poly1_softmax_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
+def poly1_softmax_loss(
     scores: Array,
     labels: Array,
     *,
@@ -241,7 +242,7 @@ def poly1_softmax_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def unique_softmax_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
+def unique_softmax_loss(
     scores: Array,
     labels: Array,
     *,
@@ -340,7 +341,7 @@ def unique_softmax_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def listmle_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
+def listmle_loss(
     scores: Array,
     labels: Array,
     *,
@@ -422,11 +423,11 @@ def listmle_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def pairwise_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
+def pairwise_loss(
     scores: Array,
     labels: Array,
     *,
-    pair_loss_fn: Callable[[Array, Array], Tuple[Array, Array]],
+    pair_loss_fn: Callable[[Array, Array], tuple[Array, Array]],
     lambdaweight_fn: Optional[LambdaweightFn] = None,
     where: Optional[Array] = None,
     segments: Optional[Array] = None,
@@ -489,7 +490,7 @@ def pairwise_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
   return utils.safe_reduce(pair_losses, where=valid_pairs, reduce_fn=reduce_fn)
 
 
-def pairwise_hinge_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
+def pairwise_hinge_loss(
     scores: Array,
     labels: Array,
     *,
@@ -530,7 +531,7 @@ def pairwise_hinge_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
 
   def _hinge_loss(
       scores_diff: Array, labels_diff: Array
-  ) -> Tuple[Array, Array]:
+  ) -> tuple[Array, Array]:
     return jax.nn.relu(1.0 - scores_diff), labels_diff > 0
 
   return pairwise_loss(
@@ -545,7 +546,7 @@ def pairwise_hinge_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
   )
 
 
-def pairwise_logistic_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
+def pairwise_logistic_loss(
     scores: Array,
     labels: Array,
     *,
@@ -586,7 +587,7 @@ def pairwise_logistic_loss(  # pytype: disable=annotation-type-mismatch  # jnp-t
 
   def _logistic_loss(
       scores_diff: Array, labels_diff: Array
-  ) -> Tuple[Array, Array]:
+  ) -> tuple[Array, Array]:
     return (
         jax.nn.relu(-scores_diff) + jnp.log1p(jnp.exp(-jnp.abs(scores_diff))),
         labels_diff > 0,
@@ -604,7 +605,7 @@ def pairwise_logistic_loss(  # pytype: disable=annotation-type-mismatch  # jnp-t
   )
 
 
-def pairwise_soft_zero_one_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
+def pairwise_soft_zero_one_loss(
     scores: Array,
     labels: Array,
     *,
@@ -645,7 +646,7 @@ def pairwise_soft_zero_one_loss(  # pytype: disable=annotation-type-mismatch  # 
 
   def _soft_zero_one_loss(
       scores_diff: Array, labels_diff: Array
-  ) -> Tuple[Array, Array]:
+  ) -> tuple[Array, Array]:
     return (
         jnp.where(
             scores_diff > 0,
@@ -667,7 +668,7 @@ def pairwise_soft_zero_one_loss(  # pytype: disable=annotation-type-mismatch  # 
   )
 
 
-def pointwise_sigmoid_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
+def pointwise_sigmoid_loss(
     scores: Array,
     labels: Array,
     *,
@@ -729,7 +730,7 @@ def pointwise_sigmoid_loss(  # pytype: disable=annotation-type-mismatch  # jnp-t
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def pointwise_mse_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
+def pointwise_mse_loss(
     scores: Array,
     labels: Array,
     *,
@@ -778,7 +779,7 @@ def pointwise_mse_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
   return utils.safe_reduce(loss, where=where, reduce_fn=reduce_fn)
 
 
-def pairwise_mse_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
+def pairwise_mse_loss(
     scores: Array,
     labels: Array,
     *,
@@ -817,7 +818,7 @@ def pairwise_mse_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
     The pairwise mean squared error loss.
   """
 
-  def _mse_loss(scores_diff: Array, labels_diff: Array) -> Tuple[Array, Array]:
+  def _mse_loss(scores_diff: Array, labels_diff: Array) -> tuple[Array, Array]:
     return (
         jnp.square(scores_diff - labels_diff),
         jnp.ones_like(labels_diff > 0),
@@ -835,7 +836,7 @@ def pairwise_mse_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
   )
 
 
-def pairwise_qr_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
+def pairwise_qr_loss(
     scores: Array,
     labels: Array,
     *,
@@ -886,7 +887,7 @@ def pairwise_qr_loss(  # pytype: disable=annotation-type-mismatch  # jnp-type
     The pairwise quantile regression loss.
   """
 
-  def _qr_loss(scores_diff: Array, labels_diff: Array) -> Tuple[Array, Array]:
+  def _qr_loss(scores_diff: Array, labels_diff: Array) -> tuple[Array, Array]:
     loss_1 = jax.nn.relu(labels_diff - scores_diff)
     loss_2 = jax.nn.relu(scores_diff - labels_diff)
     if squared:

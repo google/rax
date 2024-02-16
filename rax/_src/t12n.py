@@ -35,10 +35,12 @@ from typing import Optional, TypeVar
 import jax
 import jax.numpy as jnp
 
+from rax._src import types
 from rax._src import utils
-from rax._src.types import Array
-from rax._src.types import LossFn
-from rax._src.types import MetricFn
+
+Array = types.Array
+LossFn = types.LossFn
+MetricFn = types.MetricFn
 
 # Type aliases for ranking loss and metric functions.
 LossOrMetricFn = TypeVar("LossOrMetricFn", LossFn, MetricFn)
