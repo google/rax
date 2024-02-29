@@ -19,7 +19,9 @@ from typing import Optional, Union
 import jax
 import jax.numpy as jnp
 
-from rax._src.types import Array
+from rax._src import types
+
+Array = types.Array
 
 
 def same_segment_mask(segments: Array) -> Array:
