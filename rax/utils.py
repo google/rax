@@ -20,6 +20,7 @@ from rax._src.utils import approx_ranks
 from rax._src.utils import compute_pairs
 from rax._src.utils import cutoff
 from rax._src.utils import ranks
+from rax._src.utils import safe_reduce
 
 __all__ = [
     "approx_cutoff",
@@ -28,4 +29,5 @@ __all__ = [
     "cutoff",
     "pairwise_loss",
     "ranks",
+    "safe_reduce",
 ]
