@@ -94,6 +94,7 @@ Lambdaweights (``rax.*_lambdaweight``)
 Utilities
 =========
 
+.. automodule:: rax._src.utils
 .. currentmodule:: rax.utils
 
 .. autosummary::
@@ -102,11 +103,17 @@ Utilities
     cutoff
     approx_ranks
     approx_cutoff
+    pairwise_loss
+    compute_pairs
+    safe_reduce
 
 .. autofunction:: ranks
 .. autofunction:: cutoff
 .. autofunction:: approx_ranks
 .. autofunction:: approx_cutoff
+.. autofunction:: pairwise_loss
+.. autofunction:: compute_pairs
+.. autofunction:: safe_reduce
 
 Types
 =====
@@ -122,7 +129,6 @@ Types
     MetricFn
     RankFn
     ReduceFn
-    WeightFn
 
 .. autoclass:: CutoffFn
    :members: __call__
@@ -140,9 +146,6 @@ Types
    :members: __call__
 
 .. autoclass:: ReduceFn
-   :members: __call__
-
-.. autoclass:: WeightFn
    :members: __call__
 
 References
