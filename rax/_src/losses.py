@@ -97,7 +97,7 @@ def softmax_loss(
     weights: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
       the weight for each item.
     label_fn: A label function that maps labels to probabilities. Default keeps
-      labels as-is.
+      labels as-is. See :func:`rax.utils.normalize_probabilities` for example.
     reduce_fn: An optional function that reduces the loss values. Can be
       :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
       is performed.

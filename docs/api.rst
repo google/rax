@@ -106,6 +106,7 @@ Utilities
     pairwise_loss
     compute_pairs
     safe_reduce
+    normalize_probabilities
 
 .. autofunction:: ranks
 .. autofunction:: cutoff
@@ -114,6 +115,7 @@ Utilities
 .. autofunction:: pairwise_loss
 .. autofunction:: compute_pairs
 .. autofunction:: safe_reduce
+.. autofunction:: normalize_probabilities
 
 Types
 =====
