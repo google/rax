@@ -311,7 +311,6 @@ def unique_softmax_loss(
       scores_repeated,
       axis=-1,
       where=identity_mask | labels_lt,
-      initial=jnp.min(scores),
   )
   log_softmax = jnp.diagonal(log_softmax, axis1=-2, axis2=-1)
 

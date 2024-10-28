@@ -109,8 +109,8 @@ class SegmentLogSoftmaxTest(absltest.TestCase):
     segments = jnp.array([0, 0, 0, 1, 1])
     mask = jnp.array([1, 1, 0, 1, 1])
 
-    expected_1 = jax.nn.log_softmax(a[0:3], where=mask[0:3], initial=jnp.min(a))
-    expected_2 = jax.nn.log_softmax(a[3:5], where=mask[3:5], initial=jnp.min(a))
+    expected_1 = jax.nn.log_softmax(a[0:3], where=mask[0:3])
+    expected_2 = jax.nn.log_softmax(a[3:5], where=mask[3:5])
     actual = segment_utils.segment_log_softmax(a, segments, where=mask)
 
     np.testing.assert_allclose(actual[0:2], expected_1[0:2])
@@ -146,8 +146,8 @@ class SegmentSoftmaxTest(absltest.TestCase):
     segments = jnp.array([0, 0, 0, 1, 1])
     mask = jnp.array([1, 1, 0, 1, 1])
 
-    expected_1 = jax.nn.softmax(a[0:3], where=mask[0:3], initial=jnp.min(a))
-    expected_2 = jax.nn.softmax(a[3:5], where=mask[3:5], initial=jnp.min(a))
+    expected_1 = jax.nn.softmax(a[0:3], where=mask[0:3])
+    expected_2 = jax.nn.softmax(a[3:5], where=mask[3:5])
     actual = segment_utils.segment_softmax(a, segments, where=mask)
 
     np.testing.assert_allclose(actual[0:2], expected_1[0:2])
