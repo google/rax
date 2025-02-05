@@ -29,17 +29,20 @@ Standalone usage:
 
 >>> scores = jnp.array([2., 1., 3.])
 >>> labels = jnp.array([1., 0., 0.])
->>> print(rax.softmax_loss(scores, labels))
-1.4076059
+>>> loss = rax.softmax_loss(scores, labels)
+>>> print(f"{loss:.5f}")
+1.40761
 
 Usage with a batch of data and a mask to indicate valid items.
 
 >>> scores = jnp.array([[2., 1., 0.], [1., 0.5, 1.5]])
 >>> labels = jnp.array([[1., 0., 0.], [0., 0., 1.]])
 >>> where = jnp.array([[True, True, False], [True, True, True]])
->>> print(rax.pairwise_hinge_loss(
-...     scores, labels, where=where, reduce_fn=jnp.mean))
-0.16666667
+>>> loss = rax.pairwise_hinge_loss(
+...     scores, labels, where=where, reduce_fn=jnp.mean
+... )
+>>> print(f"{loss:.5f}")
+0.16667
 
 To compute gradients of each loss function, please use standard JAX
 transformations such as :func:`jax.grad` or :func:`jax.value_and_grad`:

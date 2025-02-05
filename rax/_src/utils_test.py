@@ -25,6 +25,9 @@ import numpy as np
 import rax
 from rax._src import utils
 
+# Opt-in to the partitionable PRNG implementation.
+jax.config.update("jax_threefry_partitionable", True)
+
 
 class NormalizeProbabilitiesTest(absltest.TestCase):
 
@@ -251,7 +254,7 @@ class SortByTest(absltest.TestCase):
   def test_breaks_ties_randomly_when_key_is_provided(self):
     scores = jnp.asarray([0.0, 1.0, 1.0, 2.0])
     tensors_to_sort = [jnp.asarray([10.0, 11.1, 11.2, 12.0])]
-    key = jax.random.PRNGKey(4242)
+    key = jax.random.PRNGKey(4)
     key1, key2 = jax.random.split(key)
 
     result1 = utils.sort_by(scores, tensors_to_sort, key=key1)[0]

@@ -30,6 +30,9 @@ from rax._src import losses
 from rax._src import metrics
 from rax._src import t12n
 
+# Opt-in to the partitionable PRNG implementation.
+jax.config.update("jax_threefry_partitionable", True)
+
 
 class ApproxT12nTest(parameterized.TestCase):
 
@@ -244,7 +247,7 @@ class GumbelT12nTest(parameterized.TestCase):
 
     loss = new_loss_fn(scores, labels, key=jax.random.PRNGKey(42))
     np.testing.assert_allclose(
-        loss, jnp.asarray([[0.589013, 0.166654, 0.962401]]), rtol=1e-5
+        loss, jnp.asarray([[0.334093, 1.952019, 2.725531]]), rtol=1e-5
     )
 
   def test_repeats_inputs_n_times(self):
@@ -282,7 +285,7 @@ class GumbelT12nTest(parameterized.TestCase):
 
     loss = new_loss_fn(scores, labels, key=jax.random.PRNGKey(42))
     np.testing.assert_allclose(
-        loss, jnp.asarray([[-3e18, 1.666543e-01, 2e22]]), rtol=1e-5
+        loss, jnp.asarray([[-3e18, 1.952019, 2e22]]), rtol=1e-5
     )
 
   def test_raises_an_error_if_no_key_is_provided(self):

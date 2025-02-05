@@ -25,8 +25,8 @@ Example usage:
 >>> labels = jnp.array([1.0, 2.0, 0.0])
 >>> loss = rax.pairwise_logistic_loss(
 ...     scores, labels, lambdaweight_fn=rax.labeldiff_lambdaweight)
->>> print(loss)
-1.8923712
+>>> print(f"{loss:.5f}")
+1.89237
 """
 
 import operator

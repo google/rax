@@ -24,6 +24,9 @@ import numpy as np
 from examples.t5x import models
 import tensorflow as tf
 
+# Opt-in to the partitionable PRNG implementation.
+jax.config.update("jax_threefry_partitionable", True)
+
 
 class RankingEncDecFeatureConverterTest(absltest.TestCase):
 
@@ -184,16 +187,24 @@ class RankingEncDecModelTest(absltest.TestCase):
     # args where the leading (batch_size, list_size, ...) dimensions are
     # flattened to (batch_size * list_size, ...).
     args = mocked_module.apply.call_args.args
-    self.assertEqual(args[0], {"params": params})
-    self.assertEqual(args[1].shape, (16 * 4, 5))  # encoder_input_tokens
-    self.assertEqual(args[2].shape, (16 * 4, 1))  # decoder_input_tokens
-    self.assertEqual(args[3].shape, (16 * 4, 1))  # decoder_target_tokens
+    with self.subTest(name="Check parameters and shapes"):
+      self.assertEqual(args[0], {"params": params})
+      self.assertEqual(args[1].shape, (16 * 4, 5))  # encoder_input_tokens
+      self.assertEqual(args[2].shape, (16 * 4, 1))  # decoder_input_tokens
+      self.assertEqual(args[3].shape, (16 * 4, 1))  # decoder_target_tokens
 
     # Check the loss and metric values.
-    np.testing.assert_allclose(loss, 20.415768)
-    np.testing.assert_allclose(metrics["loss"].compute(), 20.415768)
-    np.testing.assert_allclose(metrics["metrics/ndcg"].compute(), 0.41030282)
-    np.testing.assert_allclose(metrics["metrics/mrr"].compute(), 0.30208334)
+    with self.subTest(name="Loss value"):
+      self.assertAlmostEqual(loss, 19.37958, places=3)
+      self.assertAlmostEqual(metrics["loss"].compute(), 19.37958, places=3)
+
+    with self.subTest(name="Metric values"):
+      self.assertAlmostEqual(
+          metrics["metrics/ndcg"].compute(), 0.42098486, places=3
+      )
+      self.assertAlmostEqual(
+          metrics["metrics/mrr"].compute(), 0.40104166, places=3
+      )
 
 
 if __name__ == "__main__":

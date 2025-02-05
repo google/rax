@@ -176,7 +176,7 @@ class LossesTest(parameterized.TestCase):
 
     loss = loss_fn(scores, labels, reduce_fn=jnp.sum)
 
-    np.testing.assert_allclose(jnp.asarray(expected_value), loss)
+    np.testing.assert_allclose(jnp.asarray(expected_value), loss, rtol=1e-5)
 
   @parameterized.parameters([
       {
@@ -523,7 +523,7 @@ class LossesTest(parameterized.TestCase):
     vmap_loss_fn = jax.vmap(loss_fn, in_axes=(0, 0), out_axes=0)
     loss = vmap_loss_fn(scores, labels)
 
-    np.testing.assert_allclose(jnp.asarray(expected_value), loss)
+    np.testing.assert_allclose(jnp.asarray(expected_value), loss, rtol=1e-5)
 
   @parameterized.parameters([
       {

@@ -20,11 +20,14 @@ import json
 from unittest import mock
 
 from absl.testing import absltest
+import jax
 import numpy as np
-
 from examples.approx_metrics import main
 import tensorflow as tf
 import tensorflow_datasets as tfds
+
+# Opt-in to the partitionable PRNG implementation.
+jax.config.update("jax_threefry_partitionable", True)
 
 
 def letor_dataset(self, *args, **kwargs):
@@ -65,19 +68,28 @@ class ApproxMetricsTest(absltest.TestCase):
     output = json.loads(mock_stdout.getvalue())
 
     # ApproxAP works best on AP.
-    np.testing.assert_allclose(output["ApproxAP"]["AP"], 0.88122, rtol=1e-3)
-    np.testing.assert_allclose(output["ApproxNDCG"]["AP"], 0.70764, rtol=1e-3)
-    np.testing.assert_allclose(output["ApproxR@50"]["AP"], 0.45507, rtol=1e-3)
+    with self.subTest(method="ApproxAP", metric="AP"):
+      self.assertAlmostEqual(output["ApproxAP"]["AP"], 0.794514, places=3)
+    with self.subTest(method="ApproxNDCG", metric="AP"):
+      self.assertAlmostEqual(output["ApproxNDCG"]["AP"], 0.64406, places=3)
+    with self.subTest(method="ApproxR@50", metric="AP"):
+      self.assertAlmostEqual(output["ApproxR@50"]["AP"], 0.48270, places=3)
 
     # ApproxNDCG works best on NDCG
-    np.testing.assert_allclose(output["ApproxAP"]["NDCG"], 0.79133, rtol=1e-3)
-    np.testing.assert_allclose(output["ApproxNDCG"]["NDCG"], 0.90464, rtol=1e-3)
-    np.testing.assert_allclose(output["ApproxR@50"]["NDCG"], 0.67759, rtol=1e-3)
+    with self.subTest(method="ApproxAP", metric="NDCG"):
+      self.assertAlmostEqual(output["ApproxAP"]["NDCG"], 0.76585, places=3)
+    with self.subTest(method="ApproxNDCG", metric="NDCG"):
+      self.assertAlmostEqual(output["ApproxNDCG"]["NDCG"], 0.80603, places=3)
+    with self.subTest(method="ApproxR@50", metric="NDCG"):
+      self.assertAlmostEqual(output["ApproxR@50"]["NDCG"], 0.64390, places=3)
 
     # ApproxR@50 is not best on R@50 due to difficulty of that metric.
-    np.testing.assert_allclose(output["ApproxNDCG"]["R@50"], 0.92857, rtol=1e-3)
-    np.testing.assert_allclose(output["ApproxAP"]["R@50"], 0.92460, rtol=1e-3)
-    np.testing.assert_allclose(output["ApproxR@50"]["R@50"], 0.85317, rtol=1e-3)
+    with self.subTest(method="ApproxAP", metric="R@50"):
+      self.assertAlmostEqual(output["ApproxNDCG"]["R@50"], 0.88095, places=3)
+    with self.subTest(method="ApproxNDCG", metric="R@50"):
+      self.assertAlmostEqual(output["ApproxAP"]["R@50"], 0.92857, places=3)
+    with self.subTest(method="ApproxR@50", metric="R@50"):
+      self.assertAlmostEqual(output["ApproxR@50"]["R@50"], 0.82937, places=3)
 
 
 if __name__ == "__main__":

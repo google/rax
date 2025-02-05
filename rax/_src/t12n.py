@@ -24,8 +24,9 @@ Example usage:
 >>> scores = jnp.asarray([0., 1., 3., 2.])
 >>> labels = jnp.asarray([0., 0., 1., 2.])
 >>> approx_ndcg_loss_fn = rax.approx_t12n(rax.ndcg_metric)
->>> print(approx_ndcg_loss_fn(scores, labels))
--0.71789175
+>>> loss = approx_ndcg_loss_fn(scores, labels)
+>>> print(f"{loss:.5f}")
+-0.71789
 """
 
 import functools
@@ -67,16 +68,19 @@ def approx_t12n(metric_fn: MetricFn, temperature: float = 1.0) -> LossFn:
   >>> approx_mrr = rax.approx_t12n(rax.mrr_metric)
   >>> scores = jnp.asarray([0., 1., 3., 2.])
   >>> labels = jnp.asarray([0., 0., 1., 2.])
-  >>> print(approx_mrr(scores, labels))
-  -0.6965873
+  >>> loss = approx_mrr(scores, labels)
+  >>> print(f"{loss:.5f}")
+  -0.69659
 
   Example usage together with :func:`rax.gumbel_t12n`:
 
   >>> gumbel_approx_mrr = rax.gumbel_t12n(rax.approx_t12n(rax.mrr_metric))
   >>> scores = jnp.asarray([0., 1., 3., 2.])
   >>> labels = jnp.asarray([0., 0., 1., 2.])
-  >>> print(gumbel_approx_mrr(scores, labels, key=jax.random.PRNGKey(42)))
-  -0.71880937
+  >>> key = jax.random.PRNGKey(42)
+  >>> loss = gumbel_approx_mrr(scores, labels, key=key)
+  >>> print(f"{loss:.5f}")
+  -0.75971
 
   Args:
     metric_fn: The metric function to convert to an approximate loss.
@@ -122,16 +126,18 @@ def bound_t12n(metric_fn: MetricFn):
   >>> bound_mrr = rax.bound_t12n(rax.mrr_metric)
   >>> scores = jnp.asarray([0., 1., 3., 2.])
   >>> labels = jnp.asarray([0., 1., 0., 1.])
-  >>> print(bound_mrr(scores, labels))
-  -0.33333334
+  >>> loss = bound_mrr(scores, labels)
+  >>> print(f"{loss:.5f}")
+  -0.33333
 
   Example usage together with :func:`rax.gumbel_t12n`:
 
   >>> gumbel_bound_mrr = rax.gumbel_t12n(rax.bound_t12n(rax.mrr_metric))
   >>> scores = jnp.asarray([0., 1., 3., 2.])
   >>> labels = jnp.asarray([0., 1., 0., 1.])
-  >>> print(gumbel_bound_mrr(scores, labels, key=jax.random.PRNGKey(42)))
-  -0.31619418
+  >>> loss = gumbel_bound_mrr(scores, labels, key=jax.random.PRNGKey(42))
+  >>> print(f"{loss:.5f}")
+  -0.40368
 
   Args:
     metric_fn: The metric function to convert to a lower-bound loss.
@@ -184,10 +190,12 @@ def gumbel_t12n(
   >>> loss_fn = rax.gumbel_t12n(rax.softmax_loss)
   >>> scores = jnp.asarray([0., 1., 3., 2.])
   >>> labels = jnp.asarray([0., 0., 1., 2.])
-  >>> print(loss_fn(scores, labels, key=jax.random.PRNGKey(42)))
-  6.2066536
-  >>> print(loss_fn(scores, labels, key=jax.random.PRNGKey(79)))
-  5.0127797
+  >>> loss = loss_fn(scores, labels, key=jax.random.PRNGKey(42))
+  >>> print(f"{loss:.5f}")
+  3.45703
+  >>> loss = loss_fn(scores, labels, key=jax.random.PRNGKey(79))
+  >>> print(f"{loss:.5f}")
+  4.12491
 
   Args:
     loss_or_metric_fn: A Rax loss or metric function.

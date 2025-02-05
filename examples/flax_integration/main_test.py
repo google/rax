@@ -20,10 +20,12 @@ import json
 from unittest import mock
 
 from absl.testing import absltest
-import numpy as np
-
+import jax
 from examples.flax_integration import main
 import tensorflow_datasets as tfds
+
+# Opt-in to the partitionable PRNG implementation.
+jax.config.update("jax_threefry_partitionable", True)
 
 
 class Web30kTest(absltest.TestCase):
@@ -41,23 +43,27 @@ class Web30kTest(absltest.TestCase):
     output = json.loads(mock_stdout.getvalue())
 
     # Epochs should increase.
-    self.assertEqual(output[0]["epoch"], 1)
-    self.assertEqual(output[1]["epoch"], 2)
-    self.assertEqual(output[2]["epoch"], 3)
+    with self.subTest(name="Epochs increase"):
+      self.assertEqual(output[0]["epoch"], 1)
+      self.assertEqual(output[1]["epoch"], 2)
+      self.assertEqual(output[2]["epoch"], 3)
 
     # Loss should decrease consistently.
-    self.assertGreater(output[0]["loss"], output[1]["loss"])
-    self.assertGreater(output[1]["loss"], output[2]["loss"])
+    with self.subTest(name="Loss decreases consistently"):
+      self.assertGreater(output[0]["loss"], output[1]["loss"])
+      self.assertGreater(output[1]["loss"], output[2]["loss"])
 
     # Metrics should increase consistently.
-    self.assertLess(output[0]["metric/ndcg"], output[1]["metric/ndcg"])
-    self.assertLess(output[1]["metric/ndcg"], output[2]["metric/ndcg"])
-    self.assertLess(output[0]["metric/ndcg@10"], output[1]["metric/ndcg@10"])
-    self.assertLess(output[1]["metric/ndcg@10"], output[2]["metric/ndcg@10"])
+    with self.subTest(name="Metrics increase consistently"):
+      self.assertLess(output[0]["metric/ndcg"], output[1]["metric/ndcg"])
+      self.assertLess(output[1]["metric/ndcg"], output[2]["metric/ndcg"])
+      self.assertLess(output[0]["metric/ndcg@10"], output[1]["metric/ndcg@10"])
+      self.assertLess(output[1]["metric/ndcg@10"], output[2]["metric/ndcg@10"])
 
     # Evaluate metric values after training.
-    np.testing.assert_allclose(output[2]["metric/ndcg"], 0.829134, atol=0.03)
-    np.testing.assert_allclose(output[2]["metric/ndcg@10"], 0.650672, atol=0.03)
+    with self.subTest(name="Metric values after training"):
+      self.assertAlmostEqual(output[2]["metric/ndcg"], 0.81434, places=3)
+      self.assertAlmostEqual(output[2]["metric/ndcg@10"], 0.576916, places=3)
 
 
 if __name__ == "__main__":

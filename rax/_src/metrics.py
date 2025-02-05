@@ -31,16 +31,18 @@ Standalone usage of a metric:
 >>> import rax
 >>> scores = jnp.array([2., 1., 3.])
 >>> labels = jnp.array([2., 0., 1.])
->>> print(rax.ndcg_metric(scores, labels))
-0.79670763
+>>> loss = rax.ndcg_metric(scores, labels)
+>>> print(f"{loss:.5f}")
+0.79671
 
 Usage with a batch of data and a mask to indicate valid items:
 
 >>> scores = jnp.array([[2., 1., 3.], [1., 0.5, 1.5]])
 >>> labels = jnp.array([[2., 0., 1.], [0., 0., 1.]])
 >>> where = jnp.array([[True, True, False], [True, True, True]])
->>> print(rax.ndcg_metric(scores, labels))
-0.8983538
+>>> loss = rax.ndcg_metric(scores, labels)
+>>> print(f"{loss:.5f}")
+0.89835
 
 Usage with :func:`jax.vmap` batching and a mask to indicate valid items:
 
