@@ -63,7 +63,7 @@ jax.grad(loss_fn)(scores, labels)  # computes gradients w.r.t. scores.
 
 ## Installation
 
-See https://github.com/google/jax#installation for instructions on installing JAX.
+See https://github.com/jax-ml/jax#installation for instructions on installing JAX.
 
 We suggest installing the latest stable version of Rax by running:
 

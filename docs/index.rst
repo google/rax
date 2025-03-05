@@ -26,7 +26,7 @@ Rax is a Learning-to-Rank (LTR) library built on top of JAX.
 Installation
 ------------
 
-See https://github.com/google/jax#pip-installation for instructions on
+See https://github.com/jax-ml/jax#pip-installation for instructions on
 installing JAX.
 
 We suggest installing the latest stable version of Rax by running::
