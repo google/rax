@@ -104,7 +104,7 @@ def approx_t12n(metric_fn: MetricFn, temperature: float = 1.0) -> LossFn:
         utils.approx_cutoff, step_fn=step_fn
     )
 
-  @jax.util.wraps(metric_fn, namestr="approx_{fun}", docstr="Approx {doc}")
+  @utils.wraps(metric_fn, namestr="approx_{fun}", docstr="Approx {doc}")
   def approx_metric_loss(scores, labels, **kwargs):
     # Use approx_kwargs by default but allow users to overwrite it (and add more
     # arguments) using the specified kwargs.
@@ -161,7 +161,7 @@ def bound_t12n(metric_fn: MetricFn):
         utils.approx_cutoff, step_fn=lower_bound_step_fn
     )
 
-  @jax.util.wraps(metric_fn, namestr="bounded_{fun}", docstr="Bounded {doc}")
+  @utils.wraps(metric_fn, namestr="bounded_{fun}", docstr="Bounded {doc}")
   def bounded_metric_loss(scores, labels, **kwargs):
     # Use approx_kwargs by default but allow users to overwrite it (and add more
     # arguments) using the specified kwargs.
@@ -216,7 +216,7 @@ def gumbel_t12n(
   def expand_and_repeat_dim(a: Array, axis: int = 0):
     return jnp.repeat(jnp.expand_dims(a, axis), samples, axis)
 
-  @jax.util.wraps(
+  @utils.wraps(
       loss_or_metric_fn, namestr="gumbel_{fun}", docstr="Gumbel {doc}"
   )
   @utils.update_signature(loss_or_metric_fn, "key")
@@ -288,7 +288,7 @@ def segment_t12n(loss_or_metric_fn: LossOrMetricFn) -> LossOrMetricFn:
     """Replicates an array to change its shape from [..., n] to [..., n, n]."""
     return jnp.repeat(jnp.expand_dims(a, axis=-2), repeats=a.shape[-1], axis=-2)
 
-  @jax.util.wraps(
+  @utils.wraps(
       loss_or_metric_fn, namestr="segment_{fun}", docstr="Segmented {doc}"
   )
   @utils.update_signature(loss_or_metric_fn, "segments")

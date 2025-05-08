@@ -619,3 +619,36 @@ def update_signature(
     return output_fun
 
   return wrapper
+
+
+def fun_name(fun: Callable[..., Any]) -> str:
+  name = getattr(fun, "__name__", None)
+  if name is not None:
+    return name
+  if isinstance(fun, functools.partial):
+    return fun_name(fun.func)
+  else:
+    return "<unnamed function>"
+
+
+def wraps(
+    wrapped: Callable[..., Any],
+    namestr: str = "{fun}",
+    docstr: str = "{doc}",
+) -> Callable[[T], T]:
+  """Like functools.wraps but allows custom naming and docstring."""
+  def wrapper(fun: T) -> T:
+    try:
+      name = fun_name(wrapped)
+      doc = getattr(wrapped, "__doc__", "") or ""
+      fun.__dict__.update(getattr(wrapped, "__dict__", {}))
+      fun.__annotations__ = getattr(wrapped, "__annotations__", {})
+      fun.__name__ = namestr.format(fun=name)
+      fun.__module__ = getattr(wrapped, "__module__", "<unknown module>")
+      fun.__doc__ = docstr.format(fun=name, doc=doc)
+      fun.__qualname__ = getattr(wrapped, "__qualname__", fun.__name__)
+      fun.__wrapped__ = wrapped
+    except Exception:  # pylint: disable=broad-exception-caught
+      pass
+    return fun
+  return wrapper
