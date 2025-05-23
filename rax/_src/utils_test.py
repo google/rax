@@ -28,6 +28,10 @@ from rax._src import utils
 # Opt-in to the partitionable PRNG implementation.
 jax.config.update("jax_threefry_partitionable", True)
 
+# Opt out of the direct linearize implementation.
+# TODO(b/415012281): Remove this config once the bug is fixed.
+jax.config.update("jax_use_direct_linearize", False)
+
 
 class NormalizeProbabilitiesTest(absltest.TestCase):
 
