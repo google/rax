@@ -51,6 +51,9 @@ def safe_reduce(
   Returns:
     The result of reducing the values of ``a`` using given ``reduce_fn``.
   """
+  if where is not None:
+    where = jnp.asarray(where).astype(bool)
+
   # Reduce values if there is a reduce_fn, otherwise keep the values as-is.
   output = reduce_fn(a, where=where) if reduce_fn is not None else a
 

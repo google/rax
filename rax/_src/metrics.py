@@ -222,14 +222,14 @@ def mrr_metric(
     values = segment_utils.segment_max(
         relevant_items * retrieved_items * reciprocal_ranks,
         segments,
-        where=where,
+        where=where if where is None else where.astype(bool),
         initial=0.0,
     )
   else:
     values = jnp.max(
         relevant_items * retrieved_items * reciprocal_ranks,
         axis=-1,
-        where=where,
+        where=where if where is None else where.astype(bool),
         initial=0.0,
     )
 
@@ -325,9 +325,15 @@ def recall_metric(
     )
   else:
     n_retrieved_relevant = jnp.sum(
-        retrieved_items * relevant_items, where=where, axis=-1
+        retrieved_items * relevant_items,
+        where=where if where is None else where.astype(bool),
+        axis=-1,
     )
-    n_relevant = jnp.sum(relevant_items, where=where, axis=-1)
+    n_relevant = jnp.sum(
+        relevant_items,
+        where=where if where is None else where.astype(bool),
+        axis=-1
+    )
 
   # Compute recall but prevent division by zero.
   n_relevant = jnp.where(n_relevant == 0, 1.0, n_relevant)
@@ -425,9 +431,15 @@ def precision_metric(
     )
   else:
     n_retrieved_relevant = jnp.sum(
-        retrieved_items * relevant_items, where=where, axis=-1
+        retrieved_items * relevant_items,
+        where=where if where is None else where.astype(bool),
+        axis=-1,
     )
-    n_retrieved = jnp.sum(retrieved_items, where=where, axis=-1)
+    n_retrieved = jnp.sum(
+        retrieved_items,
+        where=where if where is None else where.astype(bool),
+        axis=-1,
+    )
 
   # Compute precision but prevent division by zero.
   n_retrieved = jnp.where(n_retrieved == 0, 1.0, n_retrieved)
@@ -527,7 +539,9 @@ def ap_metric(
   if segments is not None:
     prec_mask = segment_utils.same_segment_mask(segments)
   prec_at_k = jnp.sum(
-      prec_at_k * jnp.expand_dims(retrieved_items, -1), axis=-1, where=prec_mask
+      prec_at_k * jnp.expand_dims(retrieved_items, -1),
+      axis=-1,
+      where=prec_mask if prec_mask is None else prec_mask.astype(bool),
   )
 
   # Compute summed precision@k for each list and the number of relevant items.
@@ -538,7 +552,11 @@ def ap_metric(
     )
   else:
     sum_prec_at_k = jnp.sum(prec_at_k, axis=-1)
-    n_relevant = jnp.sum(relevant_items, where=where, axis=-1)
+    n_relevant = jnp.sum(
+        relevant_items,
+        where=where if where is None else where.astype(bool),
+        axis=-1,
+    )
 
   # Compute average precision but prevent division by zero.
   n_relevant = jnp.where(n_relevant == 0, 1.0, n_relevant)
@@ -701,10 +719,16 @@ def dcg_metric(
   # Compute DCG.
   if segments is not None:
     values = segment_utils.segment_sum(
-        retrieved_items * gains * discounts, segments, where=where
+        retrieved_items * gains * discounts,
+        segments,
+        where=where if where is None else where.astype(bool),
     )
   else:
-    values = jnp.sum(retrieved_items * gains * discounts, axis=-1, where=where)
+    values = jnp.sum(
+        retrieved_items * gains * discounts,
+        axis=-1,
+        where=where if where is None else where.astype(bool),
+    )
 
   # In the segmented case, values retain their list dimension. This constructs
   # a mask so that only the first item per segment is used in reduce_fn.

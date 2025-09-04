@@ -101,6 +101,7 @@ class NormalizeProbabilitiesTest(absltest.TestCase):
     )
 
     # Assert non-masked values sum to the number of segments in each axis.
+    where = where.astype(bool)
     np.testing.assert_array_equal(
         jnp.sum(result1, where=where, axis=0, keepdims=True),
         jnp.array([[[1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 0.0]]]),

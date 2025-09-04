@@ -41,7 +41,7 @@ def segment_sum(
   return jnp.sum(
       jnp.broadcast_to(jnp.expand_dims(a, -2), mask.shape),
       axis=-1,
-      where=mask,
+      where=mask.astype(bool),
   )
 
 
@@ -60,7 +60,7 @@ def segment_max(
   return jnp.max(
       jnp.broadcast_to(jnp.expand_dims(a, -2), mask.shape),
       axis=-1,
-      where=mask,
+      where=mask.astype(bool),
       initial=initial,
   )
 
@@ -198,7 +198,7 @@ def segment_logcumsumexp(
   x_shifted = jnp.exp(jnp.expand_dims(x, -2) - jnp.expand_dims(m, -1))
 
   # Compute `out[i] = sum_{j=1}^{i} exp(x_j - m_i)`.
-  out = jnp.sum(x_shifted, where=mask, axis=-1)
+  out = jnp.sum(x_shifted, where=mask.astype(bool), axis=-1)
 
   # Compute the log of the cumulative sum and correct for the cumulative
   # maximum shift.
