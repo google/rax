@@ -67,6 +67,7 @@ from rax._src import utils
 Array = types.Array
 LambdaweightFn = types.LambdaweightFn
 ReduceFn = types.ReduceFn
+_EPSILON = 1e-10
 
 
 def softmax_loss(
@@ -76,6 +77,7 @@ def softmax_loss(
     where: Optional[Array] = None,
     segments: Optional[Array] = None,
     weights: Optional[Array] = None,
+    enable_inner_weighting: bool = False,
     label_fn: Callable[..., Array] = lambda a, where: a,
     reduce_fn: Optional[ReduceFn] = jnp.mean,
 ) -> Array:
@@ -85,6 +87,14 @@ def softmax_loss(
 
   .. math::
       \ell(s, y) = -\sum_i y_i \log \frac{\exp(s_i)}{\sum_j \exp(s_j)}
+
+  When ``weights`` are provided, they are applied to labels to become
+  :math:`w_i y_i`. When ``enable_inner_weighting`` is ``True``, score
+  exponentiations are also weighted:
+
+  .. math::
+      \ell(s, y) = -\sum_i w_i y_i \log \frac{w_i \exp(s_i)}{\sum_j w_j
+      \exp(s_j)}
 
   Args:
     scores: A ``[..., list_size]``-:class:`~jax.Array`, indicating the score of
@@ -99,6 +109,10 @@ def softmax_loss(
       share the same segment.
     weights: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
       the weight for each item.
+    enable_inner_weighting: If True, weights are also applied to scores in
+      softmax expression: :math:`\frac{w_i \exp(s_i)}{\sum_j w_j \exp(s_j)}`.
+      This is equivalent to using ``scores + jnp.log(weights)`` to compute the
+      log-softmax. If False, weights are only applied to labels.
     label_fn: A label function that maps labels to probabilities. Default keeps
       labels as-is. See :func:`rax.utils.normalize_probabilities` for example.
     reduce_fn: An optional function that reduces the loss values. Can be
@@ -108,10 +122,26 @@ def softmax_loss(
   Returns:
     The softmax loss.
   """
+  if enable_inner_weighting and weights is not None:
+    # If inner weighting is enabled, weights need to be positive to be valid.
+    where = (
+        jnp.logical_and(where, weights > 0.0)
+        if where is not None
+        else weights > 0.0
+    )
+
   # Applies mask so that masked elements do not count towards the loss.
   if where is not None:
     labels = jnp.where(where, labels, jnp.zeros_like(labels))
     scores = jnp.where(where, scores, -jnp.ones_like(scores) * jnp.inf)
+
+  # Maybe apply inner weighting to scores.
+  if weights is not None:
+    scores = jax.lax.cond(
+        enable_inner_weighting,
+        lambda: scores + jnp.log(jnp.maximum(weights, _EPSILON)),
+        lambda: scores,
+    )
 
   # Apply weights to labels.
   if weights is not None:
