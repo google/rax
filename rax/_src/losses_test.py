@@ -1,4 +1,4 @@
-# Copyright 2025 Google LLC.
+# Copyright 2026 Google LLC.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
-
 import rax
 from rax._src import losses
 
@@ -55,15 +54,20 @@ class LossesTest(parameterized.TestCase):
       },
       {
           "loss_fn": losses.poly1_softmax_loss,
-          "expected_value": -(
-              log(exp(2.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0)))
-              + log(exp(1.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0)))
-          ) + (
-              1.0
-              - (
-                  0.5 * exp(2.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0))
-                  + 0.5
-                  * (exp(1.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0)))
+          "expected_value": (
+              -(
+                  log(exp(2.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0)))
+                  + log(exp(1.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0)))
+              )
+              + (
+                  1.0
+                  - (
+                      0.5
+                      * exp(2.0)
+                      / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0))
+                      + 0.5
+                      * (exp(1.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0)))
+                  )
               )
           ),
       },
@@ -76,15 +80,21 @@ class LossesTest(parameterized.TestCase):
       },
       {
           "loss_fn": functools.partial(losses.poly1_softmax_loss, epsilon=0.1),
-          "expected_value": -(
-              log(exp(2.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0)))
-              + log(exp(1.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0)))
-          ) + 0.1 * (
-              1.0
-              - (
-                  0.5 * exp(2.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0))
-                  + 0.5
-                  * (exp(1.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0)))
+          "expected_value": (
+              -(
+                  log(exp(2.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0)))
+                  + log(exp(1.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0)))
+              )
+              + 0.1
+              * (
+                  1.0
+                  - (
+                      0.5
+                      * exp(2.0)
+                      / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0))
+                      + 0.5
+                      * (exp(1.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0)))
+                  )
               )
           ),
       },
@@ -147,27 +157,39 @@ class LossesTest(parameterized.TestCase):
       },
       {
           "loss_fn": losses.pairwise_qr_loss,
-          "expected_value": 0.5 * (
-              ((1.0 - 0.0) - (1.0 - 0.0))
-              + ((1.0 - 0.0) - (1.0 - 3.0))
-              + ((1.0 - 0.0) - (2.0 - 3.0))
-          ) + 0.5 * (((2.0 - 0.0) - (1.0 - 0.0))),
+          "expected_value": (
+              0.5
+              * (
+                  ((1.0 - 0.0) - (1.0 - 0.0))
+                  + ((1.0 - 0.0) - (1.0 - 3.0))
+                  + ((1.0 - 0.0) - (2.0 - 3.0))
+              )
+              + 0.5 * (((2.0 - 0.0) - (1.0 - 0.0)))
+          ),
       },
       {
           "loss_fn": functools.partial(losses.pairwise_qr_loss, tau=1.0),
-          "expected_value": 1.0 * (
-              ((1.0 - 0.0) - (1.0 - 0.0))
-              + ((1.0 - 0.0) - (1.0 - 3.0))
-              + ((1.0 - 0.0) - (2.0 - 3.0))
-          ) + 0.0 * (((2.0 - 0.0) - (1.0 - 0.0))),
+          "expected_value": (
+              1.0
+              * (
+                  ((1.0 - 0.0) - (1.0 - 0.0))
+                  + ((1.0 - 0.0) - (1.0 - 3.0))
+                  + ((1.0 - 0.0) - (2.0 - 3.0))
+              )
+              + 0.0 * (((2.0 - 0.0) - (1.0 - 0.0)))
+          ),
       },
       {
           "loss_fn": functools.partial(losses.pairwise_qr_loss, squared=True),
-          "expected_value": 0.5 * (
-              ((1.0 - 0.0) - (1.0 - 0.0)) ** 2
-              + ((1.0 - 0.0) - (1.0 - 3.0)) ** 2
-              + ((1.0 - 0.0) - (2.0 - 3.0)) ** 2
-          ) + 0.5 * (((2.0 - 0.0) - (1.0 - 0.0)) ** 2),
+          "expected_value": (
+              0.5
+              * (
+                  ((1.0 - 0.0) - (1.0 - 0.0)) ** 2
+                  + ((1.0 - 0.0) - (1.0 - 3.0)) ** 2
+                  + ((1.0 - 0.0) - (2.0 - 3.0)) ** 2
+              )
+              + 0.5 * (((2.0 - 0.0) - (1.0 - 0.0)) ** 2)
+          ),
       },
   ])
   def test_computes_loss_value(self, loss_fn, expected_value):
@@ -244,10 +266,17 @@ class LossesTest(parameterized.TestCase):
       },
       {
           "loss_fn": losses.pairwise_qr_loss,
-          "expected_value": 0.5 * (
-              ((1.0 - 0.0) - (-2.1e26 - 0.0)) + ((1.0 - 0.0) - (-2.1e26 - 42.0))
-          ) + 0.5 * (
-              ((3.4e37 - 0.0) - (1.0 - 0.0)) + ((3.4e37 - 42.0) - (1.0 - 0.0))
+          "expected_value": (
+              0.5
+              * (
+                  ((1.0 - 0.0) - (-2.1e26 - 0.0))
+                  + ((1.0 - 0.0) - (-2.1e26 - 42.0))
+              )
+              + 0.5
+              * (
+                  ((3.4e37 - 0.0) - (1.0 - 0.0))
+                  + ((3.4e37 - 42.0) - (1.0 - 0.0))
+              )
           ),
       },
   ])
@@ -272,12 +301,19 @@ class LossesTest(parameterized.TestCase):
       },
       {
           "loss_fn": losses.poly1_softmax_loss,
-          "expected_value": 1.0 - sum([
-              0.25 * (exp(0.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0))),
-              0.25 * (exp(3.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0))),
-              0.25 * (exp(1.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0))),
-              0.25 * (exp(2.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0))),
-          ]),
+          "expected_value": (
+              1.0
+              - sum([
+                  0.25
+                  * (exp(0.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0))),
+                  0.25
+                  * (exp(3.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0))),
+                  0.25
+                  * (exp(1.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0))),
+                  0.25
+                  * (exp(2.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0))),
+              ])
+          ),
       },
       {"loss_fn": losses.unique_softmax_loss, "expected_value": 0.0},
       {"loss_fn": losses.pairwise_hinge_loss, "expected_value": 0.0},
@@ -341,19 +377,23 @@ class LossesTest(parameterized.TestCase):
       },
       {
           "loss_fn": losses.poly1_softmax_loss,
-          "expected_value": -(
-              2.0 * log(exp(2.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0)))
-              + log(exp(1.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0)))
-          ) + (
-              1.0
-              - (
+          "expected_value": (
+              -(
                   2.0
-                  / 3.0
-                  * exp(2.0)
-                  / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0))
-                  + 1.0
-                  / 3.0
-                  * (exp(1.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0)))
+                  * log(exp(2.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0)))
+                  + log(exp(1.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0)))
+              )
+              + (
+                  1.0
+                  - (
+                      2.0
+                      / 3.0
+                      * exp(2.0)
+                      / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0))
+                      + 1.0
+                      / 3.0
+                      * (exp(1.0) / (exp(0.0) + exp(3.0) + exp(1.0) + exp(2.0)))
+                  )
               )
           ),
       },
@@ -884,6 +924,55 @@ class LossesTest(parameterized.TestCase):
     expected = loss_fn(scores[0, :], labels[0, :])
 
     np.testing.assert_allclose(output, expected)
+
+  def test_softmax_loss_enable_inner_weighting(self):
+    # Case 1: without inner weighting.
+    scores = jnp.array([[2.0, 1.0, 3.0], [1.0, 0.5, 1.5]])
+    labels = jnp.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
+    weights = jnp.array([[0.1, 0.2, 0.3], [0.1, 0.2, 0.3]])
+    loss_no_inner_weighting = losses.softmax_loss(
+        scores,
+        labels,
+        weights=weights,
+        enable_inner_weighting=False,
+        reduce_fn=jnp.sum,
+    )
+    expected_loss = -0.1 * log(
+        exp(2.0) / (exp(2.0) + exp(1.0) + exp(3.0))
+    ) - 0.3 * log(exp(1.5) / (exp(1.0) + exp(0.5) + exp(1.5)))
+    np.testing.assert_allclose(loss_no_inner_weighting, expected_loss)
+
+    # Case 2: with inner weighting.
+    loss = losses.softmax_loss(
+        scores,
+        labels,
+        weights=weights,
+        enable_inner_weighting=True,
+        reduce_fn=jnp.sum,
+    )
+    expected_loss = -0.1 * log(
+        0.1 * exp(2.0) / (0.1 * exp(2.0) + 0.2 * exp(1.0) + 0.3 * exp(3.0))
+    ) - 0.3 * log(
+        0.3 * exp(1.5) / (0.1 * exp(1.0) + 0.2 * exp(0.5) + 0.3 * exp(1.5))
+    )
+    np.testing.assert_allclose(loss, expected_loss, atol=1e-7)
+
+  def test_softmax_loss_enable_inner_weighting_invalid_weights(self):
+    # Case 1: without inner weighting.
+    scores = jnp.array([[2.0, 1.0, 3.0], [1.0, 0.5, 1.5]])
+    labels = jnp.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
+    weights = jnp.array([[0.1, -0.000001, 0.3], [0.1, 0.2, -0.3]])
+    loss = losses.softmax_loss(
+        scores,
+        labels,
+        weights=weights,
+        enable_inner_weighting=True,
+        reduce_fn=jnp.sum,
+    )
+    expected_loss = -0.1 * log(
+        0.1 * exp(2.0) / (0.1 * exp(2.0) + 0.3 * exp(3.0))
+    )
+    np.testing.assert_allclose(loss, expected_loss, atol=1e-7)
 
 
 def load_tests(loader, tests, ignore):
