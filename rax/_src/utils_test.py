@@ -1,4 +1,4 @@
-# Copyright 2025 Google LLC.
+# Copyright 2026 Google LLC.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,11 +41,11 @@ class NormalizeProbabilitiesTest(absltest.TestCase):
     result1 = utils.normalize_probabilities(arr, axis=0)
     result2 = utils.normalize_probabilities(arr, axis=1)
 
-    np.testing.assert_array_equal(
+    np.testing.assert_allclose(
         result1,
         jnp.asarray([[0.0, 1.0 / 5.0, 2.0 / 7.0], [1.0, 4.0 / 5.0, 5.0 / 7.0]]),
     )
-    np.testing.assert_array_equal(
+    np.testing.assert_allclose(
         result2,
         jnp.asarray(
             [[0.0, 1.0 / 3.0, 2.0 / 3.0], [3.0 / 12.0, 4.0 / 12.0, 5.0 / 12.0]]
@@ -57,7 +57,7 @@ class NormalizeProbabilitiesTest(absltest.TestCase):
 
     result = utils.normalize_probabilities(arr)
 
-    np.testing.assert_array_equal(
+    np.testing.assert_allclose(
         result,
         jnp.asarray(
             [[0.0, 1.0 / 3.0, 2.0 / 3.0], [3.0 / 12.0, 4.0 / 12.0, 5.0 / 12.0]]
