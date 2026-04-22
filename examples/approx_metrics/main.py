@@ -177,8 +177,8 @@ def main(argv: Sequence[str], epochs: int = 10):
   # approximate and differentiable version of the ranking metric. You can use
   # any of the Rax ranking metrics here. For this example, we will optimize AP,
   # NDCG and Recall@50.
-  approx_ap = rax.approx_t12n(rax.ap_metric)
-  approx_ndcg = rax.approx_t12n(rax.ndcg_metric)
+  approx_ap = rax.approx_t12n(rax.ap_metric)  # pyrefly: ignore [bad-argument-type]
+  approx_ndcg = rax.approx_t12n(rax.ndcg_metric)  # pyrefly: ignore [bad-argument-type]
   approx_recall_at_50 = rax.approx_t12n(
       functools.partial(rax.recall_metric, topn=50)
   )

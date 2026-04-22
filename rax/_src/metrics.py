@@ -73,7 +73,7 @@ def _retrieved_items(
     where: Optional[Array] = None,
     segments: Optional[Array] = None,
     topn: Optional[int] = None,
-    cutoff_fn: CutoffFn = utils.cutoff
+    cutoff_fn: CutoffFn = utils.cutoff  # pyrefly: ignore [bad-function-definition]
 ) -> Array:
   """Computes an array that indicates which items are retrieved.
 
@@ -153,8 +153,8 @@ def mrr_metric(
     segments: Optional[Array] = None,
     topn: Optional[int] = None,
     key: Optional[Array] = None,
-    rank_fn: RankFn = utils.ranks,
-    cutoff_fn: CutoffFn = utils.cutoff,
+    rank_fn: RankFn = utils.ranks,  # pyrefly: ignore [bad-function-definition]
+    cutoff_fn: CutoffFn = utils.cutoff,  # pyrefly: ignore [bad-function-definition]
     reduce_fn: Optional[ReduceFn] = jnp.mean
 ) -> Array:
   r"""Mean Reciprocal Rank (MRR).
@@ -253,8 +253,8 @@ def recall_metric(
     segments: Optional[Array] = None,
     topn: Optional[int] = None,
     key: Optional[Array] = None,
-    rank_fn: RankFn = utils.ranks,
-    cutoff_fn: CutoffFn = utils.cutoff,
+    rank_fn: RankFn = utils.ranks,  # pyrefly: ignore [bad-function-definition]
+    cutoff_fn: CutoffFn = utils.cutoff,  # pyrefly: ignore [bad-function-definition]
     reduce_fn: Optional[ReduceFn] = jnp.mean
 ) -> Array:
   r"""Recall.
@@ -359,8 +359,8 @@ def precision_metric(
     segments: Optional[Array] = None,
     topn: Optional[int] = None,
     key: Optional[Array] = None,
-    rank_fn: RankFn = utils.ranks,
-    cutoff_fn: CutoffFn = utils.cutoff,
+    rank_fn: RankFn = utils.ranks,  # pyrefly: ignore [bad-function-definition]
+    cutoff_fn: CutoffFn = utils.cutoff,  # pyrefly: ignore [bad-function-definition]
     reduce_fn: Optional[ReduceFn] = jnp.mean
 ) -> Array:
   r"""Precision.
@@ -465,8 +465,8 @@ def ap_metric(
     segments: Optional[Array] = None,
     topn: Optional[int] = None,
     key: Optional[Array] = None,
-    rank_fn: RankFn = utils.ranks,
-    cutoff_fn: CutoffFn = utils.cutoff,
+    rank_fn: RankFn = utils.ranks,  # pyrefly: ignore [bad-function-definition]
+    cutoff_fn: CutoffFn = utils.cutoff,  # pyrefly: ignore [bad-function-definition]
     reduce_fn: Optional[ReduceFn] = jnp.mean
 ) -> Array:
   r"""Average Precision.
@@ -651,8 +651,8 @@ def dcg_metric(
     key: Optional[Array] = None,
     gain_fn: Callable[[Array], Array] = default_gain_fn,
     discount_fn: Callable[[Array], Array] = default_discount_fn,
-    rank_fn: RankFn = utils.ranks,
-    cutoff_fn: CutoffFn = utils.cutoff,
+    rank_fn: RankFn = utils.ranks,  # pyrefly: ignore [bad-function-definition]
+    cutoff_fn: CutoffFn = utils.cutoff,  # pyrefly: ignore [bad-function-definition]
     reduce_fn: Optional[ReduceFn] = jnp.mean
 ) -> Array:
   r"""Discounted cumulative gain (DCG).
@@ -753,8 +753,8 @@ def ndcg_metric(
     key: Optional[Array] = None,
     gain_fn: Callable[[Array], Array] = default_gain_fn,
     discount_fn: Callable[[Array], Array] = default_discount_fn,
-    rank_fn: RankFn = utils.ranks,
-    cutoff_fn: CutoffFn = utils.cutoff,
+    rank_fn: RankFn = utils.ranks,  # pyrefly: ignore [bad-function-definition]
+    cutoff_fn: CutoffFn = utils.cutoff,  # pyrefly: ignore [bad-function-definition]
     reduce_fn: Optional[ReduceFn] = jnp.mean
 ) -> Array:
   r"""Normalized discounted cumulative gain (NDCG).
@@ -825,8 +825,8 @@ def ndcg_metric(
       key=None,
       gain_fn=gain_fn,
       discount_fn=discount_fn,
-      rank_fn=utils.ranks,
-      cutoff_fn=utils.cutoff,
+      rank_fn=utils.ranks,  # pyrefly: ignore [bad-argument-type]
+      cutoff_fn=utils.cutoff,  # pyrefly: ignore [bad-argument-type]
       reduce_fn=None,
   )
 

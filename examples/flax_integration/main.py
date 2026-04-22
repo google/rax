@@ -78,11 +78,11 @@ class DNN(nn.Module):
 
     # Run inputs through several layers, finally producing a single score per
     # item.
-    x = nn.Dense(64)(x)
+    x = nn.Dense(64)(x)  # pyrefly: ignore [bad-argument-type, missing-argument]
     x = nn.relu(x)
-    x = nn.Dense(32)(x)
+    x = nn.Dense(32)(x)  # pyrefly: ignore [bad-argument-type, missing-argument]
     x = nn.relu(x)
-    x = nn.Dense(1)(x)
+    x = nn.Dense(1)(x)  # pyrefly: ignore [bad-argument-type, missing-argument]
 
     # Remove the feature axis since it is now a single score per item.
     x = jnp.squeeze(x, -1)
@@ -168,7 +168,7 @@ def main(argv: Sequence[str]):
     inputs, labels, mask = batch
     scores = model.apply(model_state, inputs)
     return {
-        name: metric_fn(scores, labels, where=mask, reduce_fn=jnp.mean)
+        name: metric_fn(scores, labels, where=mask, reduce_fn=jnp.mean)  # pyrefly: ignore [bad-argument-type]
         for name, metric_fn in metric_fns.items()
     }
 

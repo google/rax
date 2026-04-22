@@ -110,9 +110,9 @@ class DNN(nn.Module):
     x = jnp.sign(x) * jnp.log1p(jnp.abs(x))
 
     # Run inputs through.
-    x_hidden = nn.Dense(64)(x)
+    x_hidden = nn.Dense(64)(x)  # pyrefly: ignore [bad-argument-type, missing-argument]
     x_hidden = nn.relu(x_hidden)
-    x = nn.Dense(1)(jnp.concatenate([x, x_hidden], axis=-1))
+    x = nn.Dense(1)(jnp.concatenate([x, x_hidden], axis=-1))  # pyrefly: ignore [bad-argument-type, missing-argument]
 
     # Remove the feature axis since it is now a single score per item.
     x = jnp.squeeze(x, -1)
@@ -138,7 +138,7 @@ def main(argv: Sequence[str], steps: int = 600, steps_per_eval: int = 200):
   def train_step(w, opt_state, batch):
     def loss_fn(w):
       return rax.softmax_loss(
-          scores=model.apply(w, batch),
+          scores=model.apply(w, batch),  # pyrefly: ignore [bad-argument-type]
           labels=batch["labels"],
           segments=batch["segments"],
           where=batch["mask"],
@@ -161,7 +161,7 @@ def main(argv: Sequence[str], steps: int = 600, steps_per_eval: int = 200):
     scores = model.apply(w, batch)
     labels, segments, mask = batch["labels"], batch["segments"], batch["mask"]
     return {
-        name: metric_fn(scores, labels, segments=segments, where=mask)
+        name: metric_fn(scores, labels, segments=segments, where=mask)  # pyrefly: ignore [bad-argument-type]
         for name, metric_fn in metric_fns.items()
     }
 

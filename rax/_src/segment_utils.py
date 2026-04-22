@@ -168,7 +168,7 @@ def segment_logcumsumexp(
   if reverse:
     x = jnp.flip(x, axis=axis)
     where = None if where is None else jnp.flip(where, axis=axis)
-    segments = None if segments is None else jnp.flip(segments, axis=axis)
+    segments = None if segments is None else jnp.flip(segments, axis=axis)  # pyrefly: ignore [bad-assignment]
 
   # Swap axes to make sure the axis to sum over is always last.
   x = jnp.swapaxes(x, axis, -1)

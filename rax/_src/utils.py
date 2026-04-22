@@ -591,7 +591,7 @@ def update_signature(
   def wrapper(fun: T) -> T:
     # Get the signature of the wrapped function and the new function.
     wrapped_signature = inspect.signature(wrapped)
-    fun_signature = inspect.signature(fun)
+    fun_signature = inspect.signature(fun)  # pyrefly: ignore [bad-argument-type]
 
     # Get the parameters of both the wrapped function and the new function. To
     # prevent adding duplicate parameters, the `wrapped_parameters` will not
@@ -609,17 +609,17 @@ def update_signature(
     # Create a thin wrapper for the function. We will set the `__signature__`
     # property on this wrapper and return it, leaving the original `fun`
     # untouched.
-    @functools.wraps(fun)
+    @functools.wraps(fun)  # pyrefly: ignore [bad-argument-type]
     def output_fun(*args, **kwargs):
-      return fun(*args, **kwargs)
+      return fun(*args, **kwargs)  # pyrefly: ignore [not-callable]
 
     # Construct a new signature by copying the `wrapped_signature`, but
     # replacing its parameters.
-    output_fun.__signature__ = wrapped_signature.replace(
+    output_fun.__signature__ = wrapped_signature.replace(  # pyrefly: ignore [missing-attribute]
         parameters=wrapped_parameters + fun_parameters
     )
 
-    return output_fun
+    return output_fun  # pyrefly: ignore [bad-return]
 
   return wrapper
 
@@ -646,11 +646,11 @@ def wraps(
       doc = getattr(wrapped, "__doc__", "") or ""
       fun.__dict__.update(getattr(wrapped, "__dict__", {}))
       fun.__annotations__ = getattr(wrapped, "__annotations__", {})
-      fun.__name__ = namestr.format(fun=name)
+      fun.__name__ = namestr.format(fun=name)  # pyrefly: ignore [missing-attribute]
       fun.__module__ = getattr(wrapped, "__module__", "<unknown module>")
       fun.__doc__ = docstr.format(fun=name, doc=doc)
-      fun.__qualname__ = getattr(wrapped, "__qualname__", fun.__name__)
-      fun.__wrapped__ = wrapped
+      fun.__qualname__ = getattr(wrapped, "__qualname__", fun.__name__)  # pyrefly: ignore [missing-attribute]
+      fun.__wrapped__ = wrapped  # pyrefly: ignore [missing-attribute]
     except Exception:  # pylint: disable=broad-exception-caught
       pass
     return fun

@@ -68,7 +68,7 @@ class RankingEncDecFeatureConverter(seqio.FeatureConverter):
       "label": FeatureSpec(dtype=tf.float32),
       "mask": FeatureSpec(dtype=tf.bool),
   }
-  PACKING_FEATURE_DTYPES = None
+  PACKING_FEATURE_DTYPES = None  # pyrefly: ignore [bad-assignment]
 
   def _convert_features(
       self,
@@ -108,10 +108,10 @@ class RankingEncDecFeatureConverter(seqio.FeatureConverter):
     ds = seqio.utils.trim_and_pad_dataset(
         ds,
         {
-            "label": task_feature_lengths["label"][0],
-            "mask": task_feature_lengths["label"][0],
-            "targets": task_feature_lengths["targets"][0],
-            "inputs": task_feature_lengths["inputs"][0],
+            "label": task_feature_lengths["label"][0],  # pyrefly: ignore [bad-index]
+            "mask": task_feature_lengths["label"][0],  # pyrefly: ignore [bad-index]
+            "targets": task_feature_lengths["targets"][0],  # pyrefly: ignore [bad-index]
+            "inputs": task_feature_lengths["inputs"][0],  # pyrefly: ignore [bad-index]
         },
     )
 
@@ -133,8 +133,8 @@ class RankingEncDecFeatureConverter(seqio.FeatureConverter):
     ds = seqio.utils.trim_and_pad_dataset(
         ds,
         {
-            "targets": task_feature_lengths["targets"][1],
-            "inputs": task_feature_lengths["inputs"][1],
+            "targets": task_feature_lengths["targets"][1],  # pyrefly: ignore [bad-index]
+            "inputs": task_feature_lengths["inputs"][1],  # pyrefly: ignore [bad-index]
         },
     )
     ds = ds.map(transpose_inputs_and_targets)
@@ -193,8 +193,8 @@ class RankingEncDecModel(models.EncoderDecoderModel):
       input_vocabulary: seqio.Vocabulary,
       output_vocabulary: seqio.Vocabulary,
       optimizer_def: optimizers.OptimizerDefType,
-      rax_loss_fn: rax.types.LossFn = DEFAULT_LOSS_FN,
-      rax_metric_fns: Mapping[str, rax.types.MetricFn] = DEFAULT_METRIC_FNS,
+      rax_loss_fn: rax.types.LossFn = DEFAULT_LOSS_FN,  # pyrefly: ignore [bad-function-definition]
+      rax_metric_fns: Mapping[str, rax.types.MetricFn] = DEFAULT_METRIC_FNS,  # pyrefly: ignore [bad-function-definition]
       loss_normalizing_factor: Optional[float] = None,
   ):
     super().__init__(
@@ -207,7 +207,7 @@ class RankingEncDecModel(models.EncoderDecoderModel):
     self._rax_loss_fn = rax_loss_fn
     self._rax_metric_fns = rax_metric_fns
 
-  def get_initial_variables(
+  def get_initial_variables(  # pyrefly: ignore [bad-override]
       self,
       rng: jax.Array,
       input_shapes,  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
@@ -317,14 +317,14 @@ class RankingEncDecModel(models.EncoderDecoderModel):
     # Compute ranking loss with Rax.
     loss = self._rax_loss_fn(scores, labels, where=mask, reduce_fn=jnp.sum)
     if self._loss_normalizing_factor is not None:
-      loss = loss / self._loss_normalizing_factor
+      loss = loss / self._loss_normalizing_factor  # pyrefly: ignore [unsupported-operation]
 
     # Compute ranking metrics.
     metrics = self._compute_metrics(loss, scores, labels, mask)
 
     return loss, metrics
 
-  def _compute_metrics(
+  def _compute_metrics(  # pyrefly: ignore [bad-override]
       self,
       loss: jnp.ndarray,
       scores: jnp.ndarray,

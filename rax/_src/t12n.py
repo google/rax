@@ -254,7 +254,7 @@ def gumbel_t12n(
 
     return loss_or_metric_fn(gumbel_scores, labels, **kwargs)
 
-  return _loss_or_metric_fn_with_gumbel_scores
+  return _loss_or_metric_fn_with_gumbel_scores  # pyrefly: ignore [bad-return]
 
 
 def segment_t12n(loss_or_metric_fn: LossOrMetricFn) -> LossOrMetricFn:
