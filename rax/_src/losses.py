@@ -823,7 +823,7 @@ def pairwise_mse_loss(
   def _mse_loss(scores_diff: Array, labels_diff: Array) -> tuple[Array, Array]:
     return (
         jnp.square(scores_diff - labels_diff),
-        jnp.ones_like(labels_diff > 0),
+        jnp.ones_like(labels_diff, dtype=jnp.bool_),  # MSE loss uses all pairs.
     )
 
   return pairwise_loss(
