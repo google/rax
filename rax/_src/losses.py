@@ -49,9 +49,11 @@ transformations such as :func:`jax.grad` or :func:`jax.value_and_grad`:
 
 >>> scores = jnp.asarray([[0., 1., 3.], [1., 2., 0.]])
 >>> labels = jnp.asarray([[0., 0., 1.], [1., 0., 0.]])
->>> print(jax.grad(rax.softmax_loss)(scores, labels, reduce_fn=jnp.mean))
-[[ 0.02100503  0.0570976  -0.07810265]
- [-0.37763578  0.33262047  0.04501529]]
+>>> grads = jax.grad(rax.softmax_loss)(scores, labels, reduce_fn=jnp.mean)
+>>> for row in grads:
+...   print("[" + ", ".join(f"{grad:.5f}" for grad in row) + "]")
+[0.02101, 0.05710, -0.07810]
+[-0.37764, 0.33262, 0.04502]
 """
 
 import operator
