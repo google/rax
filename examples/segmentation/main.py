@@ -126,7 +126,7 @@ def main(argv: Sequence[str], steps: int = 600, steps_per_eval: int = 200):
   ds = tfds.as_numpy(read_data(batch_size=1024))
 
   # Create model and optimizer.
-  model = DNN()
+  model = DNN()  # pyrefly: ignore[missing-argument]
   optimizer = optax.adam(learning_rate=0.001)
 
   # Initialize model and optimizer state.
