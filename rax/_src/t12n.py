@@ -329,4 +329,4 @@ def segment_t12n(loss_or_metric_fn: LossOrMetricFn) -> LossOrMetricFn:
 
     return loss_or_metric_fn(scores, labels, **kwargs)
 
-  return _segmented_loss_or_metric_fn
+  return _segmented_loss_or_metric_fn  # pyrefly: ignore[bad-return]
