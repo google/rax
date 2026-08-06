@@ -184,11 +184,11 @@ def main(argv: Sequence[str]):
     for batch in ds_train:
       # Perform train step and record loss.
       loss, model_state, opt_state = train_step(batch, model_state, opt_state)
-      metrics["loss"] += loss
+      metrics["loss"] += loss  # pyrefly: ignore[unsupported-operation]
 
       # Perform eval and record metrics.
       for name, metric in eval_step(batch, model_state).items():
-        metrics[name] += metric
+        metrics[name] += metric  # pyrefly: ignore[unsupported-operation]
 
     metrics = {
         name: float(metric / len(ds_train)) for name, metric in metrics.items()
