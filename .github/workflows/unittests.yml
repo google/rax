@@ -24,9 +24,10 @@ jobs:
                       -r requirements/requirements-test.txt \
                       -r requirements/requirements-examples.txt
 
-      - name: Run pytype
+      - name: Run pyrefly
         run: |
-          pytype rax/ examples/flax_integration/ examples/approx_metrics/
+          pyrefly init
+          pyrefly check
 
       - name: Run tests
         run: |
