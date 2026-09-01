@@ -31,11 +31,10 @@ Example usage:
 
 import functools
 import inspect
-from typing import Optional, TypeVar
+from typing import Any, Callable, Optional, TypeVar, cast
 
 import jax
 import jax.numpy as jnp
-
 from rax._src import types
 from rax._src import utils
 
@@ -44,10 +43,10 @@ LossFn = types.LossFn
 MetricFn = types.MetricFn
 
 # Type aliases for ranking loss and metric functions.
-LossOrMetricFn = TypeVar("LossOrMetricFn", LossFn, MetricFn)
+LossOrMetricFn = TypeVar("LossOrMetricFn", bound=Callable[..., Array])
 
 
-def _accepts_args(fn, *args, **kwargs):
+def _accepts_args(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> bool:
   """Returns True if `fn` can accept `*args` and `**kwargs`."""
   try:
     inspect.signature(fn).bind_partial(*args, **kwargs)
@@ -56,7 +55,9 @@ def _accepts_args(fn, *args, **kwargs):
     return False
 
 
-def approx_t12n(metric_fn: MetricFn, temperature: float = 1.0) -> LossFn:
+def approx_t12n(
+    metric_fn: Callable[..., Array], temperature: float = 1.0
+) -> Callable[..., Array]:
   """Transforms ``metric_fn`` into an approximate differentiable loss.
 
   This transformation and uses a sigmoid approximation to compute ranks and
@@ -105,16 +106,20 @@ def approx_t12n(metric_fn: MetricFn, temperature: float = 1.0) -> LossFn:
     )
 
   @utils.wraps(metric_fn, namestr="approx_{fun}", docstr="Approx {doc}")
-  def approx_metric_loss(scores, labels, **kwargs):
+  def approx_metric_loss(
+      scores: Array, labels: Array, *, where: Optional[Array] = None, **kwargs
+  ) -> Array:
     # Use approx_kwargs by default but allow users to overwrite it (and add more
     # arguments) using the specified kwargs.
     kwargs = {**approx_kwargs, **kwargs}
+    if where is not None:
+      kwargs["where"] = where
     return -metric_fn(scores, labels, **kwargs)
 
   return approx_metric_loss
 
 
-def bound_t12n(metric_fn: MetricFn):
+def bound_t12n(metric_fn: Callable[..., Array]) -> Callable[..., Array]:
   """Transforms ``metric_fn`` into a lower-bound differentiable loss.
 
   This transformation uses a hinge bound to compute ranks and indicators in
@@ -162,10 +167,14 @@ def bound_t12n(metric_fn: MetricFn):
     )
 
   @utils.wraps(metric_fn, namestr="bounded_{fun}", docstr="Bounded {doc}")
-  def bounded_metric_loss(scores, labels, **kwargs):
+  def bounded_metric_loss(
+      scores: Array, labels: Array, *, where: Optional[Array] = None, **kwargs
+  ) -> Array:
     # Use approx_kwargs by default but allow users to overwrite it (and add more
     # arguments) using the specified kwargs.
     kwargs = {**approx_kwargs, **kwargs}
+    if where is not None:
+      kwargs["where"] = where
     return -metric_fn(scores, labels, **kwargs)
 
   return bounded_metric_loss
@@ -213,7 +222,7 @@ def gumbel_t12n(
     the scores from a Gumbel distribution.
   """
 
-  def expand_and_repeat_dim(a: Array, axis: int = 0):
+  def expand_and_repeat_dim(a: Array, axis: int = 0) -> Array:
     return jnp.repeat(jnp.expand_dims(a, axis), samples, axis)
 
   @utils.wraps(
@@ -222,7 +231,7 @@ def gumbel_t12n(
   @utils.update_signature(loss_or_metric_fn, "key")
   def _loss_or_metric_fn_with_gumbel_scores(
       scores: Array, labels: Array, *, key: Array, **kwargs
-  ):
+  ) -> Array:
     # Repeat scores and labels `n` times by adding a new batch dim.
     scores = expand_and_repeat_dim(scores)
     labels = expand_and_repeat_dim(labels)
@@ -254,7 +263,7 @@ def gumbel_t12n(
 
     return loss_or_metric_fn(gumbel_scores, labels, **kwargs)
 
-  return _loss_or_metric_fn_with_gumbel_scores  # pyrefly: ignore [bad-return]
+  return cast(LossOrMetricFn, _loss_or_metric_fn_with_gumbel_scores)
 
 
 def segment_t12n(loss_or_metric_fn: LossOrMetricFn) -> LossOrMetricFn:
@@ -284,7 +293,7 @@ def segment_t12n(loss_or_metric_fn: LossOrMetricFn) -> LossOrMetricFn:
   if _accepts_args(loss_or_metric_fn, segments=None):
     return loss_or_metric_fn
 
-  def _expand_and_replicate_last_dim(a: Array):
+  def _expand_and_replicate_last_dim(a: Array) -> Array:
     """Replicates an array to change its shape from [..., n] to [..., n, n]."""
     return jnp.repeat(jnp.expand_dims(a, axis=-2), repeats=a.shape[-1], axis=-2)
 
@@ -298,7 +307,7 @@ def segment_t12n(loss_or_metric_fn: LossOrMetricFn) -> LossOrMetricFn:
       *,
       segments: Optional[Array] = None,
       **kwargs
-  ):
+  ) -> Array:
     if segments is not None:
       # Expand all array-style inputs from `[..., list_size]` shape to
       # `[..., list_size, list_size]` shape, except for RNG keys.
@@ -329,4 +338,4 @@ def segment_t12n(loss_or_metric_fn: LossOrMetricFn) -> LossOrMetricFn:
 
     return loss_or_metric_fn(scores, labels, **kwargs)
 
-  return _segmented_loss_or_metric_fn  # pyrefly: ignore[bad-return]
+  return cast(LossOrMetricFn, _segmented_loss_or_metric_fn)
