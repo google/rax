@@ -16,7 +16,7 @@
 
 import functools
 import types
-from typing import Any, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Mapping, Optional, Sequence, Tuple, Union
 
 import flax
 import gin
@@ -68,7 +68,7 @@ class RankingEncDecFeatureConverter(seqio.FeatureConverter):
       "label": FeatureSpec(dtype=tf.float32),
       "mask": FeatureSpec(dtype=tf.bool),
   }
-  PACKING_FEATURE_DTYPES = None  # pyrefly: ignore [bad-assignment]
+  PACKING_FEATURE_DTYPES: Optional[Mapping[str, tf.dtypes.DType]] = None
 
   def _convert_features(
       self,
@@ -90,6 +90,12 @@ class RankingEncDecFeatureConverter(seqio.FeatureConverter):
       The converted dataset.
     """
 
+    def _len(key: str, dim: int) -> int:
+      length = task_feature_lengths[key]
+      if isinstance(length, Sequence):
+        return length[dim]
+      return length
+
     # Convert ragged tensors to dense tensors. The seqio `trim_and_pad_dataset`
     # cannot handle ragged tensors, so we convert them to dense here.
     def to_dense(features):
@@ -108,10 +114,10 @@ class RankingEncDecFeatureConverter(seqio.FeatureConverter):
     ds = seqio.utils.trim_and_pad_dataset(
         ds,
         {
-            "label": task_feature_lengths["label"][0],  # pyrefly: ignore [bad-index]
-            "mask": task_feature_lengths["label"][0],  # pyrefly: ignore [bad-index]
-            "targets": task_feature_lengths["targets"][0],  # pyrefly: ignore [bad-index]
-            "inputs": task_feature_lengths["inputs"][0],  # pyrefly: ignore [bad-index]
+            "label": _len("label", 0),
+            "mask": _len("label", 0),
+            "targets": _len("targets", 0),
+            "inputs": _len("inputs", 0),
         },
     )
 
@@ -133,8 +139,8 @@ class RankingEncDecFeatureConverter(seqio.FeatureConverter):
     ds = seqio.utils.trim_and_pad_dataset(
         ds,
         {
-            "targets": task_feature_lengths["targets"][1],  # pyrefly: ignore [bad-index]
-            "inputs": task_feature_lengths["inputs"][1],  # pyrefly: ignore [bad-index]
+            "targets": _len("targets", 1),
+            "inputs": _len("inputs", 1),
         },
     )
     ds = ds.map(transpose_inputs_and_targets)
@@ -193,8 +199,10 @@ class RankingEncDecModel(models.EncoderDecoderModel):
       input_vocabulary: seqio.Vocabulary,
       output_vocabulary: seqio.Vocabulary,
       optimizer_def: optimizers.OptimizerDefType,
-      rax_loss_fn: rax.types.LossFn = DEFAULT_LOSS_FN,  # pyrefly: ignore [bad-function-definition]
-      rax_metric_fns: Mapping[str, rax.types.MetricFn] = DEFAULT_METRIC_FNS,  # pyrefly: ignore [bad-function-definition]
+      rax_loss_fn: Callable[..., jax.Array] = DEFAULT_LOSS_FN,
+      rax_metric_fns: Mapping[
+          str, Callable[..., jax.Array]
+      ] = DEFAULT_METRIC_FNS,
       loss_normalizing_factor: Optional[float] = None,
   ):
     super().__init__(
@@ -207,12 +215,12 @@ class RankingEncDecModel(models.EncoderDecoderModel):
     self._rax_loss_fn = rax_loss_fn
     self._rax_metric_fns = rax_metric_fns
 
-  def get_initial_variables(  # pyrefly: ignore [bad-override]
+  def get_initial_variables(
       self,
       rng: jax.Array,
-      input_shapes,  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
-      input_types,
-  ):
+      input_shapes: Mapping[str, models.Array],
+      input_types: Optional[Mapping[str, jnp.dtype]] = None,
+  ) -> flax.core.scope.FrozenVariableDict:
     """Initializes model variables for the given input shapes and types.
 
     This method supports computing variables for a batch of data of shape
@@ -232,12 +240,14 @@ class RankingEncDecModel(models.EncoderDecoderModel):
     batch_size, list_size, *_ = input_shapes["encoder_input_tokens"]
     input_shapes = {
         **input_shapes,
-        "encoder_input_tokens": (batch_size * list_size,) + input_shapes[
-            "encoder_input_tokens"
-        ][2:],
-        "decoder_input_tokens": (batch_size * list_size,) + input_shapes[
-            "decoder_input_tokens"
-        ][2:],
+        "encoder_input_tokens": (
+            (batch_size * list_size,)
+            + tuple(input_shapes["encoder_input_tokens"][2:])
+        ),
+        "decoder_input_tokens": (
+            (batch_size * list_size,)
+            + tuple(input_shapes["decoder_input_tokens"][2:])
+        ),
     }
     return super().get_initial_variables(rng, input_shapes, input_types)
 
@@ -316,15 +326,16 @@ class RankingEncDecModel(models.EncoderDecoderModel):
 
     # Compute ranking loss with Rax.
     loss = self._rax_loss_fn(scores, labels, where=mask, reduce_fn=jnp.sum)
-    if self._loss_normalizing_factor is not None:
-      loss = loss / self._loss_normalizing_factor  # pyrefly: ignore [unsupported-operation]
+    loss_normalizing_factor = self._loss_normalizing_factor
+    if isinstance(loss_normalizing_factor, (int, float)):
+      loss = loss / loss_normalizing_factor
 
     # Compute ranking metrics.
-    metrics = self._compute_metrics(loss, scores, labels, mask)
+    metrics = self._compute_ranking_metrics(loss, scores, labels, mask)
 
     return loss, metrics
 
-  def _compute_metrics(  # pyrefly: ignore [bad-override]
+  def _compute_ranking_metrics(
       self,
       loss: jnp.ndarray,
       scores: jnp.ndarray,

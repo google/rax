@@ -168,7 +168,7 @@ def segment_logcumsumexp(
   if reverse:
     x = jnp.flip(x, axis=axis)
     where = None if where is None else jnp.flip(where, axis=axis)
-    segments = None if segments is None else jnp.flip(segments, axis=axis)  # pyrefly: ignore [bad-assignment]
+    segments = jnp.flip(segments, axis=axis)
 
   # Swap axes to make sure the axis to sum over is always last.
   x = jnp.swapaxes(x, axis, -1)
@@ -192,7 +192,7 @@ def segment_logcumsumexp(
   x_pairs = jnp.where(mask, x_pairs, -jnp.inf)
 
   # Compute cumulative maximum.
-  m = jnp.max(x_pairs, axis=-1)
+  m = jax.lax.stop_gradient(jnp.max(x_pairs, axis=-1))
 
   # Compute `exp(x_i - m_j)` for each (i, j) pair.
   x_shifted = jnp.exp(jnp.expand_dims(x, -2) - jnp.expand_dims(m, -1))
@@ -204,6 +204,9 @@ def segment_logcumsumexp(
   # maximum shift.
   tiny = jnp.finfo(x.dtype).tiny
   out = jnp.log(out + tiny) + m
+  out = jnp.where(
+      m == -jnp.inf, -jnp.inf, jnp.where(m == jnp.inf, jnp.inf, out)
+  )
 
   # Swap axes back and flip output if the cumulative sum needs to be in reverse.
   out = jnp.swapaxes(out, -1, axis)

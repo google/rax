@@ -16,7 +16,7 @@
 
 import functools
 import json
-from typing import Sequence
+from typing import Callable, Mapping, Sequence, cast
 
 from absl import app
 from flax import linen as nn
@@ -103,16 +103,16 @@ class DNN(nn.Module):
   """Implements a basic deep neural network for ranking."""
 
   @nn.compact
-  def __call__(self, inputs):
+  def __call__(self, inputs: Mapping[str, jax.Array]) -> jax.Array:
     x = inputs["float_features"]
 
     # Perform log1p transformation on the features.
     x = jnp.sign(x) * jnp.log1p(jnp.abs(x))
 
     # Run inputs through.
-    x_hidden = nn.Dense(64)(x)  # pyrefly: ignore [bad-argument-type, missing-argument]
+    x_hidden = nn.Dense(features=64)(x)
     x_hidden = nn.relu(x_hidden)
-    x = nn.Dense(1)(jnp.concatenate([x, x_hidden], axis=-1))  # pyrefly: ignore [bad-argument-type, missing-argument]
+    x = nn.Dense(features=1)(jnp.concatenate([x, x_hidden], axis=-1))
 
     # Remove the feature axis since it is now a single score per item.
     x = jnp.squeeze(x, -1)
@@ -126,7 +126,7 @@ def main(argv: Sequence[str], steps: int = 600, steps_per_eval: int = 200):
   ds = tfds.as_numpy(read_data(batch_size=1024))
 
   # Create model and optimizer.
-  model = DNN()  # pyrefly: ignore[missing-argument]
+  model = DNN()
   optimizer = optax.adam(learning_rate=0.001)
 
   # Initialize model and optimizer state.
@@ -137,8 +137,9 @@ def main(argv: Sequence[str], steps: int = 600, steps_per_eval: int = 200):
   @jax.jit
   def train_step(w, opt_state, batch):
     def loss_fn(w):
+      scores = cast(jax.Array, model.apply(w, batch))
       return rax.softmax_loss(
-          scores=model.apply(w, batch),  # pyrefly: ignore [bad-argument-type]
+          scores=scores,
           labels=batch["labels"],
           segments=batch["segments"],
           where=batch["mask"],
@@ -150,18 +151,18 @@ def main(argv: Sequence[str], steps: int = 600, steps_per_eval: int = 200):
     return w, opt_state
 
   # Create eval step function.
-  metric_fns = {
+  metric_fns: Mapping[str, Callable[..., jax.Array]] = {
       "ndcg": rax.ndcg_metric,
       "loss": rax.softmax_loss,
       "ndcg@10": functools.partial(rax.ndcg_metric, topn=10),
-      "mrr": rax.mrr_metric
+      "mrr": rax.mrr_metric,
   }
   @jax.jit
   def eval_step(w, batch):
-    scores = model.apply(w, batch)
+    scores = cast(jax.Array, model.apply(w, batch))
     labels, segments, mask = batch["labels"], batch["segments"], batch["mask"]
     return {
-        name: metric_fn(scores, labels, segments=segments, where=mask)  # pyrefly: ignore [bad-argument-type]
+        name: metric_fn(scores, labels, segments=segments, where=mask)
         for name, metric_fn in metric_fns.items()
     }
 
