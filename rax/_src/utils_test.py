@@ -193,6 +193,16 @@ class LogCumsumExp(absltest.TestCase):
     np.testing.assert_array_equal(result_where[2], result_masked[1])
     np.testing.assert_array_equal(result_where[3], result_masked[2])
 
+  def test_computes_with_all_masked(self):
+    x = jnp.asarray([-4.0, 5.0, 2.3, 0.0])
+    where = jnp.asarray([False, False, False, False])
+
+    result = utils.logcumsumexp(x, where=where)
+
+    np.testing.assert_array_equal(
+        result, jnp.asarray([-jnp.inf, -jnp.inf, -jnp.inf, -jnp.inf])
+    )
+
   def test_handles_extreme_values(self):
     x = jnp.asarray([-4.0, -2.1e26, 5.0, 3.4e38, 10.0, -2.99e26])
 
@@ -200,6 +210,51 @@ class LogCumsumExp(absltest.TestCase):
 
     np.testing.assert_array_equal(
         result, jnp.asarray([-4.0, -4.0, 5.0001235, 3.4e38, 3.4e38, 3.4e38])
+    )
+
+  def test_computes_gradients(self):
+    x = jnp.asarray([1.0, 2.0, 3.0])
+
+    grads = jax.grad(lambda a: jnp.sum(utils.logcumsumexp(a)))(x)
+
+    e = jnp.exp(x)
+    expected = jnp.asarray([
+        1.0 + e[0] / jnp.sum(e[:2]) + e[0] / jnp.sum(e),
+        e[1] / jnp.sum(e[:2]) + e[1] / jnp.sum(e),
+        e[2] / jnp.sum(e),
+    ])
+    np.testing.assert_allclose(grads, expected, rtol=1e-5)
+
+  def test_computes_gradients_with_equal_values(self):
+    x = jnp.asarray([10.0, 10.0, 10.0])
+
+    grads = jax.grad(lambda a: jnp.sum(utils.logcumsumexp(a)))(x)
+
+    expected = jnp.asarray([
+        1.0 + 1.0 / 2.0 + 1.0 / 3.0,
+        1.0 / 2.0 + 1.0 / 3.0,
+        1.0 / 3.0,
+    ])
+    np.testing.assert_allclose(grads, expected, rtol=1e-5)
+
+  def test_grad_does_not_return_nan_with_where_mask(self):
+    x = jnp.asarray([1.0, 2.0, 3.0, 4.0])
+    where = jnp.asarray([False, True, True, False])
+
+    grads = jax.grad(lambda a: jnp.sum(utils.logcumsumexp(a, where=where)))(x)
+
+    np.testing.assert_array_equal(
+        jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads))
+    )
+
+  def test_grad_does_not_return_nan_with_all_masked(self):
+    x = jnp.asarray([1.0, 2.0, 3.0])
+    where = jnp.asarray([False, False, False])
+
+    grads = jax.grad(lambda a: jnp.sum(utils.logcumsumexp(a, where=where)))(x)
+
+    np.testing.assert_array_equal(
+        jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads))
     )
 
 

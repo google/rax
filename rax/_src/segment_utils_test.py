@@ -271,6 +271,17 @@ class SegmentLogcumsumexpTest(absltest.TestCase):
     np.testing.assert_array_equal(result_where[2], result_masked[1])
     np.testing.assert_array_equal(result_where[3], result_masked[2])
 
+  def test_computes_with_all_masked(self):
+    x = jnp.asarray([-4.0, 5.0, 2.3, 0.0])
+    where = jnp.asarray([False, False, False, False])
+    segments = jnp.array([1, 1, 1, 2])
+
+    result = segment_utils.segment_logcumsumexp(x, segments, where=where)
+
+    np.testing.assert_array_equal(
+        result, jnp.asarray([-jnp.inf, -jnp.inf, -jnp.inf, -jnp.inf])
+    )
+
   def test_handles_extreme_values(self):
     x = jnp.array([-4.0, -2.1e26, 5.0, 3.4e38, 10.0, -2.99e26, 1000.0])
     segments = jnp.array([10, 10, 10, 10, 9999, 9999, 9999])
@@ -280,6 +291,42 @@ class SegmentLogcumsumexpTest(absltest.TestCase):
     np.testing.assert_array_equal(
         result, jnp.asarray([-4.0, -4.0, 5.0001235, 3.4e38, 10.0, 10.0, 1000.0])
     )
+
+  def test_computes_gradients(self):
+    x = jnp.asarray([1.0, 2.0, 3.0, 0.0, 2.0])
+    segments = jnp.asarray([0, 0, 0, 1, 1])
+
+    grads = jax.grad(
+        lambda a: jnp.sum(segment_utils.segment_logcumsumexp(a, segments))
+    )(x)
+
+    e = jnp.exp(x[:3])
+    expected_seg0 = jnp.asarray([
+        1.0 + e[0] / jnp.sum(e[:2]) + e[0] / jnp.sum(e),
+        e[1] / jnp.sum(e[:2]) + e[1] / jnp.sum(e),
+        e[2] / jnp.sum(e),
+    ])
+    expected_seg1 = jnp.asarray([
+        1.0 + 1.0 / (1.0 + exp(2.0)),
+        exp(2.0) / (1.0 + exp(2.0)),
+    ])
+    expected = jnp.concatenate([expected_seg0, expected_seg1])
+    np.testing.assert_allclose(grads, expected, rtol=1e-5)
+
+  def test_computes_gradients_with_equal_values(self):
+    x = jnp.asarray([10.0, 10.0, 10.0])
+    segments = jnp.asarray([0, 0, 0])
+
+    grads = jax.grad(
+        lambda a: jnp.sum(segment_utils.segment_logcumsumexp(a, segments))
+    )(x)
+
+    expected = jnp.asarray([
+        1.0 + 1.0 / 2.0 + 1.0 / 3.0,
+        1.0 / 2.0 + 1.0 / 3.0,
+        1.0 / 3.0,
+    ])
+    np.testing.assert_allclose(grads, expected, rtol=1e-5)
 
 
 def load_tests(loader, tests, ignore):
