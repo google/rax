@@ -45,18 +45,15 @@ $ python examples/flax_integration/web30k.py
 import collections
 import functools
 import json
-from typing import Mapping, Optional, Sequence, Tuple, Union, Dict, Any
+from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Union
 
 from absl import app
-
 import flax
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
 import optax
-
 import rax
-
 # Used for loading data and data-preprocessing.
 import tensorflow as tf
 import tensorflow_datasets as tfds
@@ -78,11 +75,11 @@ class DNN(nn.Module):
 
     # Run inputs through several layers, finally producing a single score per
     # item.
-    x = nn.Dense(64)(x)  # pyrefly: ignore [bad-argument-type, missing-argument]
+    x = nn.Dense(features=64)(x)
     x = nn.relu(x)
-    x = nn.Dense(32)(x)  # pyrefly: ignore [bad-argument-type, missing-argument]
+    x = nn.Dense(features=32)(x)
     x = nn.relu(x)
-    x = nn.Dense(1)(x)  # pyrefly: ignore [bad-argument-type, missing-argument]
+    x = nn.Dense(features=1)(x)
 
     # Remove the feature axis since it is now a single score per item.
     x = jnp.squeeze(x, -1)
@@ -127,12 +124,12 @@ def main(argv: Sequence[str]):
 
   # Create model and optimizer. The learning rate is set to a small value to
   # ensure convergence and stability during training.
-  model = DNN()  # pyrefly: ignore[missing-argument]
+  model = DNN()
   optimizer = optax.adam(learning_rate=0.001)
 
   # Create Rax loss and metrics.
   loss_fn = rax.softmax_loss
-  metric_fns = {
+  metric_fns: Mapping[str, Callable[..., jax.Array]] = {
       "metric/mrr": rax.mrr_metric,
       "metric/ndcg": rax.ndcg_metric,
       "metric/ndcg@10": functools.partial(rax.ndcg_metric, topn=10),
@@ -168,7 +165,7 @@ def main(argv: Sequence[str]):
     inputs, labels, mask = batch
     scores = model.apply(model_state, inputs)
     return {
-        name: metric_fn(scores, labels, where=mask, reduce_fn=jnp.mean)  # pyrefly: ignore [bad-argument-type]
+        name: metric_fn(scores, labels, where=mask, reduce_fn=jnp.mean)
         for name, metric_fn in metric_fns.items()
     }
 
@@ -184,11 +181,11 @@ def main(argv: Sequence[str]):
     for batch in ds_train:
       # Perform train step and record loss.
       loss, model_state, opt_state = train_step(batch, model_state, opt_state)
-      metrics["loss"] += loss  # pyrefly: ignore[unsupported-operation]
+      metrics["loss"] += float(loss)
 
       # Perform eval and record metrics.
       for name, metric in eval_step(batch, model_state).items():
-        metrics[name] += metric  # pyrefly: ignore[unsupported-operation]
+        metrics[name] += float(metric)
 
     metrics = {
         name: float(metric / len(ds_train)) for name, metric in metrics.items()

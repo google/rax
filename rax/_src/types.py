@@ -40,9 +40,10 @@ class RankFn(Protocol):
   def __call__(
       self,
       scores: Array,
-      where: Optional[Array],
-      key: Optional[Array],
+      *,
+      where: Optional[Array] = None,
       segments: Optional[Array] = None,
+      key: Optional[Array] = None,
   ) -> Array:
     """Computes 1-based ranks based on the given scores.
 
@@ -50,9 +51,9 @@ class RankFn(Protocol):
       scores: The scores to compute the 1-based ranks for.
       where: An optional :class:`~jax.Array` of the same shape as ``a`` that
         indicates which elements to rank. Other elements will be ranked last.
-      key: An optional :func:`~jax.random.PRNGKey` used for random operations.
       segments: An optional :class:`~jax.Array` of the same shape as ``a`` that
         indicates which elements to group together.
+      key: An optional :func:`~jax.random.PRNGKey` used for random operations.
 
     Returns:
       A :class:`~jax.Array` of the same shape as ``scores`` that
@@ -65,13 +66,19 @@ class CutoffFn(Protocol):
   """:class:`typing.Protocol` for cutoff functions."""
 
   def __call__(
-      self, a: Array, n: Optional[int], segments: Optional[Array] = None
+      self,
+      a: Array,
+      n: Optional[int] = None,
+      *,
+      where: Optional[Array] = None,
+      segments: Optional[Array] = None,
   ) -> Array:
     """Computes cutoffs based on the given array.
 
     Args:
       a: The array for which to compute the cutoffs.
       n: The position of the cutoff.
+      where: A mask to indicate which values to include in the topn calculation.
       segments: An optional :class:`~jax.Array` of the same shape as ``a`` that
         indicates which elements to group together.
 
@@ -88,9 +95,9 @@ class ReduceFn(Protocol):
   def __call__(
       self,
       a: Array,
-      axis: Optional[Union[int, Sequence[int]]],
+      axis: Optional[Union[int, Sequence[int]]] = None,
       *,
-      where: Optional[Array],
+      where: Optional[Array] = None,
   ) -> Array:
     """Reduces an array across one or more dimensions.
 
@@ -112,7 +119,13 @@ class LossFn(Protocol):
   """:class:`typing.Protocol` for loss functions."""
 
   def __call__(
-      self, scores: Array, labels: Array, *, where: Optional[Array], **kwargs
+      self,
+      scores: Array,
+      labels: Array,
+      *,
+      where: Optional[Array] = None,
+      segments: Optional[Array] = None,
+      weights: Optional[Array] = None,
   ) -> Array:
     """Computes a loss.
 
@@ -121,7 +134,10 @@ class LossFn(Protocol):
       labels: The label of each item.
       where: An optional :class:`~jax.Array` of the same shape as ``scores``
         that indicates which elements to include in the loss.
-      **kwargs: Optional loss-specific keyword arguments.
+      segments: An optional :class:`~jax.Array` of the same shape as ``scores``
+        that indicates which elements to group together.
+      weights: An optional :class:`~jax.Array` of the same shape as ``scores``
+        that indicates the weight of each element.
 
     Returns:
       A :class:`~jax.Array` that represents the loss computed on the
@@ -134,7 +150,13 @@ class MetricFn(Protocol):
   """:class:`typing.Protocol` for metric functions."""
 
   def __call__(
-      self, scores: Array, labels: Array, *, where: Optional[Array], **kwargs
+      self,
+      scores: Array,
+      labels: Array,
+      *,
+      where: Optional[Array] = None,
+      segments: Optional[Array] = None,
+      weights: Optional[Array] = None,
   ) -> Array:
     """Computes a metric.
 
@@ -143,7 +165,10 @@ class MetricFn(Protocol):
       labels: The label of each item.
       where: An optional :class:`~jax.Array` of the same shape as ``scores``
         that indicates which elements to include in the metric.
-      **kwargs: Optional metric-specific keyword arguments.
+      segments: An optional :class:`~jax.Array` of the same shape as ``scores``
+        that indicates which elements to group together.
+      weights: An optional :class:`~jax.Array` of the same shape as ``scores``
+        that indicates the weight of each element.
 
     Returns:
       A :class:`~jax.Array` that represents the metric computed on the
@@ -160,9 +185,9 @@ class LambdaweightFn(Protocol):
       scores: Array,
       labels: Array,
       *,
-      where: Optional[Array],
-      weights: Optional[Array],
-      **kwargs
+      where: Optional[Array] = None,
+      segments: Optional[Array] = None,
+      weights: Optional[Array] = None,
   ) -> Array:
     """Computes lambdaweights.
 
@@ -174,9 +199,10 @@ class LambdaweightFn(Protocol):
       where: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
         which items are valid for computing the lambdaweights. Items for which
         this is False will be ignored when computing the lambdaweights.
+      segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
+        which items in the list should be grouped together.
       weights: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
         the weight for each item.
-      **kwargs: Optional lambdaweight-specific keyword arguments.
 
     Returns:
       A :class:`~jax.Array` that represents the lambda weights.

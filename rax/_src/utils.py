@@ -16,7 +16,7 @@
 
 import functools
 import inspect
-from typing import Any, Callable, Optional, Sequence, TypeVar
+from typing import Any, Callable, Optional, Sequence, TypeVar, cast
 
 import jax
 import jax.numpy as jnp
@@ -24,7 +24,7 @@ from rax._src import segment_utils
 from rax._src import types
 
 Array = types.Array
-T = TypeVar("T")
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 def safe_reduce(
@@ -560,7 +560,7 @@ def compute_pairs(a: Array, op: Callable[[Array, Array], Array]) -> Array:
 def update_signature(
     wrapped: Callable[..., Any],
     *new_kwarg_names: str,
-) -> Callable[[T], T]:
+) -> Callable[[F], F]:
   """Function decorator to update a function signature by appending new kwargs.
 
   This is useful for functions where standard :func:`functools.wraps` is not
@@ -589,10 +589,10 @@ def update_signature(
     ``wrapped`` but with new keyword arguments added to it.
   """
 
-  def wrapper(fun: T) -> T:
+  def wrapper(fun: F) -> F:
     # Get the signature of the wrapped function and the new function.
     wrapped_signature = inspect.signature(wrapped)
-    fun_signature = inspect.signature(fun)  # pyrefly: ignore [bad-argument-type]
+    fun_signature = inspect.signature(fun)
 
     # Get the parameters of both the wrapped function and the new function. To
     # prevent adding duplicate parameters, the `wrapped_parameters` will not
@@ -610,17 +610,21 @@ def update_signature(
     # Create a thin wrapper for the function. We will set the `__signature__`
     # property on this wrapper and return it, leaving the original `fun`
     # untouched.
-    @functools.wraps(fun)  # pyrefly: ignore [bad-argument-type]
-    def output_fun(*args, **kwargs):
-      return fun(*args, **kwargs)  # pyrefly: ignore [not-callable]
+    @functools.wraps(fun)
+    def output_fun(*args: Any, **kwargs: Any) -> Any:
+      return fun(*args, **kwargs)
 
     # Construct a new signature by copying the `wrapped_signature`, but
     # replacing its parameters.
-    output_fun.__signature__ = wrapped_signature.replace(  # pyrefly: ignore [missing-attribute]
-        parameters=wrapped_parameters + fun_parameters
+    setattr(
+        output_fun,
+        "__signature__",
+        wrapped_signature.replace(
+            parameters=wrapped_parameters + fun_parameters
+        ),
     )
 
-    return output_fun  # pyrefly: ignore [bad-return]
+    return cast(F, output_fun)
 
   return wrapper
 
@@ -639,20 +643,22 @@ def wraps(
     wrapped: Callable[..., Any],
     namestr: str = "{fun}",
     docstr: str = "{doc}",
-) -> Callable[[T], T]:
+) -> Callable[[F], F]:
   """Like functools.wraps but allows custom naming and docstring."""
-  def wrapper(fun: T) -> T:
+  def wrapper(fun: F) -> F:
     try:
       name = fun_name(wrapped)
       doc = getattr(wrapped, "__doc__", "") or ""
+      fun = cast(Any, fun)
       fun.__dict__.update(getattr(wrapped, "__dict__", {}))
       fun.__annotations__ = getattr(wrapped, "__annotations__", {})
-      fun.__name__ = namestr.format(fun=name)  # pyrefly: ignore [missing-attribute]
       fun.__module__ = getattr(wrapped, "__module__", "<unknown module>")
       fun.__doc__ = docstr.format(fun=name, doc=doc)
-      fun.__qualname__ = getattr(wrapped, "__qualname__", fun.__name__)  # pyrefly: ignore [missing-attribute]
-      fun.__wrapped__ = wrapped  # pyrefly: ignore [missing-attribute]
+      fun.__name__ = namestr.format(fun=name)
+      fun.__qualname__ = getattr(wrapped, "__qualname__", fun.__name__)
+      fun.__wrapped__ = wrapped
     except Exception:  # pylint: disable=broad-exception-caught
       pass
     return fun
+
   return wrapper
