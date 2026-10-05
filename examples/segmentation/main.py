@@ -110,9 +110,9 @@ class DNN(nn.Module):
     x = jnp.sign(x) * jnp.log1p(jnp.abs(x))
 
     # Run inputs through.
-    x_hidden = nn.Dense(64)(x)  # pyrefly: ignore [bad-argument-type, missing-argument]
+    x_hidden = nn.Dense(64)(x)
     x_hidden = nn.relu(x_hidden)
-    x = nn.Dense(1)(jnp.concatenate([x, x_hidden], axis=-1))  # pyrefly: ignore [bad-argument-type, missing-argument]
+    x = nn.Dense(1)(jnp.concatenate([x, x_hidden], axis=-1))
 
     # Remove the feature axis since it is now a single score per item.
     x = jnp.squeeze(x, -1)
@@ -126,7 +126,7 @@ def main(argv: Sequence[str], steps: int = 600, steps_per_eval: int = 200):
   ds = tfds.as_numpy(read_data(batch_size=1024))
 
   # Create model and optimizer.
-  model = DNN()  # pyrefly: ignore[missing-argument]
+  model = DNN()
   optimizer = optax.adam(learning_rate=0.001)
 
   # Initialize model and optimizer state.

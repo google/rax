@@ -210,7 +210,7 @@ class RankingEncDecModel(models.EncoderDecoderModel):
   def get_initial_variables(  # pyrefly: ignore [bad-override]
       self,
       rng: jax.Array,
-      input_shapes,  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
+      input_shapes,
       input_types,
   ):
     """Initializes model variables for the given input shapes and types.
@@ -283,7 +283,7 @@ class RankingEncDecModel(models.EncoderDecoderModel):
     output = super()._compute_logits(params, flattened_batch, *args, **kwargs)
 
     # Reshape output logits back to (batch_size, list_size, ...)
-    output = jnp.reshape(output, (batch_size, list_size) + output.shape[1:])  # pytype: disable=attribute-error  # jax-ndarray
+    output = jnp.reshape(output, (batch_size, list_size) + output.shape[1:])  # pyrefly: ignore[bad-argument-type, missing-attribute]
 
     # Compute per-item scores. We do three vmaps here for each of the dimensions
     # (batch_size, list_size, sequence_length, ...)

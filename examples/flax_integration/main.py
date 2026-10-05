@@ -78,11 +78,11 @@ class DNN(nn.Module):
 
     # Run inputs through several layers, finally producing a single score per
     # item.
-    x = nn.Dense(64)(x)  # pyrefly: ignore [bad-argument-type, missing-argument]
+    x = nn.Dense(64)(x)
     x = nn.relu(x)
-    x = nn.Dense(32)(x)  # pyrefly: ignore [bad-argument-type, missing-argument]
+    x = nn.Dense(32)(x)
     x = nn.relu(x)
-    x = nn.Dense(1)(x)  # pyrefly: ignore [bad-argument-type, missing-argument]
+    x = nn.Dense(1)(x)
 
     # Remove the feature axis since it is now a single score per item.
     x = jnp.squeeze(x, -1)
@@ -127,7 +127,7 @@ def main(argv: Sequence[str]):
 
   # Create model and optimizer. The learning rate is set to a small value to
   # ensure convergence and stability during training.
-  model = DNN()  # pyrefly: ignore[missing-argument]
+  model = DNN()
   optimizer = optax.adam(learning_rate=0.001)
 
   # Create Rax loss and metrics.
@@ -151,7 +151,7 @@ def main(argv: Sequence[str]):
       scores = model.apply(
           flax.core.copy(model_state, {"params": params}), inputs
       )
-      loss = loss_fn(scores, labels, where=mask, reduce_fn=jnp.mean)  # pytype: disable=wrong-arg-types  # jnp-type
+      loss = loss_fn(scores, labels, where=mask, reduce_fn=jnp.mean)  # pyrefly: ignore[bad-argument-type]
       return loss
 
     params = model_state["params"]
@@ -184,11 +184,11 @@ def main(argv: Sequence[str]):
     for batch in ds_train:
       # Perform train step and record loss.
       loss, model_state, opt_state = train_step(batch, model_state, opt_state)
-      metrics["loss"] += loss  # pyrefly: ignore[unsupported-operation]
+      metrics["loss"] += loss
 
       # Perform eval and record metrics.
       for name, metric in eval_step(batch, model_state).items():
-        metrics[name] += metric  # pyrefly: ignore[unsupported-operation]
+        metrics[name] += metric
 
     metrics = {
         name: float(metric / len(ds_train)) for name, metric in metrics.items()

@@ -69,7 +69,7 @@ def segment_log_softmax(
     a: Array, segments: Array, where: Optional[Array] = None
 ) -> Array:
   """Returns segment log-softmax."""
-  a_max = segment_max(a, segments, where=where, initial=jnp.min(a))  # pytype: disable=wrong-arg-types  # jnp-type
+  a_max = segment_max(a, segments, where=where, initial=jnp.min(a))  # pyrefly: ignore[bad-argument-type]
   shifted = a - jax.lax.stop_gradient(a_max)
   shifted_logsumexp = jnp.log(
       segment_sum(jnp.exp(shifted), segments, where=where)
@@ -81,7 +81,7 @@ def segment_softmax(
     a: Array, segments: Array, where: Optional[Array] = None
 ) -> Array:
   """Returns segment softmax."""
-  a_max = segment_max(a, segments, where=where, initial=jnp.min(a))  # pytype: disable=wrong-arg-types  # jnp-type
+  a_max = segment_max(a, segments, where=where, initial=jnp.min(a))  # pyrefly: ignore[bad-argument-type]
   unnormalized = jnp.exp(a - jax.lax.stop_gradient(a_max))
   return unnormalized / segment_sum(unnormalized, segments, where=where)
 
