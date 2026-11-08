@@ -255,7 +255,7 @@ def unique_softmax_loss(
     segments: Optional[Array] = None,
     weights: Optional[Array] = None,
     gain_fn: Optional[Callable[[Array], Array]] = metrics.default_gain_fn,
-    reduce_fn: ReduceFn = jnp.mean,
+    reduce_fn: Optional[ReduceFn] = jnp.mean,
 ) -> Array:
   r"""Unique softmax loss.
 
@@ -352,6 +352,7 @@ def listmle_loss(
     key: Optional[Array] = None,
     where: Optional[Array] = None,
     segments: Optional[Array] = None,
+    topn: Optional[int] = None,
     reduce_fn: Optional[ReduceFn] = jnp.mean,
 ) -> Array:
   r"""ListMLE Loss.
@@ -386,6 +387,9 @@ def listmle_loss(
     segments: An optional ``[..., list_size]``-:class:`~jax.Array`, indicating
       segments within each list. The loss will only be computed on items that
       share the same segment.
+    topn: An optional integer cutoff. If provided, only the top ``topn`` ranked
+      items in the ground-truth permutation contribute Plackett-Luce log-loss
+      terms while all valid items remain in the suffix partition denominator.
     reduce_fn: An optional function that reduces the loss values. Can be
       :func:`jax.numpy.sum` or :func:`jax.numpy.mean`. If ``None``, no reduction
       is performed.
@@ -401,18 +405,27 @@ def listmle_loss(
       labels, [scores, where], segments=segments, where=where, key=key
   )
 
+  if topn is not None:
+    if segments is None:
+      topn_mask = (jnp.arange(scores.shape[-1]) + 1) <= topn
+    else:
+      topn_mask = (segment_utils.in_segment_indices(segments) + 1) <= topn
+    loss_where = where_sorted & topn_mask
+  else:
+    loss_where = where_sorted
+
   # Compute cumulative logsumexp and loss.
   if segments is None:
     lse = utils.logcumsumexp(
         scores_sorted, axis=-1, where=where_sorted, reverse=True
     )
-    loss = -jnp.sum(scores_sorted - lse, axis=-1, where=where_sorted)
+    loss = -jnp.sum(scores_sorted - lse, axis=-1, where=loss_where)
   else:
     lse = segment_utils.segment_logcumsumexp(
         scores_sorted, segments, axis=-1, where=where_sorted, reverse=True
     )
     loss = -segment_utils.segment_sum(
-        scores_sorted - lse, segments, where=where_sorted
+        scores_sorted - lse, segments, where=loss_where
     )
 
   # In the segmented case, values retain their list dimension. This constructs

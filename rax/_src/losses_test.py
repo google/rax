@@ -885,6 +885,31 @@ class LossesTest(parameterized.TestCase):
 
     np.testing.assert_allclose(output, expected)
 
+  def test_listmle_loss_with_topn(self):
+    scores = jnp.asarray([0.0, 3.0, 1.0, 2.0])
+    labels = jnp.asarray([0.0, 0.0, 2.0, 1.0])
+
+    # Sorted by labels descending: scores are [1.0, 2.0, 0.0, 3.0].
+    # With topn=2, only the top-2 Plackett-Luce steps contribute.
+    expected = -(
+        log(exp(1.0) / (exp(1.0) + exp(2.0) + exp(0.0) + exp(3.0)))
+        + log(exp(2.0) / (exp(2.0) + exp(0.0) + exp(3.0)))
+    )
+    loss = losses.listmle_loss(scores, labels, topn=2, reduce_fn=jnp.sum)
+    np.testing.assert_allclose(loss, expected, rtol=1e-5)
+
+  def test_listmle_loss_with_topn_and_segments(self):
+    scores = jnp.asarray([0.0, 3.0, 1.0, 2.0, 4.0, 1.0])
+    labels = jnp.asarray([0.0, 2.0, 1.0, 0.0, 2.0, 1.0])
+    segments = jnp.asarray([0, 0, 0, 1, 1, 1])
+
+    list_scores = jnp.asarray([[0.0, 3.0, 1.0], [2.0, 4.0, 1.0]])
+    list_labels = jnp.asarray([[0.0, 2.0, 1.0], [0.0, 2.0, 1.0]])
+
+    loss = losses.listmle_loss(scores, labels, segments=segments, topn=1)
+    expected = losses.listmle_loss(list_scores, list_labels, topn=1)
+    np.testing.assert_allclose(loss, expected, rtol=1e-5)
+
 
 def load_tests(loader, tests, ignore):
   del loader, ignore  # Unused.
