@@ -127,7 +127,7 @@ def main(argv: Sequence[str]):
 
   # Create model and optimizer. The learning rate is set to a small value to
   # ensure convergence and stability during training.
-  model = DNN()
+  model = DNN()  # pyrefly: ignore[missing-argument]
   optimizer = optax.adam(learning_rate=0.001)
 
   # Create Rax loss and metrics.
