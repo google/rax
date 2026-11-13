@@ -1,4 +1,4 @@
 absl-py>=1
-pytype>=2022
+pyrefly>=0.24.0
 numpy>=1.5.0
 dill>=0.3
