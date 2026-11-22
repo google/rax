@@ -195,19 +195,26 @@ def logcumsumexp(
   x = jnp.swapaxes(x, axis, 0)
   where = jnp.swapaxes(where, axis, 0)
 
-  # Compute cumulative maximum.
+  # Compute cumulative maximum and guard against `-inf - (-inf) = NaN` in AD
+  # when leading (or trailing for `reverse=True`) entries are masked out.
   m = jax.lax.cummax(x, axis=0)
+  has_valid = jnp.isfinite(m)
+  safe_m = jnp.where(has_valid, m, 0.0)
 
   # Compute `exp(x_i - m_i)` for each i.
-  x_shifted = jnp.exp(x - m)
-  x_shifted = jnp.where(where, x_shifted, 0.0)
+  x_shifted = jnp.where(where, jnp.exp(jnp.where(where, x - safe_m, 0.0)), 0.0)
 
   # Compute `exp(m_{i-1} - m_i)` for each i. This is used to perform an
-  # efficient version of the internal cumulative sumation (see below).
+  # efficient version of the internal cumulative summation (see below).
   # Note that `m_{i-1} <= m_i` for all i because m_i is a cumulative maximum, so
   # this is numerically safe.
-  m_diffs = jnp.exp(jnp.minimum(0.0, jnp.roll(m, 1, axis=0) - m))
-  m_diffs = jnp.where(where, m_diffs, 1.0)
+  prev_m = jnp.roll(m, 1, axis=0)
+  index_gt_zero = jnp.expand_dims(
+      jnp.arange(x.shape[0]) > 0, axis=tuple(range(1, x.ndim))
+  )
+  prev_valid = jnp.isfinite(prev_m) & has_valid & index_gt_zero
+  safe_m_diff = jnp.where(prev_valid, jnp.minimum(0.0, prev_m - m), 0.0)
+  m_diffs = jnp.where(prev_valid, jnp.exp(safe_m_diff), 0.0)
 
   # We wish to compute the following output values (for each i):
   #
@@ -231,9 +238,11 @@ def logcumsumexp(
   out = jax.lax.scan(f, initial, (x_shifted, m_diffs))[1]
 
   # Compute the log of the cumulative sum and correct for the cumulative
-  # maximum shift.
+  # maximum shift, returning `-inf` with zero gradient where no valid entry has
+  # been seen yet.
   tiny = jnp.finfo(x.dtype).tiny
-  out = jnp.log(out + tiny) + m
+  safe_out = jnp.where(has_valid, out, 1.0)
+  out = jnp.where(has_valid, jnp.log(safe_out + tiny) + safe_m, -jnp.inf)
 
   # Swap axes back and flip output if the cumulative sum needs to be in reverse.
   out = jnp.swapaxes(out, 0, axis)
