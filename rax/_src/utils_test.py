@@ -21,7 +21,6 @@ from absl.testing import absltest
 import jax
 import jax.numpy as jnp
 import numpy as np
-
 import rax
 from rax._src import utils
 
@@ -201,6 +200,54 @@ class LogCumsumExp(absltest.TestCase):
     np.testing.assert_array_equal(
         result, jnp.asarray([-4.0, -4.0, 5.0001235, 3.4e38, 3.4e38, 3.4e38])
     )
+
+  def test_finite_gradients_with_masked_entries(self):
+    # Row 0: trailing masked; Row 1: leading masked; Row 2: all masked.
+    x = jnp.asarray(
+        [
+            [1.2, -0.4, 0.7, 50.0, -50.0],
+            [-1.0, 2.5, 0.3, -0.8, 1.1],
+            [0.5, -0.5, 1.0, 2.0, -3.0],
+        ],
+        dtype=jnp.float32,
+    )
+    where = jnp.asarray(
+        [
+            [True, True, True, False, False],
+            [False, False, True, False, True],
+            [False, False, False, False, False],
+        ],
+        dtype=jnp.bool_,
+    )
+
+    for reverse in (False, True):
+      result = utils.logcumsumexp(x, axis=-1, where=where, reverse=reverse)
+      grad = jax.grad(
+          lambda v, rev=reverse: jnp.sum(
+              jnp.where(
+                  where,
+                  v - utils.logcumsumexp(v, axis=-1, where=where, reverse=rev),
+                  0.0,
+              )
+          )
+      )(x)
+
+      self.assertTrue(np.all(np.isfinite(grad)))
+      np.testing.assert_array_equal(
+          grad[~where], np.zeros(int(jnp.sum(~where)), dtype=np.float32)
+      )
+
+      for row_idx in range(x.shape[0]):
+        for k in range(x.shape[1]):
+          sl = slice(k, None) if reverse else slice(None, k + 1)
+          valid_vals = x[row_idx, sl][where[row_idx, sl]]
+          if valid_vals.size > 0:
+            expected = float(jax.scipy.special.logsumexp(valid_vals))
+            np.testing.assert_allclose(
+                float(result[row_idx, k]), expected, atol=1e-5
+            )
+          else:
+            self.assertEqual(float(result[row_idx, k]), -np.inf)
 
 
 class SortByTest(absltest.TestCase):
