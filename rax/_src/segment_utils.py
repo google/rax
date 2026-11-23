@@ -18,7 +18,6 @@ from typing import Optional, Union
 
 import jax
 import jax.numpy as jnp
-
 from rax._src import types
 
 Array = types.Array
@@ -191,19 +190,34 @@ def segment_logcumsumexp(
   # Use mask to mask out the actual values.
   x_pairs = jnp.where(mask, x_pairs, -jnp.inf)
 
-  # Compute cumulative maximum.
-  m = jnp.max(x_pairs, axis=-1)
+  # Compute cumulative maximum with `stop_gradient` so tied maxima do not skew
+  # reverse-mode gradients, and replace non-finite maxima with 0.0 to avoid
+  # `-inf - (-inf) = NaN` in AD.
+  m = jax.lax.stop_gradient(jnp.max(x_pairs, axis=-1))
+  safe_m = jnp.where(jnp.isfinite(m), m, 0.0)
 
-  # Compute `exp(x_i - m_j)` for each (i, j) pair.
-  x_shifted = jnp.exp(jnp.expand_dims(x, -2) - jnp.expand_dims(m, -1))
+  # Compute `exp(x_j - m_i)` for each valid `(i, j)` pair, masking before `exp`
+  # so invalid entries do not produce `0 * inf = NaN` in VJP.
+  x_shifted = jnp.where(
+      mask,
+      jnp.exp(
+          jnp.where(
+              mask, jnp.expand_dims(x, -2) - jnp.expand_dims(safe_m, -1), 0.0
+          )
+      ),
+      0.0,
+  )
 
   # Compute `out[i] = sum_{j=1}^{i} exp(x_j - m_i)`.
   out = jnp.sum(x_shifted, where=mask.astype(bool), axis=-1)
 
   # Compute the log of the cumulative sum and correct for the cumulative
-  # maximum shift.
+  # maximum shift, preserving +/-inf semantics where `m` is non-finite.
   tiny = jnp.finfo(x.dtype).tiny
-  out = jnp.log(out + tiny) + m
+  out = jnp.log(out + tiny) + safe_m
+  out = jnp.where(
+      m == -jnp.inf, -jnp.inf, jnp.where(m == jnp.inf, jnp.inf, out)
+  )
 
   # Swap axes back and flip output if the cumulative sum needs to be in reverse.
   out = jnp.swapaxes(out, -1, axis)

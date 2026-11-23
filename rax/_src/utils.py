@@ -195,19 +195,27 @@ def logcumsumexp(
   x = jnp.swapaxes(x, axis, 0)
   where = jnp.swapaxes(where, axis, 0)
 
-  # Compute cumulative maximum.
-  m = jax.lax.cummax(x, axis=0)
+  # Compute cumulative maximum with `stop_gradient` so tied maxima do not skew
+  # reverse-mode gradients, and replace non-finite maxima with 0.0 to avoid
+  # `-inf - (-inf) = NaN` in AD and under `jax_debug_nans`.
+  m = jax.lax.stop_gradient(jax.lax.cummax(x, axis=0))
+  safe_m = jnp.where(jnp.isfinite(m), m, 0.0)
 
   # Compute `exp(x_i - m_i)` for each i.
-  x_shifted = jnp.exp(x - m)
-  x_shifted = jnp.where(where, x_shifted, 0.0)
+  x_shifted = jnp.where(where, jnp.exp(jnp.where(where, x - safe_m, 0.0)), 0.0)
 
   # Compute `exp(m_{i-1} - m_i)` for each i. This is used to perform an
-  # efficient version of the internal cumulative sumation (see below).
+  # efficient version of the internal cumulative summation (see below).
   # Note that `m_{i-1} <= m_i` for all i because m_i is a cumulative maximum, so
   # this is numerically safe.
-  m_diffs = jnp.exp(jnp.minimum(0.0, jnp.roll(m, 1, axis=0) - m))
-  m_diffs = jnp.where(where, m_diffs, 1.0)
+  prev_m = jnp.roll(m, 1, axis=0)
+  prev_valid = jnp.isfinite(prev_m) & jnp.isfinite(m)
+  safe_prev_m = jnp.where(prev_valid, prev_m, 0.0)
+  m_diffs = jnp.where(
+      prev_valid,
+      jnp.exp(jnp.minimum(0.0, safe_prev_m - safe_m)),
+      0.0,
+  )
 
   # We wish to compute the following output values (for each i):
   #
@@ -231,9 +239,12 @@ def logcumsumexp(
   out = jax.lax.scan(f, initial, (x_shifted, m_diffs))[1]
 
   # Compute the log of the cumulative sum and correct for the cumulative
-  # maximum shift.
+  # maximum shift, preserving +/-inf semantics where `m` is non-finite.
   tiny = jnp.finfo(x.dtype).tiny
-  out = jnp.log(out + tiny) + m
+  out = jnp.log(out + tiny) + safe_m
+  out = jnp.where(
+      m == -jnp.inf, -jnp.inf, jnp.where(m == jnp.inf, jnp.inf, out)
+  )
 
   # Swap axes back and flip output if the cumulative sum needs to be in reverse.
   out = jnp.swapaxes(out, 0, axis)
@@ -641,6 +652,7 @@ def wraps(
     docstr: str = "{doc}",
 ) -> Callable[[T], T]:
   """Like functools.wraps but allows custom naming and docstring."""
+
   def wrapper(fun: T) -> T:
     try:
       name = fun_name(wrapped)
@@ -655,4 +667,5 @@ def wraps(
     except Exception:  # pylint: disable=broad-exception-caught
       pass
     return fun
+
   return wrapper

@@ -22,7 +22,6 @@ from absl.testing import absltest
 import jax
 import jax.numpy as jnp
 import numpy as np
-
 import rax
 from rax._src import segment_utils
 
@@ -280,6 +279,87 @@ class SegmentLogcumsumexpTest(absltest.TestCase):
     np.testing.assert_array_equal(
         result, jnp.asarray([-4.0, -4.0, 5.0001235, 3.4e38, 10.0, 10.0, 1000.0])
     )
+
+  def test_computes_with_all_masked(self):
+    x = jnp.asarray([-4.0, 5.0, 2.3, 0.0])
+    segments = jnp.asarray([1, 1, 2, 2])
+    where = jnp.asarray([False, False, False, False])
+
+    result = segment_utils.segment_logcumsumexp(x, segments, where=where)
+
+    np.testing.assert_array_equal(
+        result, jnp.asarray([-jnp.inf, -jnp.inf, -jnp.inf, -jnp.inf])
+    )
+
+  def test_computes_gradients(self):
+    x = jnp.asarray([1.0, 2.0, 3.0, 4.0])
+    segments = jnp.asarray([1, 1, 2, 2])
+
+    grads = jax.grad(
+        lambda a: jnp.sum(segment_utils.segment_logcumsumexp(a, segments))
+    )(x)
+
+    e = jnp.exp(x)
+    expected = jnp.asarray([
+        1.0 + e[0] / jnp.sum(e[:2]),
+        e[1] / jnp.sum(e[:2]),
+        1.0 + e[2] / jnp.sum(e[2:]),
+        e[3] / jnp.sum(e[2:]),
+    ])
+    np.testing.assert_allclose(grads, expected, rtol=1e-5)
+
+  def test_computes_gradients_with_equal_values(self):
+    x = jnp.asarray([10.0, 10.0, 10.0])
+    segments = jnp.asarray([1, 1, 1])
+
+    grads = jax.grad(
+        lambda a: jnp.sum(segment_utils.segment_logcumsumexp(a, segments))
+    )(x)
+
+    expected = jnp.asarray([
+        1.0 + 1.0 / 2.0 + 1.0 / 3.0,
+        1.0 / 2.0 + 1.0 / 3.0,
+        1.0 / 3.0,
+    ])
+    np.testing.assert_allclose(grads, expected, rtol=1e-5)
+
+  def test_grad_does_not_return_nan_with_where_mask(self):
+    x = jnp.asarray([1.0, 2.0, 3.0, 4.0])
+    segments = jnp.asarray([1, 1, 2, 2])
+    where = jnp.asarray([False, True, True, False])
+
+    grads = jax.grad(
+        lambda a: jnp.sum(
+            segment_utils.segment_logcumsumexp(a, segments, where=where)
+        )
+    )(x)
+    grads_rev = jax.grad(
+        lambda a: jnp.sum(
+            segment_utils.segment_logcumsumexp(
+                a, segments, where=where, reverse=True
+            )
+        )
+    )(x)
+
+    np.testing.assert_array_equal(
+        jnp.isnan(grads), jnp.zeros_like(jnp.isnan(grads))
+    )
+    np.testing.assert_array_equal(
+        jnp.isnan(grads_rev), jnp.zeros_like(jnp.isnan(grads_rev))
+    )
+
+  def test_grad_does_not_return_nan_with_all_masked(self):
+    x = jnp.asarray([1.0, 2.0, 3.0])
+    segments = jnp.asarray([1, 1, 2])
+    where = jnp.asarray([False, False, False])
+
+    grads = jax.grad(
+        lambda a: jnp.sum(
+            segment_utils.segment_logcumsumexp(a, segments, where=where)
+        )
+    )(x)
+
+    np.testing.assert_array_equal(grads, jnp.asarray([0.0, 0.0, 0.0]))
 
 
 def load_tests(loader, tests, ignore):
